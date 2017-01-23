@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 )
 
@@ -43,13 +44,18 @@ type ResponseEmitter interface {
 }
 
 // NewResponeEmitter returns a new ResponseEmitter.
-// Later there will be ResponseEmitters for the some concrete types of w.
 func NewResponseEmitter(w io.WriteCloser, encType EncodingType) ResponseEmitter {
-	return &responseEmitter{
+	re := &responseEmitter{
 		w:       w,
 		encType: encType,
 		enc:     encoders[encType](w),
 	}
+
+	if _, ok := w.(http.ResponseWriter); ok {
+		return &httpResponseEmitter{re}
+	}
+
+	return re
 }
 
 type responseEmitter struct {
@@ -88,9 +94,9 @@ func (re *responseEmitter) Emit(value interface{}) error {
 	var err error
 
 	// Special case: if text encoding and an error, just print it out.
-	// review question: its like that in response.go, should we keep that? TODO FIXME XXX !!!
+	// TODO review question: its like that in response.go, should we keep that?
 	if re.encType == Text && re.err != nil {
-		value = r.err
+		value = re.err
 	}
 
 	switch v := value.(type) {
@@ -101,4 +107,14 @@ func (re *responseEmitter) Emit(value interface{}) error {
 	}
 
 	return err
+}
+
+// httpResponseEmitter is a ResponseEmitter specific to HTTP connections. Exposes flushing.
+type httpResponseEmitter struct {
+	ResponseEmitter
+}
+
+func (re *httpResponseEmitter) Flush() {
+	// TODO review question: this is guaranteed to work but we'll panic if it doesn't. should I wrap that?
+	re.ResponseEmitter.(*responseEmitter).w.(http.Flusher).Flush()
 }
