@@ -1,9 +1,30 @@
 package commands
 
-import "testing"
+import (
+	"bytes"
+	"io"
+	"testing"
+)
+
+type dummyCloser struct{}
+
+func (c dummyCloser) Close() error {
+	return nil
+}
+
+func newBufferResponseEmitter() ResponseEmitter {
+	buf := bytes.NewBuffer(nil)
+	wc := writecloser{Writer: buf}
+	return NewResponseEmitter(wc, Text)
+}
 
 func noop(req Request, res Response) {
 	return
+}
+
+type writecloser struct {
+	io.Writer
+	io.Closer
 }
 
 func TestOptionValidation(t *testing.T) {
@@ -17,65 +38,73 @@ func TestOptionValidation(t *testing.T) {
 
 	opts, _ := cmd.GetOptions(nil)
 
+	re := newBufferResponseEmitter()
 	req, _ := NewRequest(nil, nil, nil, nil, nil, opts)
 	req.SetOption("beep", true)
-	res := cmd.Call(req)
-	if res.Error() == nil {
+	err := cmd.Call(req, re)
+	if err == nil {
 		t.Error("Should have failed (incorrect type)")
 	}
 
+	re = newBufferResponseEmitter()
 	req, _ = NewRequest(nil, nil, nil, nil, nil, opts)
 	req.SetOption("beep", 5)
-	res = cmd.Call(req)
-	if res.Error() != nil {
-		t.Error(res.Error(), "Should have passed")
+	err = cmd.Call(req, re)
+	if err != nil {
+		t.Error(err, "Should have passed")
 	}
 
+	re = newBufferResponseEmitter()
 	req, _ = NewRequest(nil, nil, nil, nil, nil, opts)
 	req.SetOption("beep", 5)
 	req.SetOption("boop", "test")
-	res = cmd.Call(req)
-	if res.Error() != nil {
+	err = cmd.Call(req, re)
+	if err != nil {
 		t.Error("Should have passed")
 	}
 
+	re = newBufferResponseEmitter()
 	req, _ = NewRequest(nil, nil, nil, nil, nil, opts)
 	req.SetOption("b", 5)
 	req.SetOption("B", "test")
-	res = cmd.Call(req)
-	if res.Error() != nil {
+	err = cmd.Call(req, re)
+	if err != nil {
 		t.Error("Should have passed")
 	}
 
+	re = newBufferResponseEmitter()
 	req, _ = NewRequest(nil, nil, nil, nil, nil, opts)
 	req.SetOption("foo", 5)
-	res = cmd.Call(req)
-	if res.Error() != nil {
+	err = cmd.Call(req, re)
+	if err != nil {
 		t.Error("Should have passed")
 	}
 
+	re = newBufferResponseEmitter()
 	req, _ = NewRequest(nil, nil, nil, nil, nil, opts)
 	req.SetOption(EncShort, "json")
-	res = cmd.Call(req)
-	if res.Error() != nil {
+	err = cmd.Call(req, re)
+	if err != nil {
 		t.Error("Should have passed")
 	}
 
+	re = newBufferResponseEmitter()
 	req, _ = NewRequest(nil, nil, nil, nil, nil, opts)
 	req.SetOption("b", "100")
-	res = cmd.Call(req)
-	if res.Error() != nil {
+	err = cmd.Call(req, re)
+	if err != nil {
 		t.Error("Should have passed")
 	}
 
+	re = newBufferResponseEmitter()
 	req, _ = NewRequest(nil, nil, nil, nil, &cmd, opts)
 	req.SetOption("b", ":)")
-	res = cmd.Call(req)
-	if res.Error() == nil {
+	err = cmd.Call(req, re)
+	if err == nil {
 		t.Error("Should have failed (string value not convertible to int)")
 	}
 
-	err := req.SetOptions(map[string]interface{}{
+	err = req.SetOptions(map[string]interface{}{
 		"b": 100,
 	})
 	if err != nil {
