@@ -23,6 +23,7 @@ var log = logging.Logger("command")
 // Function is the type of function that Commands use.
 // It reads from the Request, and writes results to the Response.
 type Function func(Request, Response)
+type EmitterFunction func(Request, ResponseEmitter)
 
 // Marshaler is a function that takes in a Response, and returns an io.Reader
 // (or an error on failure)
@@ -60,8 +61,8 @@ type Command struct {
 	// Note that when executing the command over the HTTP API you can only read
 	// after writing when using multipart requests. The request body will not be
 	// available for reading after the HTTP connection has been written to.
-	Run        Function
-	PostRun    Function
+	Run        interface{}
+	PostRun    interface{}
 	Marshalers map[EncodingType]Marshaler
 	Helptext   HelpText
 
@@ -86,71 +87,77 @@ var ErrNoFormatter = ClientError("This command cannot be formatted to plain text
 var ErrIncorrectType = errors.New("The command returned a value with a different type than expected")
 
 // Call invokes the command for the given Request
-func (c *Command) Call(req Request) Response {
-	res := NewResponse(req)
-
+func (c *Command) Call(req Request, re ResponseEmitter) error {
 	cmds, err := c.Resolve(req.Path())
 	if err != nil {
-		res.SetError(err, ErrClient)
-		return res
+		return err
 	}
 	cmd := cmds[len(cmds)-1]
 
 	if cmd.Run == nil {
-		res.SetError(ErrNotCallable, ErrClient)
-		return res
+		return err
 	}
 
 	err = cmd.CheckArguments(req)
 	if err != nil {
-		res.SetError(err, ErrClient)
-		return res
+		return err
 	}
 
 	err = req.ConvertOptions()
 	if err != nil {
-		res.SetError(err, ErrClient)
-		return res
+		return err
 	}
 
-	cmd.Run(req, res)
-	if res.Error() != nil {
-		return res
-	}
-
-	output := res.Output()
-	isChan := false
-	actualType := reflect.TypeOf(output)
-	if actualType != nil {
-		if actualType.Kind() == reflect.Ptr {
-			actualType = actualType.Elem()
+	switch run := cmd.Run.(type) {
+	case func(Request, ResponseEmitter) error:
+		err := run(req, re)
+		if err != nil {
+			return err
 		}
 
-		// test if output is a channel
-		isChan = actualType.Kind() == reflect.Chan
-	}
-
-	if isChan {
-		if ch, ok := output.(<-chan interface{}); ok {
-			output = ch
-
-		} else if ch, ok := output.(chan interface{}); ok {
-			output = (<-chan interface{})(ch)
+	// legacy:
+	case Function:
+		res := NewResponse(req)
+		run(req, res)
+		if res.Error() != nil {
+			return res.Error()
 		}
-	}
 
-	// If the command specified an output type, ensure the actual value
-	// returned is of that type
-	if cmd.Type != nil && !isChan {
-		expectedType := reflect.TypeOf(cmd.Type)
+		output := res.Output()
+		isChan := false
+		actualType := reflect.TypeOf(output)
+		if actualType != nil {
+			if actualType.Kind() == reflect.Ptr {
+				actualType = actualType.Elem()
+			}
 
-		if actualType != expectedType {
-			res.SetError(ErrIncorrectType, ErrNormal)
-			return res
+			// test if output is a channel
+			isChan = actualType.Kind() == reflect.Chan
 		}
+
+		if isChan {
+			if ch, ok := output.(<-chan interface{}); ok {
+				output = ch
+
+			} else if ch, ok := output.(chan interface{}); ok {
+				output = (<-chan interface{})(ch)
+			}
+		}
+
+		// If the command specified an output type, ensure the actual value
+		// returned is of that type
+		if cmd.Type != nil && !isChan {
+			expectedType := reflect.TypeOf(cmd.Type)
+
+			if actualType != expectedType {
+				res.SetError(ErrIncorrectType, ErrNormal)
+				return ErrIncorrectType
+			}
+		}
+
 	}
 
-	return res
+	return nil
 }
 
 // Resolve returns the subcommands at the given path
