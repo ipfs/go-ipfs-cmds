@@ -45,6 +45,12 @@ type ResponseEmitter interface {
 // NewResponeEmitter returns a new ResponseEmitter.
 // You should use "commands/http".ResponseEmitter for HTTP connections
 func NewResponseEmitter(w io.WriteCloser, encType EncodingType) ResponseEmitter {
+	//XXX possible change in behaviour, just temp
+	enc, ok := Encoders[encType]
+	if !ok {
+		enc = Encoders[JSON]
+	}
+
 	re := &responseEmitter{
 		w:       w,
 		encType: encType,
