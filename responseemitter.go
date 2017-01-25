@@ -5,7 +5,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 )
 
@@ -14,7 +13,7 @@ type Encoder interface {
 	Encode(value interface{}) error
 }
 
-var encoders = map[EncodingType]func(w io.Writer) Encoder{
+var Encoders = map[EncodingType]func(w io.Writer) Encoder{
 	XML: func(w io.Writer) Encoder {
 		return xml.NewEncoder(w)
 	},
@@ -44,15 +43,12 @@ type ResponseEmitter interface {
 }
 
 // NewResponeEmitter returns a new ResponseEmitter.
+// You should use "commands/http".ResponseEmitter for HTTP connections
 func NewResponseEmitter(w io.WriteCloser, encType EncodingType) ResponseEmitter {
 	re := &responseEmitter{
 		w:       w,
 		encType: encType,
-		enc:     encoders[encType](w),
-	}
-
-	if _, ok := w.(http.ResponseWriter); ok {
-		return &httpResponseEmitter{re}
+		enc:     enc(w),
 	}
 
 	return re
@@ -107,14 +103,4 @@ func (re *responseEmitter) Emit(value interface{}) error {
 	}
 
 	return err
-}
-
-// httpResponseEmitter is a ResponseEmitter specific to HTTP connections. Exposes flushing.
-type httpResponseEmitter struct {
-	ResponseEmitter
-}
-
-func (re *httpResponseEmitter) Flush() {
-	// TODO review question: this is guaranteed to work but we'll panic if it doesn't. should I wrap that?
-	re.ResponseEmitter.(*responseEmitter).w.(http.Flusher).Flush()
 }

@@ -3,11 +3,9 @@ package http
 import (
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"runtime/debug"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -64,7 +62,7 @@ const (
 	ACACredentials = "Access-Control-Allow-Credentials"
 )
 
-var mimeTypes = map[string]string{
+var mimeTypes = map[cmds.EncodingType]string{
 	cmds.Protobuf: "application/protobuf",
 	cmds.JSON:     "application/json",
 	cmds.XML:      "application/xml",
@@ -182,148 +180,27 @@ func (i internalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// call the command
-	res := i.root.Call(req)
+	// XXX changed order of the next two blocks.
+	// XXX might change behaviour!
 
 	// set user's headers first.
 	for k, v := range i.cfg.Headers {
 		if !skipAPIHeader(k) {
+			fmt.Println("xxx set header", k, v)
 			w.Header()[k] = v
 		}
 	}
 
-	// now handle responding to the client properly
-	sendResponse(w, r, res, req)
-}
+	enc := cmds.EncodingType(req.Options()[cmds.EncShort].(string))
+	re := NewResponseEmitter(w, enc, r.Method)
 
-func guessMimeType(res cmds.Response) (string, error) {
-	// Try to guess mimeType from the encoding option
-	enc, found, err := res.Request().Option(cmds.EncShort).String()
-	if err != nil {
-		return "", err
-	}
-	if !found {
-		return "", errors.New("no encoding option set")
-	}
-
-	if m, ok := mimeTypes[enc]; ok {
-		return m, nil
-	}
-
-	return mimeTypes[cmds.JSON], nil
-}
-
-func sendResponse(w http.ResponseWriter, r *http.Request, res cmds.Response, req cmds.Request) {
-	h := w.Header()
-	// Expose our agent to allow identification
-	h.Set("Server", "go-ipfs/"+config.CurrentVersionNumber)
-
-	mime, err := guessMimeType(res)
+	// call the command
+	err = i.root.Call(req, re)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
 	}
 
-	status := http.StatusOK
-	// if response contains an error, write an HTTP error status code
-	if e := res.Error(); e != nil {
-		if e.Code == cmds.ErrClient {
-			status = http.StatusBadRequest
-		} else {
-			status = http.StatusInternalServerError
-		}
-		// NOTE: The error will actually be written out by the reader below
-	}
-
-	out, err := res.Reader()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Set up our potential trailer
-	h.Set("Trailer", StreamErrHeader)
-
-	if res.Length() > 0 {
-		h.Set("X-Content-Length", strconv.FormatUint(res.Length(), 10))
-	}
-
-	if _, ok := res.Output().(io.Reader); ok {
-		// set streams output type to text to avoid issues with browsers rendering
-		// html pages on priveleged api ports
-		mime = "text/plain"
-		h.Set(streamHeader, "1")
-	}
-
-	// if output is a channel and user requested streaming channels,
-	// use chunk copier for the output
-	_, isChan := res.Output().(chan interface{})
-	if !isChan {
-		_, isChan = res.Output().(<-chan interface{})
-	}
-
-	if isChan {
-		h.Set(channelHeader, "1")
-	}
-
-	// catch-all, set to text as default
-	if mime == "" {
-		mime = "text/plain"
-	}
-
-	h.Set(contentTypeHeader, mime)
-
-	// set 'allowed' headers
-	h.Set("Access-Control-Allow-Headers", AllowedExposedHeaders)
-	// expose those headers
-	h.Set("Access-Control-Expose-Headers", AllowedExposedHeaders)
-
-	if r.Method == "HEAD" { // after all the headers.
-		return
-	}
-
-	w.WriteHeader(status)
-	err = flushCopy(w, out)
-	if err != nil {
-		log.Error("err: ", err)
-		w.Header().Set(StreamErrHeader, sanitizedErrStr(err))
-	}
-}
-
-func flushCopy(w io.Writer, r io.Reader) error {
-	buf := make([]byte, 4096)
-	f, ok := w.(http.Flusher)
-	if !ok {
-		_, err := io.Copy(w, r)
-		return err
-	}
-	for {
-		n, err := r.Read(buf)
-		switch err {
-		case io.EOF:
-			if n <= 0 {
-				return nil
-			}
-			// if data was returned alongside the EOF, pretend we didnt
-			// get an EOF. The next read call should also EOF.
-		case nil:
-			// continue
-		default:
-			return err
-		}
-
-		nw, err := w.Write(buf[:n])
-		if err != nil {
-			return err
-		}
-
-		if nw != n {
-			return fmt.Errorf("http write failed to write full amount: %d != %d", nw, n)
-		}
-
-		f.Flush()
-	}
-	return nil
+	return
 }
 
 func sanitizedErrStr(err error) string {
