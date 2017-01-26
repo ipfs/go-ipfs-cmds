@@ -42,13 +42,18 @@ func (re *ResponseEmitter) Emit(value interface{}) error {
 
 	if !re.hasEmitted {
 		re.hasEmitted = true
-		err = re.preemble(value)
+		err = re.preamble(value)
 
 		if err == HeadRequest {
 			re.headRequest = true
 		} else if err != nil {
 			return err
 		}
+	}
+
+	// ignore those
+	if value == nil {
+		return nil
 	}
 
 	// return immediately if this is a head request
@@ -110,16 +115,12 @@ func (re *ResponseEmitter) Flush() {
 	re.w.(http.Flusher).Flush()
 }
 
-func (re *ResponseEmitter) preemble(value interface{}) error {
+func (re *ResponseEmitter) preamble(value interface{}) error {
 	h := re.w.Header()
 	// Expose our agent to allow identification
 	h.Set("Server", "go-ipfs/"+config.CurrentVersionNumber)
 
-	mime, err := guessMimeType(re.encType)
-	if err != nil {
-		http.Error(re.w, err.Error(), http.StatusInternalServerError)
-		return err
-	}
+	mime := guessMimeType(re.encType)
 
 	status := http.StatusOK
 	// if response contains an error, write an HTTP error status code
@@ -187,11 +188,11 @@ func (re *ResponseEmitter) preemble(value interface{}) error {
 	return nil
 }
 
-func guessMimeType(enc cmds.EncodingType) (string, error) {
+func guessMimeType(enc cmds.EncodingType) string {
 	// Try to guess mimeType from the encoding option
 	if m, ok := mimeTypes[enc]; ok {
-		return m, nil
+		return m
 	}
 
-	return mimeTypes[cmds.JSON], nil
+	return mimeTypes[cmds.JSON]
 }
