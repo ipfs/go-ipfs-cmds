@@ -109,6 +109,8 @@ func (c *Command) Call(req Request, re ResponseEmitter) error {
 	}
 
 	switch run := cmd.Run.(type) {
+	default:
+		panic(fmt.Sprintf("unexpected type: %T", run))
 	case func(Request, ResponseEmitter) error:
 		err := run(req, re)
 		if err != nil {
@@ -116,9 +118,23 @@ func (c *Command) Call(req Request, re ResponseEmitter) error {
 		}
 
 	// legacy:
-	case Function:
+	case Function, func(Request, Response):
+		var (
+			r  Function
+			ok bool
+		)
+
+		// make sure we have a concrete type
+		if r, ok = run.(Function); !ok {
+			r = Function(run.(func(Request, Response)))
+		}
+
+		// force preamble
+		re.Emit(nil)
+
+		// do what we always did before
 		res := NewResponse(req)
-		run(req, res)
+		r(req, res)
 		if res.Error() != nil {
 			return res.Error()
 		}
