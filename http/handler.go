@@ -186,7 +186,6 @@ func (i internalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// set user's headers first.
 	for k, v := range i.cfg.Headers {
 		if !skipAPIHeader(k) {
-			fmt.Println("xxx set header", k, v)
 			w.Header()[k] = v
 		}
 	}

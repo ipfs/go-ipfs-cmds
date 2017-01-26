@@ -141,7 +141,6 @@ func (re *ResponseEmitter) preemble(value interface{}) error {
 	// Set up our potential trailer
 	h.Set("Trailer", StreamErrHeader)
 
-	fmt.Println("re.Length", re.Length())
 	if re.Length() > 0 {
 		h.Set("X-Content-Length", strconv.FormatUint(re.Length(), 10))
 	}
