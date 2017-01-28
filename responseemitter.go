@@ -64,7 +64,7 @@ type responseEmitter struct {
 	w       io.WriteCloser
 	enc     Encoder
 	encType EncodingType
-	err     error
+	err     *Error
 }
 
 func (re *responseEmitter) Close() error {
@@ -109,4 +109,66 @@ func (re *responseEmitter) Emit(value interface{}) error {
 	}
 
 	return err
+}
+
+func NewChanResponseEmitter(ch chan<- interface{}) ResponseEmitter {
+	return &chanResponseEmitter{
+		responseEmitter: responseEmitter{},
+		ch:              ch,
+	}
+}
+
+type chanResponseEmitter struct {
+	responseEmitter
+
+	ch chan<- interface{}
+}
+
+func (re *chanResponseEmitter) Emit(v interface{}) error {
+	re.ch <- v
+	return nil
+}
+
+func (re *chanResponseEmitter) Close() error {
+	close(re.ch)
+	return nil
+}
+
+func NewTeeEmitter(re1, re2 ResponseEmitter) ResponseEmitter {
+	return &teeEmitter{re1, re2}
+}
+
+type teeEmitter struct {
+	ResponseEmitter
+
+	re ResponseEmitter
+}
+
+func (re *teeEmitter) Close() error {
+	err1 := re.ResponseEmitter.Close()
+	err2 := re.re.Close()
+
+	if err1 != nil {
+		return err1
+	}
+
+	// XXX we drop the second error if both fail
+	return err2
+}
+
+func (re *teeEmitter) Emit(v interface{}) error {
+	err1 := re.ResponseEmitter.Emit(v)
+	err2 := re.re.Emit(v)
+
+	if err1 != nil {
+		return err1
+	}
+
+	// XXX we drop the second error if both fail
+	return err2
+}
+
+func (re *teeEmitter) SetError(err interface{}, code ErrorType) {
+	re.ResponseEmitter.SetError(err, code)
+	re.re.SetError(err, code)
 }

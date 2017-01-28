@@ -196,3 +196,53 @@ func guessMimeType(enc cmds.EncodingType) string {
 
 	return mimeTypes[cmds.JSON]
 }
+
+// NewTeeEmitter returns a ResponseEmitter that can Flush. It will forward that flush to re1 and, if it can flush, re2.
+func NewTeeEmitter(re1 *ResponseEmitter, re2 cmds.ResponseEmitter) *ResponseEmitter {
+	return *teeEmitter{
+		re1, re2,
+	}
+}
+
+type teeEmitter struct {
+	*ResponseEmitter
+
+	re cmds.ResponseEmitter
+}
+
+func (re *teeEmitter) Close() error {
+	err1 := re.ResponseEmitter.Close()
+	err2 := re.re.Close()
+
+	if err1 != nil {
+		return err1
+	}
+
+	// XXX we drop the second error if both fail
+	return err2
+}
+
+func (re *teeEmitter) Emit(v interface{}) error {
+	err1 := re.ResponseEmitter.Emit()
+	err2 := re.re.Emit()
+
+	if err1 != nil {
+		return err1
+	}
+
+	// XXX we drop the second error if both fail
+	return err2
+}
+
+func (re *teeEmitter) SetError(err interface{}, code cmds.ErrorType) {
+	re.ResponseEmitter.SetError(err, code)
+	re.re.SetError(err, code)
+}
+
+func (re *teeEmitter) Flush() {
+	re.ResponseEmitter.Flush()
+
+	if hre, ok := re.re.(*ResponseEmitter); ok {
+		hre.Flush()
+	}
+}
