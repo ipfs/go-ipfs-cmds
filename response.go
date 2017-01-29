@@ -1,219 +1,101 @@
 package cmds
 
 import (
-	"bytes"
-	"encoding/json"
-	"encoding/xml"
-	"fmt"
 	"io"
 	"os"
-	"strings"
 
+	oldcmds "github.com/ipfs/go-ipfs/commands"
 )
 
-func marshalJson(value interface{}) (io.Reader, error) {
-	b, err := json.Marshal(value)
-	if err != nil {
-		return nil, err
-	}
-	b = append(b, '\n')
-	return bytes.NewReader(b), nil
-}
-
-var marshallers = map[EncodingType]Marshaler{
-	JSON: func(res Response) (io.Reader, error) {
-		ch, ok := res.Output().(<-chan interface{})
-		if ok {
-			return &ChannelMarshaler{
-				Channel:   ch,
-				Marshaler: marshalJson,
-				Res:       res,
-			}, nil
-		}
-
-		var value interface{}
-		if res.Error() != nil {
-			value = res.Error()
-		} else {
-			value = res.Output()
-		}
-		return marshalJson(value)
-	},
-	XML: func(res Response) (io.Reader, error) {
-		var value interface{}
-		if res.Error() != nil {
-			value = res.Error()
-		} else {
-			value = res.Output()
-		}
-
-		b, err := xml.Marshal(value)
-		if err != nil {
-			return nil, err
-		}
-		return bytes.NewReader(b), nil
-	},
-}
-
-// Response is the result of a command request. Handlers write to the response,
-// setting Error or Value. Response is returned to the client.
+// Response is the result of a command request. Response is returned to the client.
 type Response interface {
-	Request() Request
+	// TODO should be drop that?
+	Request() *Request
 
-	// Set/Return the response Error
-	SetError(err error, code ErrorType)
 	Error() *Error
-
-	// Sets/Returns the response value
-	SetOutput(interface{})
-	Output() interface{}
-
-	// Sets/Returns the length of the output
-	SetLength(uint64)
 	Length() uint64
 
-	// underlying http connections need to be cleaned up, this is for that
-	Close() error
-	SetCloser(io.Closer)
-
-	// Marshal marshals out the response into a buffer. It uses the EncodingType
-	// on the Request to chose a Marshaler (Codec).
-	Marshal() (io.Reader, error)
-
-	// Gets a io.Reader that reads the marshalled output
-	Reader() (io.Reader, error)
-
-	// Gets Stdout and Stderr, for writing to console without using SetOutput
-	Stdout() io.Writer
-	Stderr() io.Writer
+	Next() (interface{}, error)
 }
 
-type response struct {
-	req    Request
-	err    *Error
-	value  interface{}
-	out    io.Reader
-	length uint64
-	stdout io.Writer
-	stderr io.Writer
-	closer io.Closer
+type fakeResponse struct {
+	re  ResponseEmitter
+	out interface{}
 }
 
-func (r *response) Request() Request {
-	return r.req
-}
-
-func (r *response) Output() interface{} {
-	return r.value
-}
-
-func (r *response) SetOutput(v interface{}) {
-	r.value = v
-}
-
-func (r *response) Length() uint64 {
-	return r.length
-}
-
-func (r *response) SetLength(l uint64) {
-	r.length = l
-}
-
-func (r *response) Error() *Error {
-	return r.err
-}
-
-func (r *response) SetError(err error, code ErrorType) {
-	r.err = &Error{Message: err.Error(), Code: code}
-}
-
-func (r *response) Marshal() (io.Reader, error) {
-	if r.err == nil && r.value == nil {
-		return bytes.NewReader([]byte{}), nil
-	}
-
-	enc, found, err := r.req.Option(EncShort).String()
-	if err != nil {
-		return nil, err
-	}
-	if !found {
-		return nil, fmt.Errorf("No encoding type was specified")
-	}
-	encType := EncodingType(strings.ToLower(enc))
-
-	// Special case: if text encoding and an error, just print it out.
-	if encType == Text && r.Error() != nil {
-		return strings.NewReader(r.Error().Error()), nil
-	}
-
-	var marshaller Marshaler
-	if r.req.Command() != nil && r.req.Command().Marshalers != nil {
-		marshaller = r.req.Command().Marshalers[encType]
-	}
-	if marshaller == nil {
-		var ok bool
-		marshaller, ok = marshallers[encType]
-		if !ok {
-			return nil, fmt.Errorf("No marshaller found for encoding type '%s'", enc)
-		}
-	}
-
-	output, err := marshaller(r)
-	if err != nil {
-		return nil, err
-	}
-	if output == nil {
-		return bytes.NewReader([]byte{}), nil
-	}
-	return output, nil
-}
-
-// Reader returns an `io.Reader` representing marshalled output of this Response
-// Note that multiple calls to this will return a reference to the same io.Reader
-func (r *response) Reader() (io.Reader, error) {
-	if r.out == nil {
-		if out, ok := r.value.(io.Reader); ok {
-			// if command returned a io.Reader, use that as our reader
-			r.out = out
-
-		} else {
-			// otherwise, use the response marshaler output
-			marshalled, err := r.Marshal()
-			if err != nil {
-				return nil, err
-			}
-
-			r.out = marshalled
-		}
-	}
-
-	return r.out, nil
-}
-
-func (r *response) Close() error {
-	if r.closer != nil {
-		return r.closer.Close()
-	}
+func (r *fakeResponse) Request() Request {
 	return nil
 }
 
-func (r *response) SetCloser(c io.Closer) {
-	r.closer = c
+func (r *fakeResponse) SetError(err error, code ErrorType) {
+	r.re.SetError(err, code)
 }
 
-func (r *response) Stdout() io.Writer {
-	return r.stdout
+func (r *fakeResponse) Error() *Error {
+	return nil
 }
 
-func (r *response) Stderr() io.Writer {
-	return r.stderr
+func (r *fakeResponse) SetOutput(v interface{}) {
+	r.out = v
 }
 
-// NewResponse returns a response to match given Request
-func NewResponse(req Request) Response {
-	return &response{
-		req:    req,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-	}
+func (r *fakeResponse) Output() interface{} {
+	return r.out
+}
+
+func (r *fakeResponse) SetLength(l uint64) {
+	r.re.SetLength(l)
+}
+
+func (r *fakeResponse) Length() uint64 {
+	return 0
+}
+
+func (r *fakeResponse) Close() error {
+	return r.re.Close()
+}
+
+func (r *fakeResponse) SetCloser(io.Closer) {}
+
+func (r *fakeResponse) Reader() (io.Reader, error) {
+	return nil, nil
+}
+
+func (r *fakeResponse) Marshal() (io.Reader, error) {
+	return nil, nil
+}
+
+func (r *fakeResponse) Stdout() io.Writer {
+	return os.Stdout
+}
+
+func (r *fakeResponse) Stderr() io.Writer {
+	return os.Stderr
+}
+
+///
+
+// FakeOldResponse returns a Response compatible to the old packet
+func FakeOldResponse(re ResponseEmitter) oldcmds.Response {
+	return &fakeOldResponse{re: re}
+}
+
+type fakeOldResponse struct {
+	fakeResponse
+}
+
+func (r *fakeOldResponse) Request() oldcmds.Request {
+	return nil
+}
+
+func (r *fakeOldResponse) SetError(err error, code oldcmds.ErrorType) {
+	r.re.SetError(err, ErrorType(code))
+}
+
+func (r *fakeOldResponse) Error() *oldcmds.Error {
+	return nil
+}
+
+func FakeOldResponse(re ResponseEmitter) Response {
+	return &fakeResponse{re: re}
 }
