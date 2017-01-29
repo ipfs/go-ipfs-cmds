@@ -27,14 +27,16 @@ func NewResponseEmitter(w http.ResponseWriter, encType cmds.EncodingType, method
 }
 
 type ResponseEmitter struct {
-	w           http.ResponseWriter
-	enc         cmds.Encoder
-	encType     cmds.EncodingType
-	method      string
-	err         error
-	hasEmitted  bool
-	headRequest bool
-	length      uint64
+	w http.ResponseWriter
+
+	enc     cmds.Encoder
+	encType cmds.EncodingType
+
+	length uint64
+	err    *Error
+
+	hasEmitted bool
+	method     string
 }
 
 func (re *ResponseEmitter) Emit(value interface{}) error {
@@ -42,13 +44,7 @@ func (re *ResponseEmitter) Emit(value interface{}) error {
 
 	if !re.hasEmitted {
 		re.hasEmitted = true
-		err = re.preamble(value)
-
-		if err == HeadRequest {
-			re.headRequest = true
-		} else if err != nil {
-			return err
-		}
+		re.preamble(value)
 	}
 
 	// ignore those
@@ -57,7 +53,7 @@ func (re *ResponseEmitter) Emit(value interface{}) error {
 	}
 
 	// return immediately if this is a head request
-	if re.headRequest {
+	if re.method == "HEAD" {
 		return nil
 	}
 
@@ -81,46 +77,33 @@ func (re *ResponseEmitter) SetLength(l uint64) {
 	re.length = l
 }
 
-func (re *ResponseEmitter) Length() uint64 {
-	return re.length
-}
-
 func (re *ResponseEmitter) Close() error {
 	// can't close HTTP connections
 	return nil
 }
 
 func (re *ResponseEmitter) SetError(err interface{}, code cmds.ErrorType) {
-	var str string
+	re.err = &cmds.Error{Message: fmt.Sprint(err), Code: code}
 
-	if err_, ok := err.(error); ok {
-		str = err_.Error()
-	} else {
-		str = fmt.Sprintf("%v", err)
+	// force send of preamble
+	// TODO is this the right thing to do?
+	re.Emit(nil)
+}
+
+// Flush the http connection
+func (re *ResponseEmitter) Flush() {
+	if !re.hasEmitted {
+		re.hasEmitted = true
+		re.preamble(value)
 	}
 
-	re.err = &cmds.Error{Message: str, Code: code}
-	re.Emit(re.err)
-}
-
-func (re *ResponseEmitter) Stdout() io.Writer {
-	return os.Stdout
-}
-
-func (re *ResponseEmitter) Stderr() io.Writer {
-	return os.Stderr
-}
-
-func (re *ResponseEmitter) Flush() {
 	re.w.(http.Flusher).Flush()
 }
 
-func (re *ResponseEmitter) preamble(value interface{}) error {
+func (re *ResponseEmitter) preamble(value interface{}) {
 	h := re.w.Header()
 	// Expose our agent to allow identification
 	h.Set("Server", "go-ipfs/"+config.CurrentVersionNumber)
-
-	mime := guessMimeType(re.encType)
 
 	status := http.StatusOK
 	// if response contains an error, write an HTTP error status code
@@ -130,14 +113,17 @@ func (re *ResponseEmitter) preamble(value interface{}) error {
 		} else {
 			status = http.StatusInternalServerError
 		}
-		// NOTE: The error will actually be written out by the reader below
+		// NOTE: The error will actually be written out below
 	}
 
-	//	out, err := res.Reader()
-	//	if err != nil {
-	//		http.Error(w, err.Error(), http.StatusInternalServerError)
-	//		return
-	//	}
+	// write error to connection
+	if re.err != nil {
+		if re.err.Code == ErrClient {
+			http.Error(re.w, err.Error(), http.StatusInternalServerError)
+		}
+
+		return
+	}
 
 	// Set up our potential trailer
 	h.Set("Trailer", StreamErrHeader)
@@ -146,26 +132,16 @@ func (re *ResponseEmitter) preamble(value interface{}) error {
 		h.Set("X-Content-Length", strconv.FormatUint(re.Length(), 10))
 	}
 
-	// TODO see if this is really the right thing to check. Maybe re.Length() == 0?
 	if _, ok := value.(io.Reader); ok {
 		// set streams output type to text to avoid issues with browsers rendering
 		// html pages on priveleged api ports
-		mime = "text/plain"
 		h.Set(streamHeader, "1")
-	}
-
-	/* TODO can't check for that...generally find out how to check which encoding to use. We don't really have channel vs reader here.
-	// if output is a channel and user requested streaming channels,
-	// use chunk copier for the output
-	_, isChan := res.Output().(chan interface{})
-	if !isChan {
-		_, isChan = res.Output().(<-chan interface{})
-	}
-
-	if isChan {
+	} else {
 		h.Set(channelHeader, "1")
 	}
-	*/
+
+	// lookup mime type from map
+	mime := mimeTypes[re.encType]
 
 	// catch-all, set to text as default
 	if mime == "" {
@@ -179,22 +155,7 @@ func (re *ResponseEmitter) preamble(value interface{}) error {
 	// expose those headers
 	h.Set("Access-Control-Expose-Headers", AllowedExposedHeaders)
 
-	if re.method == "HEAD" { // after all the headers.
-		return HeadRequest
-	}
-
 	re.w.WriteHeader(status)
-
-	return nil
-}
-
-func guessMimeType(enc cmds.EncodingType) string {
-	// Try to guess mimeType from the encoding option
-	if m, ok := mimeTypes[enc]; ok {
-		return m
-	}
-
-	return mimeTypes[cmds.JSON]
 }
 
 // NewTeeEmitter returns a ResponseEmitter that can Flush. It will forward that flush to re1 and, if it can flush, re2.
