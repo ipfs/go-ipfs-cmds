@@ -15,7 +15,7 @@ func (c dummyCloser) Close() error {
 func newBufferResponseEmitter() ResponseEmitter {
 	buf := bytes.NewBuffer(nil)
 	wc := writecloser{Writer: buf}
-	return NewResponseEmitter(wc, Text)
+	return NewWriterResponseEmitter(wc, Text)
 }
 
 func noop(req Request, res Response) {
