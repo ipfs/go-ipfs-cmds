@@ -6,7 +6,7 @@ package also supports a collection of marshallers for presenting
 output to the user, including text, JSON, and XML marshallers.
 */
 
-package commands
+package cmds
 
 import (
 	"errors"

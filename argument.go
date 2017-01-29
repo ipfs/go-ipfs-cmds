@@ -1,4 +1,4 @@
-package commands
+package cmds
 
 type ArgumentType int
 
