@@ -11,9 +11,9 @@ package cmds
 import (
 	"errors"
 	"fmt"
-	"io"
 	"reflect"
 
+	oldcmds "github.com/ipfs/go-ipfs/commands"
 	"github.com/ipfs/go-ipfs/path"
 	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
 )
@@ -21,17 +21,8 @@ import (
 var log = logging.Logger("command")
 
 // Function is the type of function that Commands use.
-// It reads from the Request, and writes results to the Response.
-type Function func(Request, Response)
-type EmitterFunction func(Request, ResponseEmitter)
-
-// Marshaler is a function that takes in a Response, and returns an io.Reader
-// (or an error on failure)
-type Marshaler func(Response) (io.Reader, error)
-
-// MarshalerMap is a map of Marshaler functions, keyed by EncodingType
-// (or an error on failure)
-type MarshalerMap map[EncodingType]Marshaler
+// It reads from the Request, and writes results to the ResponseEmitter.
+type Function func(Request, ResponseEmitter)
 
 // HelpText is a set of strings used to generate command help text. The help
 // text follows formats similar to man pages, but not exactly the same.
@@ -61,10 +52,10 @@ type Command struct {
 	// Note that when executing the command over the HTTP API you can only read
 	// after writing when using multipart requests. The request body will not be
 	// available for reading after the HTTP connection has been written to.
-	Run        interface{}
-	PostRun    interface{}
-	Marshalers map[EncodingType]Marshaler
-	Helptext   HelpText
+	Run      interface{}
+	PostRun  interface{}
+	Encoders map[EncodingType]Encoder
+	Helptext HelpText
 
 	// External denotes that a command is actually an external binary.
 	// fewer checks and validations will be performed on such commands.
@@ -108,6 +99,8 @@ func (c *Command) Call(req Request, re ResponseEmitter) error {
 		return err
 	}
 
+	var output interface{}
+
 	switch run := cmd.Run.(type) {
 	default:
 		panic(fmt.Sprintf("unexpected type: %T", run))
@@ -117,60 +110,98 @@ func (c *Command) Call(req Request, re ResponseEmitter) error {
 			return err
 		}
 
+		return nil
+	case func(Request, Response):
+		res := FakeResponse(re)
+
+		run(req, res)
+		if res.Error() != nil {
+			return res.Error()
+		}
+
+		output = res.Output()
+
 	// legacy:
-	case Function, func(Request, Response):
+	case oldcmds.Function, func(oldcmds.Request, oldcmds.Response):
 		var (
-			r  Function
+			r  oldcmds.Function
 			ok bool
 		)
 
 		// make sure we have a concrete type
-		if r, ok = run.(Function); !ok {
-			r = Function(run.(func(Request, Response)))
+		if r, ok = run.(oldcmds.Function); !ok {
+			r = run.(func(oldcmds.Request, oldcmds.Response))
 		}
 
 		// force preamble
 		re.Emit(nil)
 
+		// fake old response
+		res := FakeOldResponse(re)
+
+		// fake old request
+		oldReq, err := oldcmds.NewRequest(
+			req.Path(),
+			oldcmds.OptMap(req.Options()),
+			req.StringArguments(),
+			req.Files(),
+			nil, // Command; hard to fake
+			nil, // OptionDefs, not available in interface
+		)
+		if err != nil {
+			return err
+		}
+
 		// do what we always did before
-		res := NewResponse(req)
-		r(req, res)
+		r(oldReq, res)
 		if res.Error() != nil {
 			return res.Error()
 		}
 
-		output := res.Output()
-		isChan := false
-		actualType := reflect.TypeOf(output)
-		if actualType != nil {
-			if actualType.Kind() == reflect.Ptr {
-				actualType = actualType.Elem()
-			}
+		output = res.Output()
+	}
 
-			// test if output is a channel
-			isChan = actualType.Kind() == reflect.Chan
+	// check if output is channel
+	isChan := false
+	actualType := reflect.TypeOf(output)
+	if actualType != nil {
+		if actualType.Kind() == reflect.Ptr {
+			actualType = actualType.Elem()
 		}
 
-		if isChan {
-			if ch, ok := output.(<-chan interface{}); ok {
-				output = ch
+		// test if output is a channel
+		isChan = actualType.Kind() == reflect.Chan
+	}
 
-			} else if ch, ok := output.(chan interface{}); ok {
-				output = (<-chan interface{})(ch)
-			}
+	if isChan {
+		if ch, ok := output.(<-chan interface{}); ok {
+			output = ch
+
+		} else if ch, ok := output.(chan interface{}); ok {
+			output = (<-chan interface{})(ch)
+		} else {
+			res.SetError(ErrIncorrectType, oldcmds.ErrorType(ErrNormal))
+			return ErrIncorrectType
 		}
 
+		go func() {
+			for v := range ch {
+				re.Emit(v)
+			}
+		}()
+	} else {
 		// If the command specified an output type, ensure the actual value
 		// returned is of that type
 		if cmd.Type != nil && !isChan {
 			expectedType := reflect.TypeOf(cmd.Type)
 
 			if actualType != expectedType {
-				res.SetError(ErrIncorrectType, ErrNormal)
+				res.SetError(ErrIncorrectType, oldcmds.ErrorType(ErrNormal))
 				return ErrIncorrectType
 			}
 		}
 
+		re.Emit(v)
 	}
 
 	return nil
