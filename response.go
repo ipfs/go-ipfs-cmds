@@ -18,6 +18,13 @@ type Response interface {
 	Next() (interface{}, error)
 }
 
+/*
+// FakeResponse returns a Response compatible to the old packet
+func FakeResponse(re ResponseEmitter) Response {
+	return &fakeResponse{re: re}
+}
+*/
+
 type fakeResponse struct {
 	re  ResponseEmitter
 	out interface{}
@@ -77,11 +84,11 @@ func (r *fakeResponse) Stderr() io.Writer {
 
 // FakeOldResponse returns a Response compatible to the old packet
 func FakeOldResponse(re ResponseEmitter) oldcmds.Response {
-	return &fakeOldResponse{re: re}
+	return &fakeOldResponse{&fakeResponse{re: re}}
 }
 
 type fakeOldResponse struct {
-	fakeResponse
+	*fakeResponse
 }
 
 func (r *fakeOldResponse) Request() oldcmds.Request {
@@ -94,8 +101,4 @@ func (r *fakeOldResponse) SetError(err error, code oldcmds.ErrorType) {
 
 func (r *fakeOldResponse) Error() *oldcmds.Error {
 	return nil
-}
-
-func FakeOldResponse(re ResponseEmitter) Response {
-	return &fakeResponse{re: re}
 }

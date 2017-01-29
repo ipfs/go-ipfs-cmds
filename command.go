@@ -104,23 +104,13 @@ func (c *Command) Call(req Request, re ResponseEmitter) error {
 	switch run := cmd.Run.(type) {
 	default:
 		panic(fmt.Sprintf("unexpected type: %T", run))
-	case func(Request, ResponseEmitter) error:
-		err := run(req, re)
-		if err != nil {
-			return err
-		}
+	case func(Request, Response):
+		// TODO this shouldn't happen; need to fix tests
+		return nil
+	case func(Request, ResponseEmitter):
+		run(req, re)
 
 		return nil
-	case func(Request, Response):
-		res := FakeResponse(re)
-
-		run(req, res)
-		if res.Error() != nil {
-			return res.Error()
-		}
-
-		output = res.Output()
-
 	// legacy:
 	case oldcmds.Function, func(oldcmds.Request, oldcmds.Response):
 		var (
@@ -180,12 +170,12 @@ func (c *Command) Call(req Request, re ResponseEmitter) error {
 		} else if ch, ok := output.(chan interface{}); ok {
 			output = (<-chan interface{})(ch)
 		} else {
-			res.SetError(ErrIncorrectType, oldcmds.ErrorType(ErrNormal))
+			re.SetError(ErrIncorrectType, ErrNormal)
 			return ErrIncorrectType
 		}
 
 		go func() {
-			for v := range ch {
+			for v := range output.(<-chan interface{}) {
 				re.Emit(v)
 			}
 		}()
@@ -196,12 +186,12 @@ func (c *Command) Call(req Request, re ResponseEmitter) error {
 			expectedType := reflect.TypeOf(cmd.Type)
 
 			if actualType != expectedType {
-				res.SetError(ErrIncorrectType, oldcmds.ErrorType(ErrNormal))
+				re.SetError(ErrIncorrectType, ErrNormal)
 				return ErrIncorrectType
 			}
 		}
 
-		re.Emit(v)
+		re.Emit(output)
 	}
 
 	return nil
