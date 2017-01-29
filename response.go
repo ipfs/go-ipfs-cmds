@@ -8,19 +8,7 @@ import (
 	"io"
 	"os"
 	"strings"
-)
 
-
-// EncodingType defines a supported encoding
-type EncodingType string
-
-// Supported EncodingType constants.
-const (
-	JSON     = "json"
-	XML      = "xml"
-	Protobuf = "protobuf"
-	Text     = "text"
-	// TODO: support more encoding types
 )
 
 func marshalJson(value interface{}) (io.Reader, error) {
