@@ -18,8 +18,8 @@ var (
 )
 
 // NewResponeEmitter returns a new ResponseEmitter.
-func NewResponseEmitter(w http.ResponseWriter, encType cmds.EncodingType, method string) *ResponseEmitter {
-	re := &ResponseEmitter{
+func NewResponseEmitter(w http.ResponseWriter, encType cmds.EncodingType, method string) ResponseEmitter {
+	re := &responseEmitter{
 		w:       w,
 		encType: encType,
 		enc:     cmds.Encoders[encType](w),
@@ -28,7 +28,12 @@ func NewResponseEmitter(w http.ResponseWriter, encType cmds.EncodingType, method
 	return re
 }
 
-type ResponseEmitter struct {
+type ResponseEmitter interface {
+	cmds.ResponseEmitter
+	http.Flusher
+}
+
+type responseEmitter struct {
 	w http.ResponseWriter
 
 	enc     cmds.Encoder
@@ -41,7 +46,7 @@ type ResponseEmitter struct {
 	method     string
 }
 
-func (re *ResponseEmitter) Emit(value interface{}) error {
+func (re *responseEmitter) Emit(value interface{}) error {
 	var err error
 
 	if !re.hasEmitted {
@@ -75,16 +80,16 @@ func (re *ResponseEmitter) Emit(value interface{}) error {
 	return err
 }
 
-func (re *ResponseEmitter) SetLength(l uint64) {
+func (re *responseEmitter) SetLength(l uint64) {
 	re.length = l
 }
 
-func (re *ResponseEmitter) Close() error {
+func (re *responseEmitter) Close() error {
 	// can't close HTTP connections
 	return nil
 }
 
-func (re *ResponseEmitter) SetError(err interface{}, code cmdsutil.ErrorType) {
+func (re *responseEmitter) SetError(err interface{}, code cmdsutil.ErrorType) {
 	re.err = &cmdsutil.Error{Message: fmt.Sprint(err), Code: code}
 
 	// force send of preamble
@@ -93,16 +98,18 @@ func (re *ResponseEmitter) SetError(err interface{}, code cmdsutil.ErrorType) {
 }
 
 // Flush the http connection
-func (re *ResponseEmitter) Flush() {
+func (re *responseEmitter) Flush() {
 	if !re.hasEmitted {
 		re.hasEmitted = true
-		re.preamble(value)
+
+		// setting this to nil means that it sends channel/chunked-encoding headers
+		re.preamble(nil)
 	}
 
 	re.w.(http.Flusher).Flush()
 }
 
-func (re *ResponseEmitter) preamble(value interface{}) {
+func (re *responseEmitter) preamble(value interface{}) {
 	h := re.w.Header()
 	// Expose our agent to allow identification
 	h.Set("Server", "go-ipfs/"+config.CurrentVersionNumber)
@@ -130,8 +137,8 @@ func (re *ResponseEmitter) preamble(value interface{}) {
 	// Set up our potential trailer
 	h.Set("Trailer", StreamErrHeader)
 
-	if re.Length() > 0 {
-		h.Set("X-Content-Length", strconv.FormatUint(re.Length(), 10))
+	if re.length > 0 {
+		h.Set("X-Content-Length", strconv.FormatUint(re.length, 10))
 	}
 
 	if _, ok := value.(io.Reader); ok {
