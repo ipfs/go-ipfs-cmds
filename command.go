@@ -64,14 +64,13 @@ var ErrIncorrectType = errors.New("The command returned a value with a different
 
 // Call invokes the command for the given Request
 func (c *Command) Call(req Request, re ResponseEmitter) error {
-	cmds, err := c.Resolve(req.Path())
+	cmd, err := c.Get(req.Path())
 	if err != nil {
 		return err
 	}
-	cmd := cmds[len(cmds)-1]
 
 	if cmd.Run == nil {
-		return err
+		return ErrNotCallable
 	}
 
 	err = cmd.CheckArguments(req)
@@ -84,57 +83,55 @@ func (c *Command) Call(req Request, re ResponseEmitter) error {
 		return err
 	}
 
-	var output interface{}
+	cmd.Run(req, re)
 
-	switch run := cmd.Run.(type) {
-	default:
-		panic(fmt.Sprintf("unexpected type: %T", run))
-	case func(Request, Response):
-		// TODO this shouldn't happen; need to fix tests
-		return nil
-	case func(Request, ResponseEmitter):
-		run(req, re)
+	return nil
+}
 
-		return nil
-	// legacy:
-	case oldcmds.Function, func(oldcmds.Request, oldcmds.Response):
-		var (
-			r  oldcmds.Function
-			ok bool
-		)
-
-		// make sure we have a concrete type
-		if r, ok = run.(oldcmds.Function); !ok {
-			r = run.(func(oldcmds.Request, oldcmds.Response))
-		}
-
-		// force preamble
-		re.Emit(nil)
-
-		// fake old response
-		res := FakeOldResponse(re)
-
-		// fake old request
-		oldReq, err := oldcmds.NewRequest(
-			req.Path(),
-			oldcmds.OptMap(req.Options()),
-			req.StringArguments(),
-			req.Files(),
-			nil, // Command; hard to fake
-			nil, // OptionDefs, not available in interface
-		)
-		if err != nil {
-			return err
-		}
-
-		// do what we always did before
-		r(oldReq, res)
-		if res.Error() != nil {
-			return res.Error()
-		}
-
-		output = res.Output()
+func (c *Command) fakeOldCall(cmd *oldcmds.Command, req Request, re ResponseEmitter) error {
+	if cmd.Run == nil {
+		return ErrNotCallable
 	}
+
+	// fake old response
+	res := FakeOldResponse(re)
+
+	optDefs := make(map[string]cmdsutil.Option)
+
+	for k, v := range req.Options() {
+		optDefs[k] = v.(cmdsutil.Option)
+	}
+
+	// fake old request
+	oldReq, err := oldcmds.NewRequest(
+		req.Path(),
+		req.Options(),
+		req.StringArguments(),
+		req.Files(),
+		cmd,
+		optDefs,
+	)
+	if err != nil {
+		return err
+	}
+
+	err = cmd.CheckArguments(oldReq)
+	if err != nil {
+		return err
+	}
+
+	err = oldReq.ConvertOptions()
+	if err != nil {
+		return err
+	}
+
+	// do what we always did before
+	cmd.Run(oldReq, res)
+	if res.Error() != nil {
+		return res.Error()
+	}
+
+	output := res.Output()
 
 	// check if output is channel
 	isChan := false
