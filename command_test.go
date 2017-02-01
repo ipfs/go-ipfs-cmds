@@ -18,7 +18,7 @@ func newBufferResponseEmitter() ResponseEmitter {
 	return NewWriterResponseEmitter(wc, Text)
 }
 
-func noop(req Request, res Response) {
+func noop(req Request, re ResponseEmitter) {
 	return
 }
 
