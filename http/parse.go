@@ -28,14 +28,17 @@ func Parse(r *http.Request, root *cmds.Command) (cmds.Request, error) {
 		}
 	}
 
-	cmd, err := root.Get(pth[:len(pth)-1])
+	getPath := pth[:len(pth)-1]
+	cmd, err := root.Get(getPath)
 	if err != nil {
 		// 404 if there is no command at that path
 		return nil, ErrNotFound
 
 	}
 
-	if sub := cmd.Subcommand(pth[len(pth)-1]); sub == nil {
+	sub := cmd.Subcommand(pth[len(pth)-1])
+
+	if sub == nil {
 		if len(pth) <= 1 {
 			return nil, ErrNotFound
 		}

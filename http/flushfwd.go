@@ -10,11 +10,6 @@ type flushfwder struct {
 	http.Flusher
 }
 
-type FlushForwarder interface {
-	cmds.ResponseEmitter
-	http.Flusher
-}
-
-func NewFlushForwarder(r ResponseEmitter, f http.Flusher) HTTPResponseEmitter {
+func NewFlushForwarder(r cmds.ResponseEmitter, f http.Flusher) ResponseEmitter {
 	return flushfwder{ResponseEmitter: r, Flusher: f}
 }

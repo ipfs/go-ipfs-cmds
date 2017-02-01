@@ -11,6 +11,7 @@ package cmds
 import (
 	"errors"
 	"fmt"
+	"io"
 	"reflect"
 
 	"github.com/ipfs/go-ipfs-cmds/cmdsutil"
@@ -37,9 +38,9 @@ type Command struct {
 	// Note that when executing the command over the HTTP API you can only read
 	// after writing when using multipart requests. The request body will not be
 	// available for reading after the HTTP connection has been written to.
-	Run      interface{}
+	Run      Function
 	PostRun  interface{}
-	Encoders map[EncodingType]Encoder
+	Encoders map[EncodingType]func(io.Writer) Encoder
 	Helptext cmdsutil.HelpText
 
 	// External denotes that a command is actually an external binary.
@@ -51,8 +52,9 @@ type Command struct {
 	// the Run Function.
 	//
 	// ie. If command Run returns &Block{}, then Command.Type == &Block{}
-	Type        interface{}
-	Subcommands map[string]*Command
+	Type           interface{}
+	Subcommands    map[string]*Command
+	OldSubcommands map[string]*oldcmds.Command
 }
 
 // ErrNotCallable signals a command that cannot be called.
@@ -293,7 +295,12 @@ func (c *Command) CheckArguments(req Request) error {
 
 // Subcommand returns the subcommand with the given id
 func (c *Command) Subcommand(id string) *Command {
-	return c.Subcommands[id]
+	cmd := c.Subcommands[id]
+	if cmd != nil {
+		return cmd
+	}
+
+	return NewCommand(c.OldSubcommands[id])
 }
 
 type CommandVisitor func(*Command)

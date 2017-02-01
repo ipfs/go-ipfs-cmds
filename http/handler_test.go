@@ -6,7 +6,9 @@ import (
 	"net/url"
 	"testing"
 
-	cmds "github.com/ipfs/go-ipfs/commands"
+	cmds "github.com/ipfs/go-ipfs-cmds"
+	oldcmds "github.com/ipfs/go-ipfs/commands"
+
 	ipfscmd "github.com/ipfs/go-ipfs/core/commands"
 	coremock "github.com/ipfs/go-ipfs/core/mock"
 )
@@ -58,7 +60,7 @@ func getTestServer(t *testing.T, origins []string) *httptest.Server {
 	}
 
 	cmdRoot := &cmds.Command{
-		Subcommands: map[string]*cmds.Command{
+		OldSubcommands: map[string]*oldcmds.Command{
 			"version": ipfscmd.VersionCmd,
 		},
 	}
@@ -67,7 +69,7 @@ func getTestServer(t *testing.T, origins []string) *httptest.Server {
 		origins = defaultOrigins
 	}
 
-	handler := NewHandler(cmdsCtx, cmdRoot, originCfg(origins))
+	handler := NewHandler(cmds.NewContext(cmdsCtx), cmdRoot, originCfg(origins))
 	return httptest.NewServer(handler)
 }
 
