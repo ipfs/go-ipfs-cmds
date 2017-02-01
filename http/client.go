@@ -12,7 +12,8 @@ import (
 	"strconv"
 	"strings"
 
-	cmds "github.com/ipfs/go-ipfs/commands"
+	cmds "github.com/ipfs/go-ipfs-cmds"
+	"github.com/ipfs/go-ipfs-cmds/cmdsutil"
 	config "github.com/ipfs/go-ipfs/repo/config"
 
 	context "context"
@@ -54,16 +55,16 @@ func (c *client) Send(req cmds.Request) (cmds.Response, error) {
 	}
 
 	// save user-provided encoding
-	previousUserProvidedEncoding, found, err := req.Option(cmds.EncShort).String()
+	previousUserProvidedEncoding, found, err := req.Option(cmdsutil.EncShort).String()
 	if err != nil {
 		return nil, err
 	}
 
 	// override with json to send to server
-	req.SetOption(cmds.EncShort, cmds.JSON)
+	req.SetOption(cmdsutil.EncShort, cmds.JSON)
 
 	// stream channel output
-	req.SetOption(cmds.ChanOpt, "true")
+	req.SetOption(cmdsutil.ChanOpt, "true")
 
 	query, err := getQuery(req)
 	if err != nil {
@@ -112,7 +113,7 @@ func (c *client) Send(req cmds.Request) (cmds.Response, error) {
 		// reset to user provided encoding after sending request
 		// NB: if user has provided an encoding but it is the empty string,
 		// still leave it as JSON.
-		req.SetOption(cmds.EncShort, previousUserProvidedEncoding)
+		req.SetOption(cmdsutil.EncShort, previousUserProvidedEncoding)
 	}
 
 	return res, nil
@@ -136,7 +137,7 @@ func getQuery(req cmds.Request) (string, error) {
 	for _, arg := range args {
 		argDef := argDefs[argDefIndex]
 		// skip ArgFiles
-		for argDef.Type == cmds.ArgFile {
+		for argDef.Type == cmdsutil.ArgFile {
 			argDefIndex++
 			argDef = argDefs[argDefIndex]
 		}

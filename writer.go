@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+
+	"github.com/ipfs/go-ipfs-cmds/cmdsutil"
 )
 
 func NewPipeResponsePair(encType EncodingType, req Request) (ResponseEmitter, Response) {
@@ -42,14 +44,14 @@ type readerResponse struct {
 	t   reflect.Type
 
 	length uint64
-	err    *Error
+	err    *cmdsutil.Error
 }
 
 func (r *readerResponse) Request() *Request {
 	return &r.req
 }
 
-func (r *readerResponse) Error() *Error {
+func (r *readerResponse) Error() *cmdsutil.Error {
 	return r.err
 }
 
@@ -70,17 +72,17 @@ type writerResponseEmitter struct {
 	enc     Encoder
 
 	length *uint64
-	err    *Error
+	err    *cmdsutil.Error
 
 	emitted bool
 }
 
-func (re *writerResponseEmitter) SetError(err interface{}, code ErrorType) {
+func (re *writerResponseEmitter) SetError(err interface{}, code cmdsutil.ErrorType) {
 	if re.emitted {
 		return
 	}
 
-	*re.err = Error{Message: fmt.Sprint(err), Code: code}
+	*re.err = cmdsutil.Error{Message: fmt.Sprint(err), Code: code}
 }
 
 func (re *writerResponseEmitter) SetLength(length uint64) {

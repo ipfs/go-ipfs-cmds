@@ -1,5 +1,9 @@
 package cmds
 
+import (
+	"github.com/ipfs/go-ipfs-cmds/cmdsutil"
+)
+
 // NewTeeEmitter creates a new ResponseEmitter.
 // Writing to it will write to both the passed ResponseEmitters.
 func NewTeeEmitter(re1, re2 ResponseEmitter) ResponseEmitter {
@@ -41,7 +45,7 @@ func (re *teeEmitter) SetLength(l uint64) {
 	re.re.SetLength(l)
 }
 
-func (re *teeEmitter) SetError(err interface{}, code ErrorType) {
+func (re *teeEmitter) SetError(err interface{}, code cmdsutil.ErrorType) {
 	re.ResponseEmitter.SetError(err, code)
 	re.re.SetError(err, code)
 }

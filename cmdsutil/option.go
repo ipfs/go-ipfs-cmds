@@ -1,4 +1,4 @@
-package cmds
+package cmdsutil
 
 import (
 	"fmt"
@@ -17,6 +17,8 @@ const (
 	Float   = reflect.Float64
 	String  = reflect.String
 )
+
+type OptMap map[string]interface{}
 
 // Option is used to specify a field that will be provided by a consumer
 type Option interface {
@@ -109,75 +111,75 @@ func StringOption(names ...string) Option {
 }
 
 type OptionValue struct {
-	value interface{}
-	found bool
-	def   Option
+	Value      interface{}
+	ValueFound bool
+	Def        Option
 }
 
 // Found returns true if the option value was provided by the user (not a default value)
 func (ov OptionValue) Found() bool {
-	return ov.found
+	return ov.ValueFound
 }
 
 // Definition returns the option definition for the provided value
 func (ov OptionValue) Definition() Option {
-	return ov.def
+	return ov.Def
 }
 
 // value accessor methods, gets the value as a certain type
 func (ov OptionValue) Bool() (value bool, found bool, err error) {
-	if !ov.found && ov.value == nil {
+	if !ov.ValueFound && ov.Value == nil {
 		return false, false, nil
 	}
-	val, ok := ov.value.(bool)
+	val, ok := ov.Value.(bool)
 	if !ok {
 		err = util.ErrCast()
 	}
-	return val, ov.found, err
+	return val, ov.ValueFound, err
 }
 
 func (ov OptionValue) Int() (value int, found bool, err error) {
-	if !ov.found && ov.value == nil {
+	if !ov.ValueFound && ov.Value == nil {
 		return 0, false, nil
 	}
-	val, ok := ov.value.(int)
+	val, ok := ov.Value.(int)
 	if !ok {
 		err = util.ErrCast()
 	}
-	return val, ov.found, err
+	return val, ov.ValueFound, err
 }
 
 func (ov OptionValue) Uint() (value uint, found bool, err error) {
-	if !ov.found && ov.value == nil {
+	if !ov.ValueFound && ov.Value == nil {
 		return 0, false, nil
 	}
-	val, ok := ov.value.(uint)
+	val, ok := ov.Value.(uint)
 	if !ok {
 		err = util.ErrCast()
 	}
-	return val, ov.found, err
+	return val, ov.ValueFound, err
 }
 
 func (ov OptionValue) Float() (value float64, found bool, err error) {
-	if !ov.found && ov.value == nil {
+	if !ov.ValueFound && ov.Value == nil {
 		return 0, false, nil
 	}
-	val, ok := ov.value.(float64)
+	val, ok := ov.Value.(float64)
 	if !ok {
 		err = util.ErrCast()
 	}
-	return val, ov.found, err
+	return val, ov.ValueFound, err
 }
 
 func (ov OptionValue) String() (value string, found bool, err error) {
-	if !ov.found && ov.value == nil {
+	if !ov.ValueFound && ov.Value == nil {
 		return "", false, nil
 	}
-	val, ok := ov.value.(string)
+	val, ok := ov.Value.(string)
 	if !ok {
 		err = util.ErrCast()
 	}
-	return val, ov.found, err
+	return val, ov.ValueFound, err
 }
 
 // Flag names
@@ -195,15 +197,3 @@ var OptionEncodingType = StringOption(EncLong, EncShort, "The encoding type the 
 var OptionRecursivePath = BoolOption(RecLong, RecShort, "Add directory paths recursively").Default(false)
 var OptionStreamChannels = BoolOption(ChanOpt, "Stream channel output")
 var OptionTimeout = StringOption(TimeoutOpt, "set a global timeout on the command")
-
-// global options, added to every command
-var globalOptions = []Option{
-	OptionEncodingType,
-	OptionStreamChannels,
-	OptionTimeout,
-}
-
-// the above array of Options, wrapped in a Command
-var globalCommand = &Command{
-	Options: globalOptions,
-}

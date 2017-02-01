@@ -7,8 +7,9 @@ import (
 	"net/http"
 	"strings"
 
-	cmds "github.com/ipfs/go-ipfs/commands"
-	files "github.com/ipfs/go-ipfs/commands/files"
+	cmds "github.com/ipfs/go-ipfs-cmds"
+	"github.com/ipfs/go-ipfs-cmds/cmdsutil"
+	"github.com/ipfs/go-ipfs-cmds/files"
 	path "github.com/ipfs/go-ipfs/path"
 )
 
@@ -74,7 +75,7 @@ func Parse(r *http.Request, root *cmds.Command) (cmds.Request, error) {
 			numRequired--
 		}
 
-		if argDef.Type == cmds.ArgString {
+		if argDef.Type == cmdsutil.ArgString {
 			if argDef.Variadic {
 				for _, s := range stringArgs {
 					args[valIndex] = s
@@ -90,7 +91,7 @@ func Parse(r *http.Request, root *cmds.Command) (cmds.Request, error) {
 			} else {
 				break
 			}
-		} else if argDef.Type == cmds.ArgFile && argDef.Required && len(requiredFile) == 0 {
+		} else if argDef.Type == cmdsutil.ArgFile && argDef.Required && len(requiredFile) == 0 {
 			requiredFile = argDef.Name
 		}
 	}
@@ -149,10 +150,10 @@ func parseOptions(r *http.Request) (map[string]interface{}, []string) {
 	}
 
 	// default to setting encoding to JSON
-	_, short := opts[cmds.EncShort]
-	_, long := opts[cmds.EncLong]
+	_, short := opts[cmdsutil.EncShort]
+	_, long := opts[cmdsutil.EncLong]
 	if !short && !long {
-		opts[cmds.EncShort] = cmds.JSON
+		opts[cmdsutil.EncShort] = cmds.JSON
 	}
 
 	return opts, args

@@ -3,6 +3,8 @@ package cmds
 import (
 	"fmt"
 	"io"
+
+	"github.com/ipfs/go-ipfs-cmds/cmdsutil"
 )
 
 func NewChanResponsePair(req *Request) (ResponseEmitter, Response) {
@@ -25,7 +27,7 @@ func NewChanResponsePair(req *Request) (ResponseEmitter, Response) {
 type chanResponse struct {
 	req *Request
 
-	err    *Error
+	err    *cmdsutil.Error
 	length uint64
 
 	ch <-chan interface{}
@@ -35,7 +37,7 @@ func (r *chanResponse) Request() *Request {
 	return r.req
 }
 
-func (r *chanResponse) Error() *Error {
+func (r *chanResponse) Error() *cmdsutil.Error {
 	return r.err
 }
 
@@ -56,18 +58,18 @@ type chanResponseEmitter struct {
 	ch chan<- interface{}
 
 	length *uint64
-	err    **Error
+	err    **cmdsutil.Error
 
 	emitted bool
 }
 
-func (re *chanResponseEmitter) SetError(err interface{}, t ErrorType) {
+func (re *chanResponseEmitter) SetError(err interface{}, t cmdsutil.ErrorType) {
 	// don't change value after emitting
 	if re.emitted {
 		return
 	}
 
-	*re.err = &Error{Message: fmt.Sprint(err), Code: t}
+	*re.err = &cmdsutil.Error{Message: fmt.Sprint(err), Code: t}
 }
 
 func (re *chanResponseEmitter) SetLength(l uint64) {

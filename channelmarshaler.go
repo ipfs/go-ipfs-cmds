@@ -1,5 +1,6 @@
 package cmds
 
+/*
 import "io"
 
 type ChannelMarshaler struct {
@@ -37,3 +38,4 @@ func (cr *ChannelMarshaler) Read(p []byte) (int, error) {
 	}
 	return n, nil
 }
+*/

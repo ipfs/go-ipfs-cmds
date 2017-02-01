@@ -1,4 +1,4 @@
-package cmds
+package cmdsutil
 
 type ArgumentType int
 

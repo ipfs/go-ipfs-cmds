@@ -7,7 +7,9 @@ import (
 	"os"
 	"strconv"
 
-	cmds "github.com/ipfs/go-ipfs/commands"
+	cmds "github.com/ipfs/go-ipfs-cmds"
+	"github.com/ipfs/go-ipfs-cmds/cmdsutil"
+
 	"github.com/ipfs/go-ipfs/repo/config"
 )
 
@@ -33,7 +35,7 @@ type ResponseEmitter struct {
 	encType cmds.EncodingType
 
 	length uint64
-	err    *Error
+	err    *cmdsutil.Error
 
 	hasEmitted bool
 	method     string
@@ -82,8 +84,8 @@ func (re *ResponseEmitter) Close() error {
 	return nil
 }
 
-func (re *ResponseEmitter) SetError(err interface{}, code cmds.ErrorType) {
-	re.err = &cmds.Error{Message: fmt.Sprint(err), Code: code}
+func (re *ResponseEmitter) SetError(err interface{}, code cmdsutil.ErrorType) {
+	re.err = &cmdsutil.Error{Message: fmt.Sprint(err), Code: code}
 
 	// force send of preamble
 	// TODO is this the right thing to do?
@@ -108,7 +110,7 @@ func (re *ResponseEmitter) preamble(value interface{}) {
 	status := http.StatusOK
 	// if response contains an error, write an HTTP error status code
 	if e := re.err; e != nil {
-		if e.(cmds.Error).Code == cmds.ErrClient {
+		if e.Code == cmdsutil.ErrClient {
 			status = http.StatusBadRequest
 		} else {
 			status = http.StatusInternalServerError
@@ -118,8 +120,8 @@ func (re *ResponseEmitter) preamble(value interface{}) {
 
 	// write error to connection
 	if re.err != nil {
-		if re.err.Code == ErrClient {
-			http.Error(re.w, err.Error(), http.StatusInternalServerError)
+		if re.err.Code == cmdsutil.ErrClient {
+			http.Error(re.w, re.err.Error(), http.StatusInternalServerError)
 		}
 
 		return
