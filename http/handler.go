@@ -19,7 +19,7 @@ import (
 	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
 )
 
-var log = logging.Logger("commands/http")
+var log = logging.Logger("cmds/http")
 
 // the internal handler for the API
 type internalHandler struct {
@@ -193,8 +193,11 @@ func (i internalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	enc := cmds.EncodingType(req.Options()[cmdsutil.EncShort].(string))
-	re := NewResponseEmitter(w, enc, r.Method)
+	enc := req.Options()[cmdsutil.EncShort]
+	if enc == nil {
+		enc = cmds.JSON
+	}
+	re := NewResponseEmitter(w, cmds.EncodingType(enc.(string)), r.Method)
 
 	// call the command
 	err = i.root.Call(req, re)

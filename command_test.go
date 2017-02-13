@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"io"
 	"testing"
+	"time"
+
+	"github.com/ipfs/go-ipfs-cmds/cmdsutil"
 )
 
 type dummyCloser struct{}
@@ -15,7 +18,7 @@ func (c dummyCloser) Close() error {
 func newBufferResponseEmitter() ResponseEmitter {
 	buf := bytes.NewBuffer(nil)
 	wc := writecloser{Writer: buf}
-	return NewWriterResponseEmitter(wc, Text)
+	return NewWriterResponseEmitter(wc, Encoders[Text])
 }
 
 func noop(req Request, re ResponseEmitter) {
@@ -29,9 +32,9 @@ type writecloser struct {
 
 func TestOptionValidation(t *testing.T) {
 	cmd := Command{
-		Options: []Option{
-			IntOption("b", "beep", "enables beeper"),
-			StringOption("B", "boop", "password for booper"),
+		Options: []cmdsutil.Option{
+			cmdsutil.IntOption("b", "beep", "enables beeper"),
+			cmdsutil.StringOption("B", "boop", "password for booper"),
 		},
 		Run: noop,
 	}
@@ -82,7 +85,7 @@ func TestOptionValidation(t *testing.T) {
 
 	re = newBufferResponseEmitter()
 	req, _ = NewRequest(nil, nil, nil, nil, nil, opts)
-	req.SetOption(EncShort, "json")
+	req.SetOption(cmdsutil.EncShort, "json")
 	err = cmd.Call(req, re)
 	if err != nil {
 		t.Error("Should have passed")
@@ -121,15 +124,15 @@ func TestOptionValidation(t *testing.T) {
 
 func TestRegistration(t *testing.T) {
 	cmdA := &Command{
-		Options: []Option{
-			IntOption("beep", "number of beeps"),
+		Options: []cmdsutil.Option{
+			cmdsutil.IntOption("beep", "number of beeps"),
 		},
 		Run: noop,
 	}
 
 	cmdB := &Command{
-		Options: []Option{
-			IntOption("beep", "number of beeps"),
+		Options: []cmdsutil.Option{
+			cmdsutil.IntOption("beep", "number of beeps"),
 		},
 		Run: noop,
 		Subcommands: map[string]*Command{
@@ -138,8 +141,8 @@ func TestRegistration(t *testing.T) {
 	}
 
 	cmdC := &Command{
-		Options: []Option{
-			StringOption("encoding", "data encoding type"),
+		Options: []cmdsutil.Option{
+			cmdsutil.StringOption("encoding", "data encoding type"),
 		},
 		Run: noop,
 	}
@@ -203,12 +206,12 @@ func TestWalking(t *testing.T) {
 
 func TestHelpProcessing(t *testing.T) {
 	cmdB := &Command{
-		Helptext: HelpText{
+		Helptext: cmdsutil.HelpText{
 			ShortDescription: "This is other short",
 		},
 	}
 	cmdA := &Command{
-		Helptext: HelpText{
+		Helptext: cmdsutil.HelpText{
 			ShortDescription: "This is short",
 		},
 		Subcommands: map[string]*Command{
@@ -221,5 +224,140 @@ func TestHelpProcessing(t *testing.T) {
 	}
 	if len(cmdB.Helptext.LongDescription) == 0 {
 		t.Error("LongDescription was not set on basis of ShortDescription")
+	}
+}
+
+type postRunTestCase struct {
+	length      uint64
+	err         *cmdsutil.Error
+	emit        []interface{}
+	postRun     func(Request, Response) Response
+	next        []interface{}
+	finalLength uint64
+}
+
+func TestPostRun(t *testing.T) {
+	var testcases = []postRunTestCase{
+		postRunTestCase{
+			length:      3,
+			err:         nil,
+			emit:        []interface{}{7},
+			finalLength: 4,
+			next:        []interface{}{14},
+			postRun: func(req Request, res Response) Response {
+				re, res_ := NewChanResponsePair(&req)
+
+				re.SetLength(res.Length() + 1)
+				go func() {
+					defer re.Close()
+
+					for {
+						v, err := res.Next()
+						if err == io.EOF {
+							return
+						}
+						if err != nil {
+							re.SetError(err, cmdsutil.ErrNormal)
+							t.Fatal(err)
+							return
+						}
+
+						i := v.(int)
+
+						err = re.Emit(2 * i)
+						if err != nil {
+							re.SetError(err, cmdsutil.ErrNormal)
+							return
+						}
+					}
+				}()
+				return res_
+			},
+		},
+	}
+
+	for _, tc := range testcases {
+		cmd := &Command{
+			Run: func(req Request, re ResponseEmitter) {
+				re.SetLength(tc.length)
+
+				go func() {
+					for _, v := range tc.emit {
+						re.Emit(v)
+					}
+					err := re.Close()
+					if err != nil {
+						t.Fatal(err)
+					}
+				}()
+			},
+			PostRun: map[EncodingType]func(req Request, res Response) Response{
+				CLI: tc.postRun,
+			},
+		}
+
+		cmdOpts, _ := cmd.GetOptions(nil)
+
+		req, _ := NewRequest(nil, nil, nil, nil, nil, cmdOpts)
+		req.SetOption(cmdsutil.EncShort, CLI)
+
+		re, res := NewChanResponsePair(&req)
+
+		err := cmd.Call(req, re)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		opts := req.Options()
+		if opts == nil {
+			t.Fatal("req.Options() is nil")
+		}
+
+		encTypeIface := opts[cmdsutil.EncShort]
+		if encTypeIface == nil {
+			t.Fatal("req.Options()[cmdsutil.EncShort] is nil")
+		}
+
+		encType := EncodingType(encTypeIface.(string))
+		if encType == "" {
+			t.Fatal("no encoding type")
+		}
+
+		if encType != CLI {
+			t.Fatal("wrong encoding type")
+		}
+
+		res = cmd.PostRun[encType](req, res)
+
+		l := res.Length()
+		if l != tc.finalLength {
+			t.Fatal("wrong final length")
+		}
+
+		for _, x := range tc.next {
+			ch := make(chan interface{})
+
+			go func() {
+				v, err := res.Next()
+				if err != nil {
+					close(ch)
+					t.Fatal(err)
+				}
+
+				ch <- v
+			}()
+
+			select {
+			case v, ok := <-ch:
+				if !ok {
+					t.Fatal("error checking all next values - channel closed")
+				}
+				if x != v {
+					t.Fatalf("final check of emitted values failed. got %v but expected %v", v, x)
+				}
+			case <-time.After(50 * time.Millisecond):
+				t.Fatal("too few values in next")
+			}
+		}
 	}
 }

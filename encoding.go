@@ -26,6 +26,7 @@ const (
 	XML      = "xml"
 	Protobuf = "protobuf"
 	Text     = "text"
+	CLI      = "cli"
 	// TODO: support more encoding types
 )
 
@@ -46,15 +47,30 @@ var Encoders = map[EncodingType]func(w io.Writer) Encoder{
 		return json.NewEncoder(w)
 	},
 	Text: func(w io.Writer) Encoder {
-		return textEncoder{w}
+		return TextEncoder{w}
 	},
 }
 
-type textEncoder struct {
+func MakeEncoder(f func(io.Writer, interface{}) error) func(io.Writer) Encoder {
+	return func(w io.Writer) Encoder {
+		return &genericEncoder{f: f, w: w}
+	}
+}
+
+type genericEncoder struct {
+	f func(io.Writer, interface{}) error
 	w io.Writer
 }
 
-func (e textEncoder) Encode(v interface{}) error {
+func (e *genericEncoder) Encode(v interface{}) error {
+	return e.f(e.w, v)
+}
+
+type TextEncoder struct {
+	w io.Writer
+}
+
+func (e TextEncoder) Encode(v interface{}) error {
 	_, err := fmt.Fprint(e.w, v)
 	return err
 }

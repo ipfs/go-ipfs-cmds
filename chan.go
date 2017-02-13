@@ -34,18 +34,34 @@ type chanResponse struct {
 }
 
 func (r *chanResponse) Request() *Request {
+	if r == nil {
+		return nil
+	}
+
 	return r.req
 }
 
 func (r *chanResponse) Error() *cmdsutil.Error {
+	if r == nil {
+		return nil
+	}
+
 	return r.err
 }
 
 func (r *chanResponse) Length() uint64 {
+	if r == nil {
+		return 0
+	}
+
 	return r.length
 }
 
 func (r *chanResponse) Next() (interface{}, error) {
+	if r == nil {
+		return nil, io.EOF
+	}
+
 	v, ok := <-r.ch
 	if ok {
 		return v, nil
@@ -65,9 +81,11 @@ type chanResponseEmitter struct {
 
 func (re *chanResponseEmitter) SetError(err interface{}, t cmdsutil.ErrorType) {
 	// don't change value after emitting
-	if re.emitted {
-		return
-	}
+	/*
+		if re.emitted {
+			return
+		}
+	*/
 
 	*re.err = &cmdsutil.Error{Message: fmt.Sprint(err), Code: t}
 }
@@ -79,6 +97,13 @@ func (re *chanResponseEmitter) SetLength(l uint64) {
 	}
 
 	*re.length = l
+}
+
+func (re *chanResponseEmitter) Head() Head {
+	return Head{
+		Len: *re.length,
+		Err: *re.err,
+	}
 }
 
 func (re *chanResponseEmitter) Close() error {

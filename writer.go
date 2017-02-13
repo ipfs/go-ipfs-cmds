@@ -1,6 +1,7 @@
 package cmds
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"reflect"
@@ -8,20 +9,13 @@ import (
 	"github.com/ipfs/go-ipfs-cmds/cmdsutil"
 )
 
-func NewPipeResponsePair(encType EncodingType, req Request) (ResponseEmitter, Response) {
-	r, w := io.Pipe()
+var EmittedErr = fmt.Errorf("received an error")
 
-	res := NewReaderResponse(r, encType, req)
-	re := NewWriterResponseEmitter(w, encType)
-
-	return re, res
-}
-
-func NewWriterResponseEmitter(w io.WriteCloser, encType EncodingType) ResponseEmitter {
-	return &writerResponseEmitter{
-		w:       w,
-		encType: encType,
-		enc:     Encoders[encType](w),
+func NewWriterResponseEmitter(w io.WriteCloser, enc func(io.Writer) Encoder) ResponseEmitter {
+	return &WriterResponseEmitter{
+		w:   w,
+		c:   w,
+		enc: enc(w),
 	}
 }
 
@@ -31,7 +25,6 @@ func NewReaderResponse(r io.Reader, encType EncodingType, req Request) Response 
 		r:       r,
 		encType: encType,
 		dec:     Decoders[encType](r),
-		t:       reflect.TypeOf(req.Command().Type),
 	}
 }
 
@@ -60,16 +53,27 @@ func (r *readerResponse) Length() uint64 {
 }
 
 func (r *readerResponse) Next() (interface{}, error) {
-	v := reflect.New(r.t).Interface()
-	err := r.dec.Decode(&v)
+	a := &Any{}
+	a.Add(cmdsutil.Error{})
+	a.Add(r.req.Command().Type)
 
-	return v, err
+	err := r.dec.Decode(a)
+	if err != nil {
+		return nil, err
+	}
+
+	v := a.Interface()
+	if err, ok := v.(error); ok {
+		return err, EmittedErr
+	}
+
+	return v, nil
 }
 
-type writerResponseEmitter struct {
-	w       io.WriteCloser
-	encType EncodingType
-	enc     Encoder
+type WriterResponseEmitter struct {
+	w   io.Writer
+	c   io.Closer
+	enc Encoder
 
 	length *uint64
 	err    *cmdsutil.Error
@@ -77,15 +81,11 @@ type writerResponseEmitter struct {
 	emitted bool
 }
 
-func (re *writerResponseEmitter) SetError(err interface{}, code cmdsutil.ErrorType) {
-	if re.emitted {
-		return
-	}
-
+func (re *WriterResponseEmitter) SetError(err interface{}, code cmdsutil.ErrorType) {
 	*re.err = cmdsutil.Error{Message: fmt.Sprint(err), Code: code}
 }
 
-func (re *writerResponseEmitter) SetLength(length uint64) {
+func (re *WriterResponseEmitter) SetLength(length uint64) {
 	if re.emitted {
 		return
 	}
@@ -93,12 +93,64 @@ func (re *writerResponseEmitter) SetLength(length uint64) {
 	*re.length = length
 }
 
-func (re *writerResponseEmitter) Close() error {
-	return re.w.Close()
+func (re *WriterResponseEmitter) Close() error {
+	return re.c.Close()
 }
 
-func (re *writerResponseEmitter) Emit(v interface{}) error {
+func (re *WriterResponseEmitter) Head() Head {
+	return Head{
+		Len: *re.length,
+		Err: re.err,
+	}
+}
+
+func (re *WriterResponseEmitter) SetEncoder(enc func(io.Writer) Encoder) {
+	re.enc = enc(re.w)
+}
+
+func (re *WriterResponseEmitter) Emit(v interface{}) error {
 	re.emitted = true
 
 	return re.enc.Encode(v)
+}
+
+type Any struct {
+	types []reflect.Type
+
+	v interface{}
+}
+
+func (a *Any) UnmarshalJSON(data []byte) error {
+	var (
+		iv  interface{}
+		err error
+	)
+
+	for _, t := range a.types {
+		v := reflect.New(t)
+
+		err = json.Unmarshal(data, v.Interface())
+		if err == nil && v.Elem().Interface() != reflect.Zero(t).Interface() {
+			a.v = v.Elem().Interface()
+			return nil
+		}
+	}
+
+	err = json.Unmarshal(data, &iv)
+	a.v = iv
+
+	return err
+}
+
+func (a *Any) Add(v interface{}) {
+	t := reflect.TypeOf(v)
+	if t.Kind() == reflect.Ptr || t.Kind() == reflect.Interface {
+		t = t.Elem()
+	}
+
+	a.types = append(a.types, t)
+}
+
+func (a *Any) Interface() interface{} {
+	return a.v
 }

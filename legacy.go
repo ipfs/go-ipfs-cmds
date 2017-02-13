@@ -54,11 +54,16 @@ func (r *oldRequestWrapper) Command() *Command { return nil }
 
 // fakeResponse gives you a Response when you give it a ResponseEmitter
 type fakeResponse struct {
+	req oldcmds.Request
 	re  ResponseEmitter
 	out interface{}
 }
 
 func (r *fakeResponse) Send() error {
+	if r.out == nil {
+		return nil
+	}
+
 	if ch, ok := r.out.(chan interface{}); ok {
 		r.out = <-chan interface{}(ch)
 	}
@@ -78,7 +83,7 @@ func (r *fakeResponse) Send() error {
 }
 
 func (r *fakeResponse) Request() oldcmds.Request {
-	return nil
+	return r.req
 }
 
 func (r *fakeResponse) SetError(err error, code cmdsutil.ErrorType) {
@@ -129,27 +134,6 @@ func (r *fakeResponse) Stderr() io.Writer {
 
 ///
 
-// FakeOldResponse returns a Response compatible to the old packet
-func FakeOldResponse(re ResponseEmitter) oldcmds.Response {
-	return &fakeOldResponse{&fakeResponse{re: re}}
-}
-
-type fakeOldResponse struct {
-	*fakeResponse
-}
-
-func (r *fakeOldResponse) Request() oldcmds.Request {
-	return nil
-}
-
-func (r *fakeOldResponse) SetError(err error, code cmdsutil.ErrorType) {
-	r.re.SetError(err, cmdsutil.ErrorType(code))
-}
-
-func (r *fakeOldResponse) Error() *cmdsutil.Error {
-	return nil
-}
-
 type marshalerEncoderResponse struct {
 	oldcmds.Response // so we don't need to do the unimportant stuff
 
@@ -162,13 +146,14 @@ func (mer *marshalerEncoderResponse) Output() interface{} {
 
 // make an Encoder from a Marshaler
 type MarshalerEncoder struct {
-	m oldcmds.Marshaler
-	w io.Writer
+	m   oldcmds.Marshaler
+	req *oldcmds.Request
+	w   io.Writer
 }
 
 func (me *MarshalerEncoder) Encode(v interface{}) error {
 	res := &marshalerEncoderResponse{
-		Response: oldcmds.NewResponse(nil),
+		Response: oldcmds.NewResponse(*me.req),
 		value:    v,
 	}
 
@@ -214,55 +199,88 @@ func (re *wrappedResponseEmitter) Emit(v interface{}) error {
 }
 
 func OldCommand(cmd *Command) *oldcmds.Command {
-	return &oldcmds.Command{
+	oldcmd := &oldcmds.Command{
 		Options:   cmd.Options,
 		Arguments: cmd.Arguments,
 		Helptext:  cmd.Helptext,
 		External:  cmd.External,
 		Type:      cmd.Type,
 
-		PreRun: func(oldReq oldcmds.Request) error {
-			req := &oldRequestWrapper{oldReq}
-			return cmd.PreRun(req)
-		},
 		Run: func(oldReq oldcmds.Request, res oldcmds.Response) {
 			req := &oldRequestWrapper{oldReq}
 			re := &wrappedResponseEmitter{res}
 
 			cmd.Run(req, re)
 		},
+		Subcommands: func() map[string]*oldcmds.Command {
+			cs := make(map[string]*oldcmds.Command)
+
+			for k, v := range cmd.OldSubcommands {
+				cs[k] = v
+			}
+
+			for k, v := range cmd.Subcommands {
+				cs[k] = OldCommand(v)
+			}
+
+			return cs
+		}(),
 	}
+
+	if cmd.PreRun != nil {
+		oldcmd.PreRun = func(oldReq oldcmds.Request) error {
+			req := &oldRequestWrapper{oldReq}
+			return cmd.PreRun(req)
+		}
+	}
+
+	return oldcmd
 }
 
 func NewCommand(oldcmd *oldcmds.Command) *Command {
-	cmd := &Command{
+	if oldcmd == nil {
+		return nil
+	}
+	var cmd *Command
+
+	// XXX we'll set this as request inside the encoders and then copy it there later on
+	var req_ oldcmds.Request
+
+	cmd = &Command{
 		Options:   oldcmd.Options,
 		Arguments: oldcmd.Arguments,
 		Helptext:  oldcmd.Helptext,
 		External:  oldcmd.External,
 		Type:      oldcmd.Type,
 
-		PreRun: func(req Request) error {
-			oldReq := &requestWrapper{req}
-			return oldcmd.PreRun(oldReq)
-		},
 		Run: func(req Request, re ResponseEmitter) {
 			oldReq := &requestWrapper{req}
-			res := &fakeResponse{re: re}
+			res := &fakeResponse{req: oldReq, re: re}
+			req_ = oldReq
 
 			oldcmd.Run(oldReq, res)
+
 			res.Send()
 		},
 
 		OldSubcommands: oldcmd.Subcommands,
 	}
 
+	if oldcmd.PreRun != nil {
+		cmd.PreRun = func(req Request) error {
+			oldReq := &requestWrapper{req}
+			return oldcmd.PreRun(oldReq)
+		}
+	}
+
 	for encType, m := range oldcmd.Marshalers {
 		cmd.Encoders = make(map[EncodingType]func(io.Writer) Encoder)
 		cmd.Encoders[EncodingType(encType)] = func(w io.Writer) Encoder {
+			log.Debugf("adding marshalerencoder for %v: %v; req: %v", encType, m, req_)
 			return &MarshalerEncoder{
-				m: m,
-				w: w,
+				req: &req_,
+				m:   m,
+				w:   w,
 			}
 		}
 	}

@@ -30,3 +30,41 @@ type ResponseEmitter interface {
 	// other values are marshalled
 	Emit(value interface{}) error
 }
+
+type EncodingEmitter interface {
+	ResponseEmitter
+
+	SetEncoder(func(io.Writer) Encoder)
+}
+
+type Header interface {
+	Head() Head
+}
+
+func Copy(re ResponseEmitter, res Response) error {
+	re.SetLength(res.Length())
+
+	for {
+		if res.Error() != nil {
+			e := res.Error()
+			log.Debugf("Copy: copying error `%v` to a ResponseEmitter of type %T", e, re)
+			re.SetError(e.Message, e.Code)
+			return nil
+		} else {
+			log.Debugf("Copy: Response of type %T has no error. ResponseEmitter is of type %T", res, re)
+		}
+
+		v, err := res.Next()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+
+		err = re.Emit(v)
+		if err != nil {
+			return err
+		}
+	}
+}

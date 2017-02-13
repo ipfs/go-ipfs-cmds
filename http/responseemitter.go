@@ -109,6 +109,8 @@ func (re *responseEmitter) Flush() {
 }
 
 func (re *responseEmitter) preamble(value interface{}) {
+	log.Debug("re.preamble")
+
 	h := re.w.Header()
 	// Expose our agent to allow identification
 	h.Set("Server", "go-ipfs/"+config.CurrentVersionNumber)

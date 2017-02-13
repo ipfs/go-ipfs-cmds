@@ -21,7 +21,7 @@ import (
 	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
 )
 
-var log = logging.Logger("command")
+var log = logging.Logger("cmds")
 
 // Function is the type of function that Commands use.
 // It reads from the Request, and writes results to the ResponseEmitter.
@@ -39,7 +39,7 @@ type Command struct {
 	// after writing when using multipart requests. The request body will not be
 	// available for reading after the HTTP connection has been written to.
 	Run      Function
-	PostRun  interface{}
+	PostRun  map[EncodingType]func(Request, Response) Response
 	Encoders map[EncodingType]func(io.Writer) Encoder
 	Helptext cmdsutil.HelpText
 
@@ -85,6 +85,22 @@ func (c *Command) Call(req Request, re ResponseEmitter) error {
 		return err
 	}
 
+	// wat
+	if re_, ok := re.(EncodingEmitter); ok {
+		if encType, found, err := req.Option(cmdsutil.EncShort).String(); found && err == nil {
+			if enc, ok := cmd.Encoders[EncodingType(encType)]; ok {
+				re_.SetEncoder(enc)
+				log.Debug("updated encoder to", enc)
+			} else {
+				log.Debug("no encoder found for encoding", encType)
+			}
+		} else {
+			log.Debug("no encoding found in request. err:", err)
+		}
+	} else {
+		log.Debugf("responseemitter is not an EncodingEmitter, but a %T", re)
+	}
+
 	cmd.Run(req, re)
 
 	return nil
@@ -96,7 +112,10 @@ func (c *Command) fakeOldCall(cmd *oldcmds.Command, req Request, re ResponseEmit
 	}
 
 	// fake old response
-	res := FakeOldResponse(re)
+	res := &fakeResponse{
+		re:  re,
+		req: &requestWrapper{req},
+	}
 
 	optDefs := make(map[string]cmdsutil.Option)
 
@@ -300,7 +319,12 @@ func (c *Command) Subcommand(id string) *Command {
 		return cmd
 	}
 
-	return NewCommand(c.OldSubcommands[id])
+	oldcmd := c.OldSubcommands[id]
+	if oldcmd != nil {
+		return NewCommand(oldcmd)
+	}
+
+	return nil
 }
 
 type CommandVisitor func(*Command)

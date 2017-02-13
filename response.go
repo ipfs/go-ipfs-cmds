@@ -14,3 +14,16 @@ type Response interface {
 
 	Next() (interface{}, error)
 }
+
+type Head struct {
+	Len uint64
+	Err *cmdsutil.Error
+}
+
+func (h Head) Length() uint64 {
+	return h.Len
+}
+
+func (h Head) Error() *cmdsutil.Error {
+	return h.Err
+}
