@@ -7,7 +7,7 @@ import (
 
 func TestOptionValueExtractBoolNotFound(t *testing.T) {
 	t.Log("ensure that no error is returned when value is not found")
-	optval := &OptionValue{found: false}
+	optval := &OptionValue{ValueFound: false}
 	_, _, err := optval.Bool()
 	if err != nil {
 		t.Fatal("Found was false. Err should have been nil")
@@ -18,13 +18,13 @@ func TestOptionValueExtractWrongType(t *testing.T) {
 
 	t.Log("ensure that error is returned when value if of wrong type")
 
-	optval := &OptionValue{value: "wrong type: a string", found: true}
+	optval := &OptionValue{Value: "wrong type: a string", ValueFound: true}
 	_, _, err := optval.Bool()
 	if err == nil {
 		t.Fatal("No error returned. Failure.")
 	}
 
-	optval = &OptionValue{value: "wrong type: a string", found: true}
+	optval = &OptionValue{Value: "wrong type: a string", ValueFound: true}
 	_, _, err = optval.Int()
 	if err == nil {
 		t.Fatal("No error returned. Failure.")
