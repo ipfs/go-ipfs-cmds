@@ -4,19 +4,20 @@ import (
 	"strings"
 	"testing"
 
-	cmds "github.com/ipfs/go-ipfs/commands"
+	"github.com/ipfs/go-ipfs-cmds"
+	"github.com/ipfs/go-ipfs-cmds/cmdsutil"
 )
 
 func TestSynopsisGenerator(t *testing.T) {
 	command := &cmds.Command{
-		Arguments: []cmds.Argument{
-			cmds.StringArg("required", true, false, ""),
-			cmds.StringArg("variadic", false, true, ""),
+		Arguments: []cmdsutil.Argument{
+			cmdsutil.StringArg("required", true, false, ""),
+			cmdsutil.StringArg("variadic", false, true, ""),
 		},
-		Options: []cmds.Option{
-			cmds.StringOption("opt", "o", "Option"),
+		Options: []cmdsutil.Option{
+			cmdsutil.StringOption("opt", "o", "Option"),
 		},
-		Helptext: cmds.HelpText{
+		Helptext: cmdsutil.HelpText{
 			SynopsisOptionsValues: map[string]string{
 				"opt": "OPTION",
 			},

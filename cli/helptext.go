@@ -7,7 +7,8 @@ import (
 	"strings"
 	"text/template"
 
-	cmds "github.com/ipfs/go-ipfs/commands"
+	"github.com/ipfs/go-ipfs-cmds"
+	"github.com/ipfs/go-ipfs-cmds/cmdsutil"
 )
 
 const (
@@ -234,13 +235,13 @@ func generateSynopsis(cmd *cmds.Command, path string) string {
 			if len(n) > 1 {
 				pre = "--"
 			}
-			if opt.Type() == cmds.Bool && opt.DefaultVal() == true {
+			if opt.Type() == cmdsutil.Bool && opt.DefaultVal() == true {
 				pre = "--"
 				sopt = fmt.Sprintf("%s%s=false", pre, n)
 				break
 			} else {
 				if i == 0 {
-					if opt.Type() == cmds.Bool {
+					if opt.Type() == cmdsutil.Bool {
 						sopt = fmt.Sprintf("%s%s", pre, n)
 					} else {
 						sopt = fmt.Sprintf("%s%s=<%s>", pre, n, valopt)
@@ -293,7 +294,7 @@ func optionFlag(flag string) string {
 
 func optionText(cmd ...*cmds.Command) []string {
 	// get a slice of the options we want to list out
-	options := make([]cmds.Option, 0)
+	options := make([]cmdsutil.Option, 0)
 	for _, c := range cmd {
 		for _, opt := range c.Options {
 			options = append(options, opt)
@@ -392,7 +393,7 @@ func usageText(cmd *cmds.Command) string {
 	return s
 }
 
-func argUsageText(arg cmds.Argument) string {
+func argUsageText(arg cmdsutil.Argument) string {
 	s := arg.Name
 
 	if arg.Required {

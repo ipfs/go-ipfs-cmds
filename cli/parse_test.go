@@ -8,7 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ipfs/go-ipfs/commands"
+	"github.com/ipfs/go-ipfs-cmds"
+	"github.com/ipfs/go-ipfs-cmds/cmdsutil"
 )
 
 type kvs map[string]interface{}
@@ -66,13 +67,13 @@ func TestSameWords(t *testing.T) {
 }
 
 func TestOptionParsing(t *testing.T) {
-	subCmd := &commands.Command{}
-	cmd := &commands.Command{
-		Options: []commands.Option{
-			commands.StringOption("string", "s", "a string"),
-			commands.BoolOption("bool", "b", "a bool"),
+	subCmd := &cmds.Command{}
+	cmd := &cmds.Command{
+		Options: []cmdsutil.Option{
+			cmdsutil.StringOption("string", "s", "a string"),
+			cmdsutil.BoolOption("bool", "b", "a bool"),
 		},
-		Subcommands: map[string]*commands.Command{
+		Subcommands: map[string]*cmds.Command{
 			"test": subCmd,
 		},
 	}
@@ -141,62 +142,62 @@ func TestArgumentParsing(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("stdin handling doesnt yet work on windows")
 	}
-	rootCmd := &commands.Command{
-		Subcommands: map[string]*commands.Command{
+	rootCmd := &cmds.Command{
+		Subcommands: map[string]*cmds.Command{
 			"noarg": {},
 			"onearg": {
-				Arguments: []commands.Argument{
-					commands.StringArg("a", true, false, "some arg"),
+				Arguments: []cmdsutil.Argument{
+					cmdsutil.StringArg("a", true, false, "some arg"),
 				},
 			},
 			"twoargs": {
-				Arguments: []commands.Argument{
-					commands.StringArg("a", true, false, "some arg"),
-					commands.StringArg("b", true, false, "another arg"),
+				Arguments: []cmdsutil.Argument{
+					cmdsutil.StringArg("a", true, false, "some arg"),
+					cmdsutil.StringArg("b", true, false, "another arg"),
 				},
 			},
 			"variadic": {
-				Arguments: []commands.Argument{
-					commands.StringArg("a", true, true, "some arg"),
+				Arguments: []cmdsutil.Argument{
+					cmdsutil.StringArg("a", true, true, "some arg"),
 				},
 			},
 			"optional": {
-				Arguments: []commands.Argument{
-					commands.StringArg("b", false, true, "another arg"),
+				Arguments: []cmdsutil.Argument{
+					cmdsutil.StringArg("b", false, true, "another arg"),
 				},
 			},
 			"optionalsecond": {
-				Arguments: []commands.Argument{
-					commands.StringArg("a", true, false, "some arg"),
-					commands.StringArg("b", false, false, "another arg"),
+				Arguments: []cmdsutil.Argument{
+					cmdsutil.StringArg("a", true, false, "some arg"),
+					cmdsutil.StringArg("b", false, false, "another arg"),
 				},
 			},
 			"reversedoptional": {
-				Arguments: []commands.Argument{
-					commands.StringArg("a", false, false, "some arg"),
-					commands.StringArg("b", true, false, "another arg"),
+				Arguments: []cmdsutil.Argument{
+					cmdsutil.StringArg("a", false, false, "some arg"),
+					cmdsutil.StringArg("b", true, false, "another arg"),
 				},
 			},
 			"stdinenabled": {
-				Arguments: []commands.Argument{
-					commands.StringArg("a", true, true, "some arg").EnableStdin(),
+				Arguments: []cmdsutil.Argument{
+					cmdsutil.StringArg("a", true, true, "some arg").EnableStdin(),
 				},
 			},
-			"stdinenabled2args": &commands.Command{
-				Arguments: []commands.Argument{
-					commands.StringArg("a", true, false, "some arg"),
-					commands.StringArg("b", true, true, "another arg").EnableStdin(),
+			"stdinenabled2args": &cmds.Command{
+				Arguments: []cmdsutil.Argument{
+					cmdsutil.StringArg("a", true, false, "some arg"),
+					cmdsutil.StringArg("b", true, true, "another arg").EnableStdin(),
 				},
 			},
-			"stdinenablednotvariadic": &commands.Command{
-				Arguments: []commands.Argument{
-					commands.StringArg("a", true, false, "some arg").EnableStdin(),
+			"stdinenablednotvariadic": &cmds.Command{
+				Arguments: []cmdsutil.Argument{
+					cmdsutil.StringArg("a", true, false, "some arg").EnableStdin(),
 				},
 			},
-			"stdinenablednotvariadic2args": &commands.Command{
-				Arguments: []commands.Argument{
-					commands.StringArg("a", true, false, "some arg"),
-					commands.StringArg("b", true, false, "another arg").EnableStdin(),
+			"stdinenablednotvariadic2args": &cmds.Command{
+				Arguments: []cmdsutil.Argument{
+					cmdsutil.StringArg("a", true, false, "some arg"),
+					cmdsutil.StringArg("b", true, false, "another arg").EnableStdin(),
 				},
 			},
 		},
