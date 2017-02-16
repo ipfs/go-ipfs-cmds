@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"runtime/debug"
+	//"runtime/debug"
 	"strings"
 	"sync"
 
@@ -127,7 +127,7 @@ func (i internalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			log.Error("a panic has occurred in the commands handler!")
 			log.Error(r)
 
-			debug.PrintStack()
+			//debug.PrintStack()
 		}
 	}()
 
@@ -193,17 +193,23 @@ func (i internalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	chRe, chRes := cmds.NewChanResponsePair(req)
+
 	enc := req.Options()[cmdsutil.EncShort]
 	if enc == nil {
 		enc = cmds.JSON
 	}
-	re := NewResponseEmitter(w, cmds.EncodingType(enc.(string)), r.Method)
+	re := NewResponseEmitter(w, cmds.EncodingType(enc.(string)), r.Method, chRes)
 
+	re.Tee(chRe)
+
+	log.Debug("root.Call()")
 	// call the command
 	err = i.root.Call(req, re)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+	log.Debug("returned err=", err)
 
 	return
 }

@@ -39,21 +39,21 @@ var Decoders = map[EncodingType]func(w io.Reader) Decoder{
 	},
 }
 
-var Encoders = map[EncodingType]func(w io.Writer) Encoder{
-	XML: func(w io.Writer) Encoder {
-		return xml.NewEncoder(w)
+var Encoders = map[EncodingType]func(res Response) func(w io.Writer) Encoder{
+	XML: func(res Response) func(io.Writer) Encoder {
+		return func(w io.Writer) Encoder { return xml.NewEncoder(w) }
 	},
-	JSON: func(w io.Writer) Encoder {
-		return json.NewEncoder(w)
+	JSON: func(res Response) func(io.Writer) Encoder {
+		return func(w io.Writer) Encoder { return json.NewEncoder(w) }
 	},
-	Text: func(w io.Writer) Encoder {
-		return TextEncoder{w}
+	Text: func(res Response) func(io.Writer) Encoder {
+		return func(w io.Writer) Encoder { return TextEncoder{w} }
 	},
 }
 
-func MakeEncoder(f func(io.Writer, interface{}) error) func(io.Writer) Encoder {
-	return func(w io.Writer) Encoder {
-		return &genericEncoder{f: f, w: w}
+func MakeEncoder(f func(io.Writer, interface{}) error) func(Response) func(io.Writer) Encoder {
+	return func(res Response) func(io.Writer) Encoder {
+		return func(w io.Writer) Encoder { return &genericEncoder{f: f, w: w} }
 	}
 }
 

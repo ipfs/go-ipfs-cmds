@@ -25,6 +25,10 @@ type ResponseEmitter interface {
 	//Stdout() io.Writer
 	//Stderr() io.Writer
 
+	// Tee makes this Responseemitter forward all calls to SetError, SetLength and
+	// Emit to the passed ResponseEmitter
+	Tee(ResponseEmitter)
+
 	// Emit sends a value
 	// if value is io.Reader we just copy that to the connection
 	// other values are marshalled
@@ -42,6 +46,7 @@ type Header interface {
 }
 
 func Copy(re ResponseEmitter, res Response) error {
+	log.Debugf("copy from %T to %T", res, re)
 	re.SetLength(res.Length())
 
 	for {
@@ -50,12 +55,12 @@ func Copy(re ResponseEmitter, res Response) error {
 			log.Debugf("Copy: copying error `%v` to a ResponseEmitter of type %T", e, re)
 			re.SetError(e.Message, e.Code)
 			return nil
-		} else {
-			log.Debugf("Copy: Response of type %T has no error. ResponseEmitter is of type %T", res, re)
 		}
 
 		v, err := res.Next()
+		log.Debug("copy", v, err)
 		if err == io.EOF {
+			re.Close()
 			return nil
 		}
 		if err != nil {

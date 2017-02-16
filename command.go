@@ -40,7 +40,7 @@ type Command struct {
 	// available for reading after the HTTP connection has been written to.
 	Run      Function
 	PostRun  map[EncodingType]func(Request, Response) Response
-	Encoders map[EncodingType]func(io.Writer) Encoder
+	Encoders map[EncodingType]func(Response) func(io.Writer) Encoder
 	Helptext cmdsutil.HelpText
 
 	// External denotes that a command is actually an external binary.
@@ -85,14 +85,22 @@ func (c *Command) Call(req Request, re ResponseEmitter) error {
 		return err
 	}
 
-	// wat
+	reChan, resChan := NewChanResponsePair(req)
+	re.Tee(reChan)
+
+	// TODO keks: wat
 	if re_, ok := re.(EncodingEmitter); ok {
 		if encType, found, err := req.Option(cmdsutil.EncShort).String(); found && err == nil {
 			if enc, ok := cmd.Encoders[EncodingType(encType)]; ok {
-				re_.SetEncoder(enc)
-				log.Debug("updated encoder to", enc)
+				re_.SetEncoder(enc(resChan))
+				log.Debug("updated encoder to", enc, "(from Command struct)")
 			} else {
-				log.Debug("no encoder found for encoding", encType)
+				if enc, ok := Encoders[EncodingType(encType)]; ok {
+					re_.SetEncoder(enc(resChan))
+					log.Debug("updated encoder to", enc, "(global Encoder)")
+				} else {
+					log.Debugf("no encoder found for encoding %#v", encType)
+				}
 			}
 		} else {
 			log.Debug("no encoding found in request. err:", err)
@@ -101,6 +109,7 @@ func (c *Command) Call(req Request, re ResponseEmitter) error {
 		log.Debugf("responseemitter is not an EncodingEmitter, but a %T", re)
 	}
 
+	log.Debugf("Call: calling cmd.Run")
 	cmd.Run(req, re)
 
 	return nil

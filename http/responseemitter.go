@@ -17,12 +17,13 @@ var (
 )
 
 // NewResponeEmitter returns a new ResponseEmitter.
-func NewResponseEmitter(w http.ResponseWriter, encType cmds.EncodingType, method string) ResponseEmitter {
+func NewResponseEmitter(w http.ResponseWriter, encType cmds.EncodingType, method string, res cmds.Response) ResponseEmitter {
 	re := &responseEmitter{
 		w:       w,
 		encType: encType,
-		enc:     cmds.Encoders[encType](w),
+		enc:     cmds.Encoders[encType](res)(w),
 		method:  method,
+		req:     res.Request(),
 	}
 	return re
 }
@@ -37,19 +38,29 @@ type responseEmitter struct {
 
 	enc     cmds.Encoder
 	encType cmds.EncodingType
+	req     cmds.Request
 
 	length uint64
 	err    *cmdsutil.Error
 
-	hasEmitted bool
-	method     string
+	emitted bool
+	method  string
+
+	tees []cmds.ResponseEmitter
 }
 
 func (re *responseEmitter) Emit(value interface{}) error {
 	var err error
 
-	if !re.hasEmitted {
-		re.hasEmitted = true
+	go func() {
+		for _, re_ := range re.tees {
+			re_.Emit(value)
+		}
+	}()
+
+	if !re.emitted {
+		re.emitted = true
+		log.Debug("calling preamle")
 		re.preamble(value)
 	}
 
@@ -81,6 +92,10 @@ func (re *responseEmitter) Emit(value interface{}) error {
 
 func (re *responseEmitter) SetLength(l uint64) {
 	re.length = l
+
+	for _, re_ := range re.tees {
+		re_.SetLength(l)
+	}
 }
 
 func (re *responseEmitter) Close() error {
@@ -94,12 +109,16 @@ func (re *responseEmitter) SetError(err interface{}, code cmdsutil.ErrorType) {
 	// force send of preamble
 	// TODO is this the right thing to do?
 	re.Emit(nil)
+
+	for _, re_ := range re.tees {
+		re_.SetError(err, code)
+	}
 }
 
 // Flush the http connection
 func (re *responseEmitter) Flush() {
-	if !re.hasEmitted {
-		re.hasEmitted = true
+	if !re.emitted {
+		re.emitted = true
 
 		// setting this to nil means that it sends channel/chunked-encoding headers
 		re.preamble(nil)
@@ -126,11 +145,14 @@ func (re *responseEmitter) preamble(value interface{}) {
 		// NOTE: The error will actually be written out below
 	}
 
+	log.Debugf("preamble status=%v", status)
+	log.Debugf("preamble re.err=%#v", re.err)
+
 	// write error to connection
 	if re.err != nil {
-		if re.err.Code == cmdsutil.ErrClient {
-			http.Error(re.w, re.err.Error(), http.StatusInternalServerError)
-		}
+		http.Error(re.w, re.err.Error(), http.StatusInternalServerError)
+
+		log.Debug("sent error")
 
 		return
 	}
@@ -166,4 +188,20 @@ func (re *responseEmitter) preamble(value interface{}) {
 	h.Set("Access-Control-Expose-Headers", AllowedExposedHeaders)
 
 	re.w.WriteHeader(status)
+}
+
+func (re *responseEmitter) Tee(re_ cmds.ResponseEmitter) {
+	re.tees = append(re.tees, re_)
+
+	if re.emitted {
+		re_.SetLength(re.length)
+	}
+
+	if re.err != nil {
+		re_.SetError(re.err.Message, re.err.Code)
+	}
+}
+
+func (re *responseEmitter) SetEncoder(enc func(io.Writer) cmds.Encoder) {
+	re.enc = enc(re.w)
 }

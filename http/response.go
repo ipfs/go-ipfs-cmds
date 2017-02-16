@@ -24,8 +24,8 @@ type Response struct {
 	dec cmds.Decoder
 }
 
-func (res Response) Request() *cmds.Request {
-	return &res.req
+func (res *Response) Request() cmds.Request {
+	return res.req
 }
 
 func (res *Response) Error() *cmdsutil.Error {
@@ -36,20 +36,28 @@ func (res *Response) Length() uint64 {
 	return res.length
 }
 
-func (res *Response) Next() (interface{}, error) {
+func (res *Response) Next() (v interface{}, err error) {
+	defer log.Debug("Resp.Next() returns ", v, err)
+
 	if res.err != nil {
 		return nil, res.err
 	}
 
 	// nil decoder means stream not chunks
+	// but only do that once
 	if res.dec == nil {
-		return res.rr, nil
+		log.Debug("Resp.Next: res.rr=", res.rr)
+		if res.rr == nil {
+			return nil, io.EOF
+		} else {
+			rr := res.rr
+			res.rr = nil
+			return rr, nil
+		}
 	}
 
 	var (
-		v   interface{}
-		err error
-		t   = reflect.TypeOf(res.req.Command().Type)
+		t = reflect.TypeOf(res.req.Command().Type)
 	)
 
 	if t != nil {
@@ -85,6 +93,43 @@ func getResponse(httpRes *http.Response, req cmds.Request) (cmds.Response, error
 	contentType := httpRes.Header.Get(contentTypeHeader)
 	contentType = strings.Split(contentType, ";")[0]
 
+	// If we ran into an error
+	if httpRes.StatusCode >= http.StatusBadRequest {
+		e := &cmdsutil.Error{}
+
+		switch {
+		case httpRes.StatusCode == http.StatusNotFound:
+			// handle 404s
+			e.Message = "Command not found."
+			e.Code = cmdsutil.ErrClient
+
+		case contentType == plainText:
+			// handle non-marshalled errors
+			mes, err := ioutil.ReadAll(res.rr)
+			if err != nil {
+				return nil, err
+			}
+			e.Message = string(mes)
+			e.Code = cmdsutil.ErrNormal
+
+			log.Debug("getResp - err - plaintext:", e.Message)
+
+		default:
+			// handle marshalled errors
+			err = res.dec.Decode(&e)
+			if err != nil {
+				return nil, err
+			}
+			log.Debug("getResp - err - default", e.Message)
+		}
+
+		e.Message = strings.Trim(e.Message, "\n\r\t ")
+
+		res.err = e
+
+		return res, nil
+	}
+
 	if contentType != applicationJson {
 		// nil decoder means stream
 		return res, nil
@@ -106,36 +151,6 @@ func getResponse(httpRes *http.Response, req cmds.Request) (cmds.Response, error
 		return res, nil
 	}
 
-	// If we ran into an error
-	if httpRes.StatusCode >= http.StatusBadRequest {
-		e := &cmdsutil.Error{}
-
-		switch {
-		case httpRes.StatusCode == http.StatusNotFound:
-			// handle 404s
-			e.Message = "Command not found."
-			e.Code = cmdsutil.ErrClient
-
-		case contentType == plainText:
-			// handle non-marshalled errors
-			mes, err := ioutil.ReadAll(res.rr)
-			if err != nil {
-				return nil, err
-			}
-			e.Message = string(mes)
-			e.Code = cmdsutil.ErrNormal
-
-		default:
-			// handle marshalled errors
-			err = res.dec.Decode(&e)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		res.err = e
-	}
-
 	return res, nil
 }
 
@@ -147,6 +162,10 @@ type responseReader struct {
 }
 
 func (r *responseReader) Read(b []byte) (int, error) {
+	if r == nil || r.resp == nil {
+		return 0, io.EOF
+	}
+
 	n, err := r.resp.Body.Read(b)
 
 	// reading on a closed response body is as good as an io.EOF here

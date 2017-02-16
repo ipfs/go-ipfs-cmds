@@ -11,11 +11,12 @@ import (
 
 var EmittedErr = fmt.Errorf("received an error")
 
-func NewWriterResponseEmitter(w io.WriteCloser, enc func(io.Writer) Encoder) ResponseEmitter {
+func NewWriterResponseEmitter(w io.WriteCloser, res Response, enc func(io.Writer) Encoder) *WriterResponseEmitter {
 	return &WriterResponseEmitter{
 		w:   w,
 		c:   w,
 		enc: enc(w),
+		req: res.Request(),
 	}
 }
 
@@ -38,10 +39,12 @@ type readerResponse struct {
 
 	length uint64
 	err    *cmdsutil.Error
+
+	emitted bool
 }
 
-func (r *readerResponse) Request() *Request {
-	return &r.req
+func (r *readerResponse) Request() Request {
+	return r.req
 }
 
 func (r *readerResponse) Error() *cmdsutil.Error {
@@ -71,18 +74,25 @@ func (r *readerResponse) Next() (interface{}, error) {
 }
 
 type WriterResponseEmitter struct {
+	// TODO maybe make those public?
 	w   io.Writer
 	c   io.Closer
 	enc Encoder
+	req Request
 
 	length *uint64
 	err    *cmdsutil.Error
 
 	emitted bool
+	tees    []ResponseEmitter
 }
 
 func (re *WriterResponseEmitter) SetError(err interface{}, code cmdsutil.ErrorType) {
 	*re.err = cmdsutil.Error{Message: fmt.Sprint(err), Code: code}
+
+	for _, re_ := range re.tees {
+		re_.SetError(err, code)
+	}
 }
 
 func (re *WriterResponseEmitter) SetLength(length uint64) {
@@ -91,6 +101,10 @@ func (re *WriterResponseEmitter) SetLength(length uint64) {
 	}
 
 	*re.length = length
+
+	for _, re_ := range re.tees {
+		re_.SetLength(length)
+	}
 }
 
 func (re *WriterResponseEmitter) Close() error {
@@ -104,14 +118,30 @@ func (re *WriterResponseEmitter) Head() Head {
 	}
 }
 
-func (re *WriterResponseEmitter) SetEncoder(enc func(io.Writer) Encoder) {
-	re.enc = enc(re.w)
-}
-
 func (re *WriterResponseEmitter) Emit(v interface{}) error {
 	re.emitted = true
 
-	return re.enc.Encode(v)
+	err := re.enc.Encode(v)
+	if err != nil {
+		return err
+	}
+
+	for _, re_ := range re.tees {
+		err = re_.Emit(v)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (re *WriterResponseEmitter) Tee(re_ ResponseEmitter) {
+	re.tees = append(re.tees, re_)
+
+	// TODO first check whether length and error have been set
+	re_.SetLength(*re.length)
+	re_.SetError(re.err.Message, re.err.Code)
 }
 
 type Any struct {

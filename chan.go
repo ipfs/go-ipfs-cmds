@@ -7,7 +7,7 @@ import (
 	"github.com/ipfs/go-ipfs-cmds/cmdsutil"
 )
 
-func NewChanResponsePair(req *Request) (ResponseEmitter, Response) {
+func NewChanResponsePair(req Request) (ResponseEmitter, Response) {
 	ch := make(chan interface{})
 
 	r := &chanResponse{
@@ -25,7 +25,7 @@ func NewChanResponsePair(req *Request) (ResponseEmitter, Response) {
 }
 
 type chanResponse struct {
-	req *Request
+	req Request
 
 	err    *cmdsutil.Error
 	length uint64
@@ -33,7 +33,7 @@ type chanResponse struct {
 	ch <-chan interface{}
 }
 
-func (r *chanResponse) Request() *Request {
+func (r *chanResponse) Request() Request {
 	if r == nil {
 		return nil
 	}
@@ -77,6 +77,8 @@ type chanResponseEmitter struct {
 	err    **cmdsutil.Error
 
 	emitted bool
+
+	tees []ResponseEmitter
 }
 
 func (re *chanResponseEmitter) SetError(err interface{}, t cmdsutil.ErrorType) {
@@ -88,6 +90,10 @@ func (re *chanResponseEmitter) SetError(err interface{}, t cmdsutil.ErrorType) {
 	*/
 
 	*re.err = &cmdsutil.Error{Message: fmt.Sprint(err), Code: t}
+
+	for _, re_ := range re.tees {
+		re_.SetError(err, t)
+	}
 }
 
 func (re *chanResponseEmitter) SetLength(l uint64) {
@@ -97,6 +103,10 @@ func (re *chanResponseEmitter) SetLength(l uint64) {
 	}
 
 	*re.length = l
+
+	for _, re_ := range re.tees {
+		re_.SetLength(l)
+	}
 }
 
 func (re *chanResponseEmitter) Head() Head {
@@ -122,5 +132,25 @@ func (re *chanResponseEmitter) Emit(v interface{}) error {
 
 	re.ch <- v
 
+	for _, re_ := range re.tees {
+		go re_.Emit(v)
+	}
+
 	return nil
+}
+
+func (re *chanResponseEmitter) Tee(re_ ResponseEmitter) {
+	if re_ == nil {
+		return
+	}
+
+	re.tees = append(re.tees, re_)
+
+	if re.emitted {
+		re_.SetLength(*re.length)
+	}
+
+	if re.err != nil && *re.err != nil {
+		re_.SetError((*re.err).Message, (*re.err).Code)
+	}
 }
