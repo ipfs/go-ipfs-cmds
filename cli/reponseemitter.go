@@ -15,6 +15,7 @@ type ErrSet struct {
 
 func NewResponseEmitter(w io.WriteCloser, enc func(cmds.Request) func(io.Writer) cmds.Encoder, req cmds.Request) (cmds.ResponseEmitter, <-chan *cmdsutil.Error) {
 	ch := make(chan *cmdsutil.Error)
+	encType := cmds.GetEncoding(req)
 
 	if enc == nil {
 		enc = func(cmds.Request) func(io.Writer) cmds.Encoder {
@@ -24,15 +25,16 @@ func NewResponseEmitter(w io.WriteCloser, enc func(cmds.Request) func(io.Writer)
 		}
 	}
 
-	return &responseEmitter{w: w, enc: enc(req)(w), ch: ch}, ch
+	return &responseEmitter{w: w, encType: encType, enc: enc(req)(w), ch: ch}, ch
 }
 
 type responseEmitter struct {
 	w io.WriteCloser
 
-	length uint64
-	err    *cmdsutil.Error
-	enc    cmds.Encoder
+	length  uint64
+	err     *cmdsutil.Error
+	enc     cmds.Encoder
+	encType cmds.EncodingType
 
 	tees []cmds.ResponseEmitter
 

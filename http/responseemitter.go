@@ -19,49 +19,20 @@ var (
 
 // NewResponeEmitter returns a new ResponseEmitter.
 func NewResponseEmitter(w http.ResponseWriter, method string, req cmds.Request) ResponseEmitter {
-	log.Debug("request options: ", req.Options())
+	log.Debugf("entering NewResponseEmitter with w=%v, method=%s, req=%v", w, method, req)
+	encType := cmds.GetEncoding(req)
+	log.Debugf("got encoding %s", encType)
 
-	var (
-		encType = cmds.EncodingType(cmds.Undefined)
-		encStr  = string(cmds.Undefined)
-		ok      = false
-		opts    = req.Options()
-	)
+	var enc cmds.Encoder
 
-	// try EncShort
-	encSource := "short"
-	encIface := opts[cmdsutil.EncShort]
-
-	// if that didn't work, try EncLong
-	if encIface == nil {
-		encSource = "long"
-		encIface = opts[cmdsutil.EncLong]
+	if _, ok := cmds.Encoders[encType]; ok {
+		enc = cmds.Encoders[encType](req)(w)
 	}
-
-	// try casting
-	if encIface != nil {
-		encStr, ok = encIface.(string)
-	}
-
-	log.Debug("req encType:", encSource, encStr, ok)
-
-	// if casting worked, convert to EncodingType
-	if ok {
-		encType = cmds.EncodingType(encStr)
-	}
-
-	// in case of error, use default
-	if !ok || encType == cmds.Undefined {
-		encSource = "default"
-		encType = cmds.JSON
-	}
-
-	log.Debug("chose encoding ", encType, " from source ", encSource)
 
 	re := &responseEmitter{
 		w:       w,
 		encType: encType,
-		enc:     cmds.Encoders[encType](req)(w),
+		enc:     enc,
 		method:  method,
 		req:     req,
 	}

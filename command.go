@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"reflect"
 
 	"github.com/ipfs/go-ipfs-cmds/cmdsutil"
@@ -90,33 +89,16 @@ func (c *Command) Call(req Request, re ResponseEmitter) error {
 		return err
 	}
 
-	fmt.Fprintln(os.Stderr, "Call: requested encoding ", req.Option(cmdsutil.EncShort))
-
-	// TODO keks: wat
+	// If this ResponseEmitter encodes messages (e.g. http, cli or writer - but not chan),
+	// we need to update the encoding to the one specified by the command.
 	if re_, ok := re.(EncodingEmitter); ok {
-
-		encTypeStr, found, err := req.Option(cmdsutil.EncShort).String()
-		encTypeSrc := "request"
-
-		encType := EncodingType(encTypeStr)
-
-		if !found || err != nil {
-			encTypeSrc = "default"
-			encType = DefaultOutputEncoding
-		}
-
-		log.Debugf("finding encoder for %s from %s", encType, encTypeSrc)
+		encType := GetEncoding(req)
 
 		if enc, ok := cmd.Encoders[EncodingType(encType)]; ok {
 			re_.SetEncoder(enc(req))
-			log.Debug("updated encoder to", enc, "(from Command struct)")
+			log.Debugf("updated encoder for type %s to %v", encType, enc)
 		} else {
-			if enc, ok := Encoders[EncodingType(encType)]; ok {
-				re_.SetEncoder(enc(req))
-				log.Debugf("updated encoder to %v (global Encoder)", enc)
-			} else {
-				log.Debug("no encoder found for encoding")
-			}
+			log.Debugf("command has no encoder for %s", encType)
 		}
 	} else {
 		log.Debugf("responseemitter is not an EncodingEmitter, but a %T", re)
