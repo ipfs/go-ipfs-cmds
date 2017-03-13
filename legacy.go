@@ -122,7 +122,11 @@ type fakeResponse struct {
 
 func (r *fakeResponse) Send() error {
 	log.Debugf("fakeResponse: sending %v to RE of type %T", r.out, r.re)
-	defer log.Debugf("fakeResponse: done")
+	defer func() {
+		log.Debugf("fakeResponse: closing RE")
+		r.re.Close()
+		log.Debugf("fakeResponse: done")
+	}()
 
 	if r.out == nil {
 		return nil
@@ -141,7 +145,7 @@ func (r *fakeResponse) Send() error {
 			}
 		}
 	default:
-		log.Debug("fakeResponse: calling Emit(%v) once", out)
+		log.Debugf("fakeResponse: calling Emit(%v) once", out)
 		return r.re.Emit(out)
 	}
 
@@ -218,16 +222,33 @@ func (mer *marshalerEncoderResponse) Error() *cmdsutil.Error {
 // make an Encoder from a Marshaler
 type MarshalerEncoder struct {
 	m   oldcmds.Marshaler
-	res oldcmds.Response
 	w   io.Writer
+	req Request
+}
+
+func NewMarshalerEncoder(req Request, m oldcmds.Marshaler, w io.Writer) *MarshalerEncoder {
+	me := &MarshalerEncoder{
+		m:   m,
+		w:   w,
+		req: req,
+	}
+
+	return me
 }
 
 func (me *MarshalerEncoder) Encode(v interface{}) error {
-	log.Debugf("ME.Encode: me: %#v", me)
-	r, err := me.m(me.res)
-	log.Debugf("ME.Encode: r:%v, err:%v", r, err)
-	if err != nil || r == nil {
+	re, res := NewChanResponsePair(me.req)
+
+	log.Debugf("ME.Encode: me: %#v, v: %#v", me, v)
+	go re.Emit(v)
+
+	r, err := me.m(&responseWrapper{Response: res})
+	if err != nil {
 		return err
+	}
+	if r == nil {
+		// behave like empty reader
+		return nil
 	}
 
 	_, err = io.Copy(me.w, r)
@@ -276,12 +297,6 @@ func OldCommand(cmd *Command) *oldcmds.Command {
 		External:  cmd.External,
 		Type:      cmd.Type,
 
-		Run: func(oldReq oldcmds.Request, res oldcmds.Response) {
-			req := &oldRequestWrapper{oldReq}
-			re := &wrappedResponseEmitter{res}
-
-			cmd.Run(req, re)
-		},
 		Subcommands: func() map[string]*oldcmds.Command {
 			cs := make(map[string]*oldcmds.Command)
 
@@ -297,6 +312,15 @@ func OldCommand(cmd *Command) *oldcmds.Command {
 		}(),
 	}
 
+	if cmd.Run != nil {
+		oldcmd.Run = func(oldReq oldcmds.Request, res oldcmds.Response) {
+			req := &oldRequestWrapper{oldReq}
+			re := &wrappedResponseEmitter{res}
+
+			cmd.Run(req, re)
+		}
+		log.Debugf("faker: added Run %v", oldcmd.Run)
+	}
 	if cmd.PreRun != nil {
 		oldcmd.PreRun = func(oldReq oldcmds.Request) error {
 			req := &oldRequestWrapper{oldReq}
@@ -321,16 +345,20 @@ func NewCommand(oldcmd *oldcmds.Command) *Command {
 		External:  oldcmd.External,
 		Type:      oldcmd.Type,
 
-		Run: func(req Request, re ResponseEmitter) {
+		OldSubcommands: oldcmd.Subcommands,
+	}
+
+	if oldcmd.Run != nil {
+		cmd.Run = func(req Request, re ResponseEmitter) {
 			oldReq := &requestWrapper{req}
 			res := &fakeResponse{req: oldReq, re: re}
 
+			log.Debugf("fakecmd.Run: calling real cmd.Run")
 			oldcmd.Run(oldReq, res)
-
+			log.Debugf("fakecmd.Run: calling res.Send")
 			res.Send()
-		},
-
-		OldSubcommands: oldcmd.Subcommands,
+			log.Debugf("fakecmd.Run: done")
+		}
 	}
 
 	if oldcmd.PreRun != nil {
@@ -340,20 +368,16 @@ func NewCommand(oldcmd *oldcmds.Command) *Command {
 		}
 	}
 
-	cmd.Encoders = make(map[EncodingType]func(Response) func(io.Writer) Encoder)
+	cmd.Encoders = make(map[EncodingType]func(Request) func(io.Writer) Encoder)
 
 	for encType, m := range oldcmd.Marshalers {
 		log.Debugf("adding marshaler %v for type encType %v", m, encType)
-		cmd.Encoders[EncodingType(encType)] = func(res Response) func(io.Writer) Encoder {
+		cmd.Encoders[EncodingType(encType)] = func(req Request) func(io.Writer) Encoder {
 
 			return func(w io.Writer) Encoder {
-				log.Debugf("adding marshalerencoder for %v: %v; res: %v", encType, m, res)
+				log.Debugf("adding marshalerencoder for %v: %v; res: %v", encType, m, req)
 
-				return &MarshalerEncoder{
-					res: &responseWrapper{Response: res},
-					m:   m,
-					w:   w,
-				}
+				return NewMarshalerEncoder(req, m, w)
 			}
 		}
 	}

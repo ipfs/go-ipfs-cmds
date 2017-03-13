@@ -22,11 +22,14 @@ type EncodingType string
 
 // Supported EncodingType constants.
 const (
+	Undefined = ""
+
 	JSON     = "json"
 	XML      = "xml"
 	Protobuf = "protobuf"
 	Text     = "text"
 	CLI      = "cli"
+
 	// TODO: support more encoding types
 )
 
@@ -39,20 +42,20 @@ var Decoders = map[EncodingType]func(w io.Reader) Decoder{
 	},
 }
 
-var Encoders = map[EncodingType]func(res Response) func(w io.Writer) Encoder{
-	XML: func(res Response) func(io.Writer) Encoder {
+var Encoders = map[EncodingType]func(req Request) func(w io.Writer) Encoder{
+	XML: func(req Request) func(io.Writer) Encoder {
 		return func(w io.Writer) Encoder { return xml.NewEncoder(w) }
 	},
-	JSON: func(res Response) func(io.Writer) Encoder {
+	JSON: func(req Request) func(io.Writer) Encoder {
 		return func(w io.Writer) Encoder { return json.NewEncoder(w) }
 	},
-	Text: func(res Response) func(io.Writer) Encoder {
+	Text: func(req Request) func(io.Writer) Encoder {
 		return func(w io.Writer) Encoder { return TextEncoder{w} }
 	},
 }
 
-func MakeEncoder(f func(io.Writer, interface{}) error) func(Response) func(io.Writer) Encoder {
-	return func(res Response) func(io.Writer) Encoder {
+func MakeEncoder(f func(io.Writer, interface{}) error) func(Request) func(io.Writer) Encoder {
+	return func(req Request) func(io.Writer) Encoder {
 		return func(w io.Writer) Encoder { return &genericEncoder{f: f, w: w} }
 	}
 }
@@ -71,6 +74,7 @@ type TextEncoder struct {
 }
 
 func (e TextEncoder) Encode(v interface{}) error {
-	_, err := fmt.Fprint(e.w, v)
+	log.Debug("TextEncoder.Encode(%v) to %v", v, fmt.Sprintf("%s\n", v))
+	_, err := fmt.Fprintf(e.w, "%s", v)
 	return err
 }

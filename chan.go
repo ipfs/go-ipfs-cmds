@@ -97,13 +97,7 @@ type chanResponseEmitter struct {
 
 func (re *chanResponseEmitter) SetError(err interface{}, t cmdsutil.ErrorType) {
 	// don't change value after emitting
-	/*
-		if re.emitted {
-			return
-		}
-	*/
-
-	*re.err = &cmdsutil.Error{Message: fmt.Sprint(err), Code: t}
+	re.Emit(&cmdsutil.Error{Message: fmt.Sprint(err), Code: t})
 
 	for _, re_ := range re.tees {
 		re_.SetError(err, t)
@@ -133,6 +127,11 @@ func (re *chanResponseEmitter) Head() Head {
 }
 
 func (re *chanResponseEmitter) Close() error {
+	if re.ch == nil {
+		return nil
+	}
+
+	log.Debug("closing chanRE ", re)
 	close(re.ch)
 	re.ch = nil
 
@@ -141,6 +140,10 @@ func (re *chanResponseEmitter) Close() error {
 
 func (re *chanResponseEmitter) Emit(v interface{}) error {
 	re.emitted = true
+	if re.wait != nil {
+		close(re.wait)
+		re.wait = nil
+	}
 
 	if re.ch == nil {
 		return fmt.Errorf("emitter closed")

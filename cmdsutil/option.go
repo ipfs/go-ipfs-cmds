@@ -18,6 +18,22 @@ const (
 	String  = reflect.String
 )
 
+// Flag names
+const (
+	EncShort   = "enc"
+	EncLong    = "encoding"
+	RecShort   = "r"
+	RecLong    = "recursive"
+	ChanOpt    = "stream-channels"
+	TimeoutOpt = "timeout"
+)
+
+// options that are used by this package
+var OptionEncodingType = StringOption(EncLong, EncShort, "The encoding type the output should be encoded with (json, xml, or text)")
+var OptionRecursivePath = BoolOption(RecLong, RecShort, "Add directory paths recursively").Default(false)
+var OptionStreamChannels = BoolOption(ChanOpt, "Stream channel output")
+var OptionTimeout = StringOption(TimeoutOpt, "set a global timeout on the command")
+
 type OptMap map[string]interface{}
 
 // Option is used to specify a field that will be provided by a consumer
@@ -181,19 +197,3 @@ func (ov OptionValue) String() (value string, found bool, err error) {
 	}
 	return val, ov.ValueFound, err
 }
-
-// Flag names
-const (
-	EncShort   = "enc"
-	EncLong    = "encoding"
-	RecShort   = "r"
-	RecLong    = "recursive"
-	ChanOpt    = "stream-channels"
-	TimeoutOpt = "timeout"
-)
-
-// options that are used by this package
-var OptionEncodingType = StringOption(EncLong, EncShort, "The encoding type the output should be encoded with (json, xml, or text)")
-var OptionRecursivePath = BoolOption(RecLong, RecShort, "Add directory paths recursively").Default(false)
-var OptionStreamChannels = BoolOption(ChanOpt, "Stream channel output")
-var OptionTimeout = StringOption(TimeoutOpt, "set a global timeout on the command")

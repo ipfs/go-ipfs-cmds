@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"sync"
 
 	cmds "github.com/ipfs/go-ipfs-cmds"
 	"github.com/ipfs/go-ipfs-cmds/cmdsutil"
@@ -17,13 +18,13 @@ var (
 )
 
 // NewResponeEmitter returns a new ResponseEmitter.
-func NewResponseEmitter(w http.ResponseWriter, encType cmds.EncodingType, method string, res cmds.Response) ResponseEmitter {
+func NewResponseEmitter(w http.ResponseWriter, encType cmds.EncodingType, method string, req cmds.Request) ResponseEmitter {
 	re := &responseEmitter{
 		w:       w,
 		encType: encType,
-		enc:     cmds.Encoders[encType](res)(w),
+		enc:     cmds.Encoders[encType](req)(w),
 		method:  method,
-		req:     res.Request(),
+		req:     req,
 	}
 	return re
 }
@@ -43,8 +44,9 @@ type responseEmitter struct {
 	length uint64
 	err    *cmdsutil.Error
 
-	emitted bool
-	method  string
+	emitted     bool
+	emittedLock sync.Mutex
+	method      string
 
 	tees []cmds.ResponseEmitter
 }
@@ -52,17 +54,18 @@ type responseEmitter struct {
 func (re *responseEmitter) Emit(value interface{}) error {
 	var err error
 
+	re.emittedLock.Lock()
+	if !re.emitted {
+		re.emitted = true
+		re.preamble(value)
+	}
+	re.emittedLock.Unlock()
+
 	go func() {
 		for _, re_ := range re.tees {
 			re_.Emit(value)
 		}
 	}()
-
-	if !re.emitted {
-		re.emitted = true
-		log.Debug("calling preamle")
-		re.preamble(value)
-	}
 
 	// ignore those
 	if value == nil {
@@ -74,15 +77,11 @@ func (re *responseEmitter) Emit(value interface{}) error {
 		return nil
 	}
 
-	// Special case: if text encoding and an error, just print it out.
-	// TODO review question: its like that in response.go, should we keep that?
-	if re.encType == cmds.Text && re.err != nil {
-		value = re.err
-	}
-
 	switch v := value.(type) {
 	case io.Reader:
 		_, err = io.Copy(re.w, v)
+	case cmdsutil.Error, *cmdsutil.Error:
+		// nothing
 	default:
 		err = re.enc.Encode(value)
 	}
@@ -91,6 +90,9 @@ func (re *responseEmitter) Emit(value interface{}) error {
 }
 
 func (re *responseEmitter) SetLength(l uint64) {
+	h := re.w.Header()
+	h.Set("X-Content-Length", strconv.FormatUint(l, 10))
+
 	re.length = l
 
 	for _, re_ := range re.tees {
@@ -104,11 +106,7 @@ func (re *responseEmitter) Close() error {
 }
 
 func (re *responseEmitter) SetError(err interface{}, code cmdsutil.ErrorType) {
-	re.err = &cmdsutil.Error{Message: fmt.Sprint(err), Code: code}
-
-	// force send of preamble
-	// TODO is this the right thing to do?
-	re.Emit(nil)
+	re.Emit(&cmdsutil.Error{Message: fmt.Sprint(err), Code: code})
 
 	for _, re_ := range re.tees {
 		re_.SetError(err, code)
@@ -128,49 +126,43 @@ func (re *responseEmitter) Flush() {
 }
 
 func (re *responseEmitter) preamble(value interface{}) {
-	log.Debug("re.preamble")
+	log.Debugf("re.preamble, v=%#v", value)
+	defer log.Debug("preemble done, headers: ", re.w.Header())
 
 	h := re.w.Header()
 	// Expose our agent to allow identification
 	h.Set("Server", "go-ipfs/"+config.CurrentVersionNumber)
 
 	status := http.StatusOK
-	// if response contains an error, write an HTTP error status code
-	if e := re.err; e != nil {
-		if e.Code == cmdsutil.ErrClient {
+
+	switch v := value.(type) {
+	case *cmdsutil.Error:
+		err := v
+
+		if err.Code == cmdsutil.ErrClient {
 			status = http.StatusBadRequest
 		} else {
 			status = http.StatusInternalServerError
 		}
-		// NOTE: The error will actually be written out below
-	}
 
-	log.Debugf("preamble status=%v", status)
-	log.Debugf("preamble re.err=%#v", re.err)
+		http.Error(re.w, err.Error(), status)
+		re.w = nil
 
-	// write error to connection
-	if re.err != nil {
-		http.Error(re.w, re.err.Error(), http.StatusInternalServerError)
-
-		log.Debug("sent error")
+		log.Debug("sent error: ", err)
 
 		return
-	}
-
-	// Set up our potential trailer
-	h.Set("Trailer", StreamErrHeader)
-
-	if re.length > 0 {
-		h.Set("X-Content-Length", strconv.FormatUint(re.length, 10))
-	}
-
-	if _, ok := value.(io.Reader); ok {
+	case io.Reader:
 		// set streams output type to text to avoid issues with browsers rendering
 		// html pages on priveleged api ports
 		h.Set(streamHeader, "1")
-	} else {
+	default:
 		h.Set(channelHeader, "1")
 	}
+
+	log.Debugf("preamble status=%v", status)
+
+	// Set up our potential trailer
+	h.Set("Trailer", StreamErrHeader)
 
 	// lookup mime type from map
 	mime := mimeTypes[re.encType]
@@ -190,6 +182,10 @@ func (re *responseEmitter) preamble(value interface{}) {
 	re.w.WriteHeader(status)
 }
 
+type responseWriterer interface {
+	Lower() http.ResponseWriter
+}
+
 func (re *responseEmitter) Tee(re_ cmds.ResponseEmitter) {
 	re.tees = append(re.tees, re_)
 
@@ -203,5 +199,6 @@ func (re *responseEmitter) Tee(re_ cmds.ResponseEmitter) {
 }
 
 func (re *responseEmitter) SetEncoder(enc func(io.Writer) cmds.Encoder) {
+	log.Debugf("SetEncoder called :( '%s'", re.encType)
 	re.enc = enc(re.w)
 }

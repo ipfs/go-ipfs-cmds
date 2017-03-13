@@ -46,6 +46,8 @@ type Header interface {
 }
 
 func Copy(re ResponseEmitter, res Response) error {
+	defer log.Debug("Copy returned.")
+
 	log.Debugf("copy from %T to %T", res, re)
 	re.SetLength(res.Length())
 
@@ -58,7 +60,7 @@ func Copy(re ResponseEmitter, res Response) error {
 		}
 
 		v, err := res.Next()
-		log.Debug("copy", v, err)
+		log.Debug("copy ", v, err)
 		if err == io.EOF {
 			re.Close()
 			return nil

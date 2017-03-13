@@ -13,16 +13,18 @@ type ErrSet struct {
 	error
 }
 
-func NewResponseEmitter(w io.WriteCloser, enc func(cmds.Response) func(io.Writer) cmds.Encoder, res cmds.Response) cmds.ResponseEmitter {
+func NewResponseEmitter(w io.WriteCloser, enc func(cmds.Request) func(io.Writer) cmds.Encoder, req cmds.Request) (cmds.ResponseEmitter, <-chan *cmdsutil.Error) {
+	ch := make(chan *cmdsutil.Error)
+
 	if enc == nil {
-		enc = func(cmds.Response) func(io.Writer) cmds.Encoder {
+		enc = func(cmds.Request) func(io.Writer) cmds.Encoder {
 			return func(io.Writer) cmds.Encoder {
 				return nil
 			}
 		}
 	}
 
-	return &responseEmitter{w: w, enc: enc(res)(w)}
+	return &responseEmitter{w: w, enc: enc(req)(w), ch: ch}, ch
 }
 
 type responseEmitter struct {
@@ -35,6 +37,7 @@ type responseEmitter struct {
 	tees []cmds.ResponseEmitter
 
 	emitted bool
+	ch      chan<- *cmdsutil.Error
 }
 
 func (re *responseEmitter) SetLength(l uint64) {
@@ -53,8 +56,7 @@ func (re *responseEmitter) SetError(v interface{}, errType cmdsutil.ErrorType) {
 	log.Debugf("re.SetError(%v, %v)", v, errType)
 
 	err := &cmdsutil.Error{Message: fmt.Sprint(v), Code: errType}
-	//re.Emit(err)
-	re.err = err
+	re.Emit(err)
 
 	for _, re_ := range re.tees {
 		re_.SetError(v, errType)
@@ -62,7 +64,17 @@ func (re *responseEmitter) SetError(v interface{}, errType cmdsutil.ErrorType) {
 }
 
 func (re *responseEmitter) Close() error {
-	return re.w.Close()
+	if re.w == nil {
+		log.Warning("more than one call to RespEm.Close!")
+		return nil
+	}
+
+	log.Debug("closing RE")
+	log.Debugf("%s", debug.Stack())
+	close(re.ch)
+	re.w = nil
+
+	return nil
 }
 
 // Head returns the current head.
@@ -81,8 +93,22 @@ func (re *responseEmitter) Emit(v interface{}) error {
 	}
 	log.Debugf("re.Emit(%T)", v)
 
-	if re.err != nil {
-		return ErrSet{re.err}
+	if re.w == nil {
+		return io.ErrClosedPipe
+	}
+
+	if err, ok := v.(cmdsutil.Error); ok {
+		log.Warningf("fixerr %s", debug.Stack())
+		v = &err
+	}
+
+	if err, ok := v.(*cmdsutil.Error); ok {
+		log.Warning("sending err to ch")
+		log.Debugf("%s", debug.Stack())
+		re.ch <- err
+		log.Debug("sent err to ch")
+		re.Close()
+		return nil
 	}
 
 	log.Debug("copying to tees")

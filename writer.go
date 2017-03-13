@@ -10,14 +10,12 @@ import (
 	"github.com/ipfs/go-ipfs-cmds/cmdsutil"
 )
 
-var EmittedErr = fmt.Errorf("received an error")
-
-func NewWriterResponseEmitter(w io.WriteCloser, res Response, enc func(io.Writer) Encoder) *WriterResponseEmitter {
+func NewWriterResponseEmitter(w io.WriteCloser, req Request, enc func(Request) func(io.Writer) Encoder) *WriterResponseEmitter {
 	return &WriterResponseEmitter{
 		w:   w,
 		c:   w,
-		enc: enc(w),
-		req: res.Request(),
+		enc: enc(req)(w),
+		req: req,
 	}
 }
 
@@ -77,8 +75,13 @@ func (r *readerResponse) Next() (interface{}, error) {
 	r.once.Do(func() { close(r.emitted) })
 
 	v := a.Interface()
-	if err, ok := v.(error); ok {
-		return err, EmittedErr
+	if err, ok := v.(cmdsutil.Error); ok {
+		r.err = &err
+		return nil, ErrRcvdError
+	}
+	if err, ok := v.(*cmdsutil.Error); ok {
+		r.err = err
+		return nil, ErrRcvdError
 	}
 
 	return v, nil
@@ -99,7 +102,7 @@ type WriterResponseEmitter struct {
 }
 
 func (re *WriterResponseEmitter) SetError(err interface{}, code cmdsutil.ErrorType) {
-	*re.err = cmdsutil.Error{Message: fmt.Sprint(err), Code: code}
+	re.Emit(&cmdsutil.Error{Message: fmt.Sprint(err), Code: code})
 
 	for _, re_ := range re.tees {
 		re_.SetError(err, code)

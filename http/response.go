@@ -93,6 +93,8 @@ func getResponse(httpRes *http.Response, req cmds.Request) (cmds.Response, error
 	contentType := httpRes.Header.Get(contentTypeHeader)
 	contentType = strings.Split(contentType, ";")[0]
 
+	log.Debug("header", httpRes.Header)
+
 	// If we ran into an error
 	if httpRes.StatusCode >= http.StatusBadRequest {
 		e := &cmdsutil.Error{}

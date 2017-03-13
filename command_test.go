@@ -18,7 +18,7 @@ func (c dummyCloser) Close() error {
 func newBufferResponseEmitter() ResponseEmitter {
 	buf := bytes.NewBuffer(nil)
 	wc := writecloser{Writer: buf}
-	return NewWriterResponseEmitter(wc, Encoders[Text])
+	return NewWriterResponseEmitter(wc, nil, Encoders[Text])
 }
 
 func noop(req Request, re ResponseEmitter) {
@@ -245,7 +245,7 @@ func TestPostRun(t *testing.T) {
 			finalLength: 4,
 			next:        []interface{}{14},
 			postRun: func(req Request, res Response) Response {
-				re, res_ := NewChanResponsePair(&req)
+				re, res_ := NewChanResponsePair(req)
 
 				re.SetLength(res.Length() + 1)
 				go func() {
@@ -301,7 +301,7 @@ func TestPostRun(t *testing.T) {
 		req, _ := NewRequest(nil, nil, nil, nil, nil, cmdOpts)
 		req.SetOption(cmdsutil.EncShort, CLI)
 
-		re, res := NewChanResponsePair(&req)
+		re, res := NewChanResponsePair(req)
 
 		err := cmd.Call(req, re)
 		if err != nil {

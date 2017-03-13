@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	//"runtime/debug"
 	"strings"
 	"sync"
 
@@ -126,8 +125,6 @@ func (i internalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if r := recover(); r != nil {
 			log.Error("a panic has occurred in the commands handler!")
 			log.Error(r)
-
-			//debug.PrintStack()
 		}
 	}()
 
@@ -183,9 +180,6 @@ func (i internalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// XXX changed order of the next two blocks.
-	// XXX might change behaviour!
-
 	// set user's headers first.
 	for k, v := range i.cfg.Headers {
 		if !skipAPIHeader(k) {
@@ -193,15 +187,47 @@ func (i internalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	chRe, chRes := cmds.NewChanResponsePair(req)
+	log.Debug("request options: ", req.Options())
 
-	enc := req.Options()[cmdsutil.EncShort]
-	if enc == nil {
+	var (
+		enc    = cmds.EncodingType(cmds.Undefined)
+		encStr = string(cmds.Undefined)
+		ok     = false
+		opts   = req.Options()
+	)
+
+	// try EncShort
+	encSource := "short"
+	encIface := opts[cmdsutil.EncShort]
+
+	// if that didn't work, try EncLong
+	if encIface == nil {
+		encSource = "long"
+		encIface = opts[cmdsutil.EncLong]
+	}
+
+	// try casting
+	if encIface != nil {
+		encStr, ok = encIface.(string)
+	}
+
+	log.Debug("req enc:", encSource, encStr, ok)
+
+	// if casting worked, convert to EncodingType
+	if ok {
+		enc = cmds.EncodingType(encStr)
+	}
+
+	// in case of error, use default
+	if !ok || enc == cmds.Undefined {
+		encSource = "default"
 		enc = cmds.JSON
 	}
-	re := NewResponseEmitter(w, cmds.EncodingType(enc.(string)), r.Method, chRes)
 
-	re.Tee(chRe)
+	log.Debug("req enc:", enc)
+
+	log.Debug("chose encoding ", enc, " from source ", encSource)
+	re := NewResponseEmitter(w, enc, r.Method, req)
 
 	log.Debug("root.Call()")
 	// call the command
