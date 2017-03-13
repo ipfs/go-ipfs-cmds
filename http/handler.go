@@ -187,47 +187,7 @@ func (i internalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	log.Debug("request options: ", req.Options())
-
-	var (
-		enc    = cmds.EncodingType(cmds.Undefined)
-		encStr = string(cmds.Undefined)
-		ok     = false
-		opts   = req.Options()
-	)
-
-	// try EncShort
-	encSource := "short"
-	encIface := opts[cmdsutil.EncShort]
-
-	// if that didn't work, try EncLong
-	if encIface == nil {
-		encSource = "long"
-		encIface = opts[cmdsutil.EncLong]
-	}
-
-	// try casting
-	if encIface != nil {
-		encStr, ok = encIface.(string)
-	}
-
-	log.Debug("req enc:", encSource, encStr, ok)
-
-	// if casting worked, convert to EncodingType
-	if ok {
-		enc = cmds.EncodingType(encStr)
-	}
-
-	// in case of error, use default
-	if !ok || enc == cmds.Undefined {
-		encSource = "default"
-		enc = cmds.JSON
-	}
-
-	log.Debug("req enc:", enc)
-
-	log.Debug("chose encoding ", enc, " from source ", encSource)
-	re := NewResponseEmitter(w, enc, r.Method, req)
+	re := NewResponseEmitter(w, r.Method, req)
 
 	log.Debug("root.Call()")
 	// call the command
