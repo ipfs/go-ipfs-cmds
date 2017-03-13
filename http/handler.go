@@ -13,7 +13,6 @@ import (
 	cors "gx/ipfs/QmQzTLDsi3a37CJyMDBXnjiHKQpth3AGS1yqwU57FfLwfG/cors"
 
 	cmds "github.com/ipfs/go-ipfs-cmds"
-	"github.com/ipfs/go-ipfs-cmds/cmdsutil"
 
 	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
 )
