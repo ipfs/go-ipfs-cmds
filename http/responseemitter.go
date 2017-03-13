@@ -197,8 +197,3 @@ func (re *responseEmitter) Tee(re_ cmds.ResponseEmitter) {
 		re_.SetError(re.err.Message, re.err.Code)
 	}
 }
-
-func (re *responseEmitter) SetEncoder(enc func(io.Writer) cmds.Encoder) {
-	log.Debugf("SetEncoder called :( '%s'", re.encType)
-	re.enc = enc(re.w)
-}

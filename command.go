@@ -92,36 +92,6 @@ func (c *Command) Call(req Request, re ResponseEmitter) error {
 
 	fmt.Fprintln(os.Stderr, "Call: requested encoding ", req.Option(cmdsutil.EncShort))
 
-	// TODO keks: wat
-	if re_, ok := re.(EncodingEmitter); ok {
-
-		encTypeStr, found, err := req.Option(cmdsutil.EncShort).String()
-		encTypeSrc := "request"
-
-		encType := EncodingType(encTypeStr)
-
-		if !found || err != nil {
-			encTypeSrc = "default"
-			encType = DefaultOutputEncoding
-		}
-
-		log.Debugf("finding encoder for %s from %s", encType, encTypeSrc)
-
-		if enc, ok := cmd.Encoders[EncodingType(encType)]; ok {
-			re_.SetEncoder(enc(req))
-			log.Debug("updated encoder to", enc, "(from Command struct)")
-		} else {
-			if enc, ok := Encoders[EncodingType(encType)]; ok {
-				re_.SetEncoder(enc(req))
-				log.Debugf("updated encoder to %v (global Encoder)", enc)
-			} else {
-				log.Debug("no encoder found for encoding")
-			}
-		}
-	} else {
-		log.Debugf("responseemitter is not an EncodingEmitter, but a %T", re)
-	}
-
 	log.Debugf("Call: calling cmd.Run %v", cmd.Run)
 	cmd.Run(req, re)
 

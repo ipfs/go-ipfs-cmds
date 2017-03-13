@@ -35,12 +35,6 @@ type ResponseEmitter interface {
 	Emit(value interface{}) error
 }
 
-type EncodingEmitter interface {
-	ResponseEmitter
-
-	SetEncoder(func(io.Writer) Encoder)
-}
-
 type Header interface {
 	Head() Head
 }
