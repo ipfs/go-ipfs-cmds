@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"sync"
 
 	"github.com/ipfs/go-ipfs-cmds/cmdsutil"
 )
@@ -21,11 +22,14 @@ func NewWriterResponseEmitter(w io.WriteCloser, res Response, enc func(io.Writer
 }
 
 func NewReaderResponse(r io.Reader, encType EncodingType, req Request) Response {
+	emitted := make(chan struct{})
+
 	return &readerResponse{
 		req:     req,
 		r:       r,
 		encType: encType,
 		dec:     Decoders[encType](r),
+		emitted: emitted,
 	}
 }
 
@@ -40,7 +44,8 @@ type readerResponse struct {
 	length uint64
 	err    *cmdsutil.Error
 
-	emitted bool
+	emitted chan struct{}
+	once    sync.Once
 }
 
 func (r *readerResponse) Request() Request {
@@ -48,10 +53,14 @@ func (r *readerResponse) Request() Request {
 }
 
 func (r *readerResponse) Error() *cmdsutil.Error {
+	<-r.emitted
+
 	return r.err
 }
 
 func (r *readerResponse) Length() uint64 {
+	<-r.emitted
+
 	return r.length
 }
 
@@ -64,6 +73,8 @@ func (r *readerResponse) Next() (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	r.once.Do(func() { close(r.emitted) })
 
 	v := a.Interface()
 	if err, ok := v.(error); ok {

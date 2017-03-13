@@ -9,16 +9,18 @@ import (
 
 func NewChanResponsePair(req Request) (ResponseEmitter, Response) {
 	ch := make(chan interface{})
+	wait := make(chan struct{})
 
 	r := &chanResponse{
-		req: req,
-		ch:  ch,
+		req:  req,
+		ch:   ch,
+		wait: wait,
 	}
 
 	re := &chanResponseEmitter{
 		ch:     ch,
 		length: &r.length,
-		err:    &r.err,
+		wait:   wait,
 	}
 
 	return re, r
@@ -30,7 +32,9 @@ type chanResponse struct {
 	err    *cmdsutil.Error
 	length uint64
 
-	ch <-chan interface{}
+	// wait makes header requests block until the body is sent
+	wait chan struct{}
+	ch   <-chan interface{}
 }
 
 func (r *chanResponse) Request() Request {
@@ -42,6 +46,8 @@ func (r *chanResponse) Request() Request {
 }
 
 func (r *chanResponse) Error() *cmdsutil.Error {
+	<-r.wait
+
 	if r == nil {
 		return nil
 	}
@@ -50,6 +56,8 @@ func (r *chanResponse) Error() *cmdsutil.Error {
 }
 
 func (r *chanResponse) Length() uint64 {
+	<-r.wait
+
 	if r == nil {
 		return 0
 	}
@@ -64,14 +72,20 @@ func (r *chanResponse) Next() (interface{}, error) {
 
 	v, ok := <-r.ch
 	if ok {
-		return v, nil
+		if err, ok := v.(*cmdsutil.Error); ok {
+			r.err = err
+			return nil, ErrRcvdError
+		} else {
+			return v, nil
+		}
 	}
 
 	return nil, io.EOF
 }
 
 type chanResponseEmitter struct {
-	ch chan<- interface{}
+	ch   chan<- interface{}
+	wait chan struct{}
 
 	length *uint64
 	err    **cmdsutil.Error
@@ -110,6 +124,8 @@ func (re *chanResponseEmitter) SetLength(l uint64) {
 }
 
 func (re *chanResponseEmitter) Head() Head {
+	<-re.wait
+
 	return Head{
 		Len: *re.length,
 		Err: *re.err,
