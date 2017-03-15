@@ -30,19 +30,28 @@ func (rw *responseWrapper) Output() interface{} {
 		if err != nil {
 			return nil
 		}
-		log.Debug("next returned ", x, err)
+		log.Debugf("next (1st) returned x=%v, err=%s; x of type %T", x, err, x)
 
 		if r, ok := x.(io.Reader); ok {
 			rw.out = r
+		} else if ch, ok := x.(chan interface{}); ok {
+			rw.out = (<-chan interface{})(ch)
+		} else if ch, ok := x.(<-chan interface{}); ok {
+			rw.out = ch
 		} else {
 			ch := make(chan interface{})
 			rw.out = ch
+
 			go func() {
 				defer close(ch)
 				ch <- x
+				log.Debugf("rw.Out.go: sent %v to channel %v", x, ch)
 
 				for {
+					log.Debugf("rw.Out.go.for: waiting for Next()")
 					x, err := rw.Next()
+					log.Debugf("next (loop) returned x=%v, err=%s; x of type %T", x, err, x)
+
 					if err == io.EOF {
 						return
 					}
@@ -52,6 +61,7 @@ func (rw *responseWrapper) Output() interface{} {
 					}
 
 					ch <- x
+					log.Debugf("rw.Out.go.for: sent %v to channel %v", x, ch)
 				}
 			}()
 		}
