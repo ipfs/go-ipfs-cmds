@@ -37,10 +37,11 @@ func (res *Response) Length() uint64 {
 }
 
 func (res *Response) Next() (v interface{}, err error) {
-	defer log.Debug("Resp.Next() returns ", v, err)
+	defer func(v_ *interface{}, err_ *error) { log.Debug("Resp.Next() returns ", *v_, *err_) }(&v, &err)
 
 	if res.err != nil {
-		return nil, res.err
+		log.Debug("returning because res.err != nil")
+		return nil, cmds.ErrRcvdError
 	}
 
 	// nil decoder means stream not chunks
@@ -69,6 +70,21 @@ func (res *Response) Next() (v interface{}, err error) {
 		err = res.dec.Decode(&v)
 	}
 
+	err_ := res.res.Trailer.Get(StreamErrHeader)
+	if err_ != "" {
+		log.Debugf("uiop %v_%s,,,%s...", v, err, err_)
+	}
+
+	if err != nil {
+		err_ := res.res.Trailer.Get(StreamErrHeader)
+		log.Debugf("qwertz %v_%s,,,%s...", v, err, err_)
+		if err.Error() == err_ {
+			res.err = &cmdsutil.Error{Message: err_, Code: cmdsutil.ErrNormal}
+			return nil, cmds.ErrRcvdError
+		}
+	}
+
+	log.Debug("returning at end of function body")
 	return v, err
 }
 
