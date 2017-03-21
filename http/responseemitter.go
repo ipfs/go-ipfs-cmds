@@ -56,20 +56,17 @@ type responseEmitter struct {
 
 	once   sync.Once
 	method string
-
-	tees []cmds.ResponseEmitter
 }
 
 func (re *responseEmitter) Emit(value interface{}) error {
 	var err error
+	log.Debugf("Emit(%T) - %v", value, value)
 
 	re.once.Do(func() { re.preamble(value) })
 
-	go func() {
-		for _, re_ := range re.tees {
-			re_.Emit(value)
-		}
-	}()
+	if re.w == nil {
+		return fmt.Errorf("connection already closed / custom - http.respem - TODO")
+	}
 
 	// ignore those
 	if value == nil {
@@ -83,11 +80,19 @@ func (re *responseEmitter) Emit(value interface{}) error {
 
 	switch v := value.(type) {
 	case io.Reader:
-		_, err = io.Copy(re.w, v)
-	case cmdsutil.Error, *cmdsutil.Error:
-		// nothing
+		err = flushCopy(re.w, v)
+	case cmdsutil.Error:
+		log.Debugf("Emit.switch - case cmdsutil.Error")
+		re.w.Header().Set(StreamErrHeader, v.Error())
+	case *cmdsutil.Error:
+		log.Debugf("Emit.switch - case *cmdsutil.Error")
+		log.Debug(re.w)
+		log.Debug(re.w.Header())
+		v.Error()
+		re.w.Header().Set(StreamErrHeader, v.Error())
 	default:
 		err = re.enc.Encode(value)
+		re.w.(http.Flusher).Flush()
 	}
 
 	return err
@@ -98,10 +103,6 @@ func (re *responseEmitter) SetLength(l uint64) {
 	h.Set("X-Content-Length", strconv.FormatUint(l, 10))
 
 	re.length = l
-
-	for _, re_ := range re.tees {
-		re_.SetLength(l)
-	}
 }
 
 func (re *responseEmitter) Close() error {
@@ -111,10 +112,6 @@ func (re *responseEmitter) Close() error {
 
 func (re *responseEmitter) SetError(err interface{}, code cmdsutil.ErrorType) {
 	re.Emit(&cmdsutil.Error{Message: fmt.Sprint(err), Code: code})
-
-	for _, re_ := range re.tees {
-		re_.SetError(err, code)
-	}
 }
 
 // Flush the http connection
@@ -185,19 +182,43 @@ type responseWriterer interface {
 	Lower() http.ResponseWriter
 }
 
-func (re *responseEmitter) Tee(re_ cmds.ResponseEmitter) {
-	re.tees = append(re.tees, re_)
-
-	if re.emitted {
-		re_.SetLength(re.length)
-	}
-
-	if re.err != nil {
-		re_.SetError(re.err.Message, re.err.Code)
-	}
-}
-
 func (re *responseEmitter) SetEncoder(enc func(io.Writer) cmds.Encoder) {
 	log.Debugf("SetEncoder called :( '%s'", re.encType)
 	re.enc = enc(re.w)
+}
+
+func flushCopy(w io.Writer, r io.Reader) error {
+	buf := make([]byte, 4096)
+	f, ok := w.(http.Flusher)
+	if !ok {
+		_, err := io.Copy(w, r)
+		return err
+	}
+	for {
+		n, err := r.Read(buf)
+		switch err {
+		case io.EOF:
+			if n <= 0 {
+				return nil
+			}
+			// if data was returned alongside the EOF, pretend we didnt
+			// get an EOF. The next read call should also EOF.
+		case nil:
+			// continue
+		default:
+			return err
+		}
+
+		nw, err := w.Write(buf[:n])
+		if err != nil {
+			return err
+		}
+
+		if nw != n {
+			return fmt.Errorf("http write failed to write full amount: %d != %d", nw, n)
+		}
+
+		f.Flush()
+	}
+	return nil
 }
