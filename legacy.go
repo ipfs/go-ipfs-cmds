@@ -398,7 +398,7 @@ func NewCommand(oldcmd *oldcmds.Command) *Command {
 func OldContext(ctx Context) oldcmds.Context {
 	node, err := ctx.GetNode()
 
-	return oldcmds.Context{
+	oldCtx := oldcmds.Context{
 		Online:     ctx.Online,
 		ConfigRoot: ctx.ConfigRoot,
 		LoadConfig: func(path string) (*config.Config, error) {
@@ -408,6 +408,28 @@ func OldContext(ctx Context) oldcmds.Context {
 			return node, err
 		},
 	}
+
+	rl := ctx.ReqLog
+	if rl == nil {
+		return oldCtx
+	}
+
+	oldCtx.ReqLog = &oldcmds.ReqLog{}
+
+	for _, rle := range rl.Requests {
+		oldrle := &oldcmds.ReqLogEntry{
+			StartTime: rle.StartTime,
+			EndTime:   rle.EndTime,
+			Active:    rle.Active,
+			Command:   rle.Command,
+			Options:   rle.Options,
+			Args:      rle.Args,
+			ID:        rle.ID,
+		}
+		oldCtx.ReqLog.AddEntry(oldrle)
+	}
+
+	return oldCtx
 }
 
 func NewContext(ctx oldcmds.Context) Context {
