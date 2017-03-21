@@ -36,18 +36,11 @@ type responseEmitter struct {
 	enc     cmds.Encoder
 	encType cmds.EncodingType
 
-	tees []cmds.ResponseEmitter
-
-	emitted bool
-	ch      chan<- *cmdsutil.Error
+	ch chan<- *cmdsutil.Error
 }
 
 func (re *responseEmitter) SetLength(l uint64) {
 	re.length = l
-
-	for _, re_ := range re.tees {
-		re_.SetLength(l)
-	}
 }
 
 func (re *responseEmitter) SetEncoder(enc func(io.Writer) cmds.Encoder) {
@@ -59,10 +52,6 @@ func (re *responseEmitter) SetError(v interface{}, errType cmdsutil.ErrorType) {
 
 	err := &cmdsutil.Error{Message: fmt.Sprint(v), Code: errType}
 	re.Emit(err)
-
-	for _, re_ := range re.tees {
-		re_.SetError(v, errType)
-	}
 }
 
 func (re *responseEmitter) Close() error {
@@ -71,9 +60,9 @@ func (re *responseEmitter) Close() error {
 		return nil
 	}
 
-	log.Debug("closing RE")
-	log.Debugf("%s", debug.Stack())
+	log.Debug("closing RE, err=", re.err)
 	close(re.ch)
+	log.Debug("re.ch closed.")
 	re.w = nil
 
 	return nil
@@ -113,12 +102,6 @@ func (re *responseEmitter) Emit(v interface{}) error {
 		return nil
 	}
 
-	log.Debug("copying to tees")
-	for _, re_ := range re.tees {
-		go re_.Emit(v)
-	}
-	log.Debug("done")
-
 	var err error
 
 	switch t := v.(type) {
@@ -141,16 +124,4 @@ func (re *responseEmitter) Emit(v interface{}) error {
 	}
 
 	return err
-}
-
-func (re *responseEmitter) Tee(re_ cmds.ResponseEmitter) {
-	re.tees = append(re.tees, re_)
-
-	if re.emitted {
-		re_.SetLength(re.length)
-	}
-
-	if re.err != nil {
-		re_.SetError(re.err.Message, re.err.Code)
-	}
 }
