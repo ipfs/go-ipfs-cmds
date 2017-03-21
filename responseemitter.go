@@ -65,6 +65,9 @@ func Copy(re ResponseEmitter, res Response) error {
 			re.Close()
 			return nil
 		}
+		if err == ErrRcvdError {
+			re.SetError(res.Error().Message, res.Error().Code)
+		}
 		if err != nil {
 			return err
 		}
