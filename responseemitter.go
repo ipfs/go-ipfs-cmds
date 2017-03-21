@@ -27,7 +27,7 @@ type ResponseEmitter interface {
 
 	// Tee makes this Responseemitter forward all calls to SetError, SetLength and
 	// Emit to the passed ResponseEmitter
-	Tee(ResponseEmitter)
+	//Tee(ResponseEmitter)
 
 	// Emit sends a value
 	// if value is io.Reader we just copy that to the connection
