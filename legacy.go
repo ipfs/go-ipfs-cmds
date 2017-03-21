@@ -382,14 +382,15 @@ func NewCommand(oldcmd *oldcmds.Command) *Command {
 
 	for encType, m := range oldcmd.Marshalers {
 		log.Debugf("adding marshaler %v for type encType %v", m, encType)
-		cmd.Encoders[EncodingType(encType)] = func(req Request) func(io.Writer) Encoder {
+		cmd.Encoders[EncodingType(encType)] = func(m oldcmds.Marshaler, encType oldcmds.EncodingType) func(req Request) func(io.Writer) Encoder {
+			return func(req Request) func(io.Writer) Encoder {
+				return func(w io.Writer) Encoder {
+					log.Debugf("adding marshalerencoder for %v: %v; res: %v", encType, m, req)
 
-			return func(w io.Writer) Encoder {
-				log.Debugf("adding marshalerencoder for %v: %v; res: %v", encType, m, req)
-
-				return NewMarshalerEncoder(req, m, w)
+					return NewMarshalerEncoder(req, m, w)
+				}
 			}
-		}
+		}(m, encType)
 	}
 
 	return cmd
