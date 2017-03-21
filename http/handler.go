@@ -167,8 +167,8 @@ func (i internalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rlog := i.ctx.ReqLog.Add(req)
-	defer rlog.Finish()
+	reqLogEnt := i.ctx.ReqLog.Add(req)
+	defer i.ctx.ReqLog.Finish(reqLogEnt)
 
 	//ps: take note of the name clash - commands.Context != context.Context
 	req.SetInvocContext(i.ctx)

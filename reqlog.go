@@ -14,29 +14,10 @@ type ReqLogEntry struct {
 	Options   map[string]interface{}
 	Args      []string
 	ID        int
-
-	req Request
-	log *ReqLog
-}
-
-func (r *ReqLogEntry) Finish() {
-	log := r.log
-	log.lock.Lock()
-	defer log.lock.Unlock()
-
-	r.Active = false
-	r.EndTime = time.Now()
-	r.log.maybeCleanup()
-
-	// remove references to save memory
-	r.req = nil
-	r.log = nil
-
 }
 
 func (r *ReqLogEntry) Copy() *ReqLogEntry {
 	out := *r
-	out.log = nil
 	return &out
 }
 
@@ -48,9 +29,6 @@ type ReqLog struct {
 }
 
 func (rl *ReqLog) Add(req Request) *ReqLogEntry {
-	rl.lock.Lock()
-	defer rl.lock.Unlock()
-
 	rle := &ReqLogEntry{
 		StartTime: time.Now(),
 		Active:    true,
@@ -58,13 +36,24 @@ func (rl *ReqLog) Add(req Request) *ReqLogEntry {
 		Options:   req.Options(),
 		Args:      req.StringArguments(),
 		ID:        rl.nextID,
-		req:       req,
-		log:       rl,
 	}
+
+	rl.AddEntry(rle)
+	return rle
+}
+
+func (rl *ReqLog) AddEntry(rle *ReqLogEntry) {
+	rl.lock.Lock()
+	defer rl.lock.Unlock()
 
 	rl.nextID++
 	rl.Requests = append(rl.Requests, rle)
-	return rle
+
+	if rle == nil || !rle.Active {
+		rl.maybeCleanup()
+	}
+
+	return
 }
 
 func (rl *ReqLog) ClearInactive() {
@@ -114,4 +103,14 @@ func (rl *ReqLog) Report() []*ReqLogEntry {
 	}
 
 	return out
+}
+
+func (rl *ReqLog) Finish(rle *ReqLogEntry) {
+	rl.lock.Lock()
+	defer rl.lock.Unlock()
+
+	rle.Active = false
+	rle.EndTime = time.Now()
+
+	rl.maybeCleanup()
 }
