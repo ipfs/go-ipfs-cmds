@@ -54,9 +54,8 @@ type responseEmitter struct {
 	length uint64
 	err    *cmdsutil.Error
 
-	emitted     bool
-	emittedLock sync.Mutex
-	method      string
+	once   sync.Once
+	method string
 
 	tees []cmds.ResponseEmitter
 }
@@ -64,12 +63,7 @@ type responseEmitter struct {
 func (re *responseEmitter) Emit(value interface{}) error {
 	var err error
 
-	re.emittedLock.Lock()
-	if !re.emitted {
-		re.emitted = true
-		re.preamble(value)
-	}
-	re.emittedLock.Unlock()
+	re.once.Do(func() { re.preamble(value) })
 
 	go func() {
 		for _, re_ := range re.tees {
@@ -125,12 +119,7 @@ func (re *responseEmitter) SetError(err interface{}, code cmdsutil.ErrorType) {
 
 // Flush the http connection
 func (re *responseEmitter) Flush() {
-	if !re.emitted {
-		re.emitted = true
-
-		// setting this to nil means that it sends channel/chunked-encoding headers
-		re.preamble(nil)
-	}
+	re.once.Do(func() { re.preamble(nil) })
 
 	re.w.(http.Flusher).Flush()
 }
