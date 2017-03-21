@@ -143,19 +143,23 @@ func (r *fakeResponse) Send() error {
 	}
 
 	if ch, ok := r.out.(chan interface{}); ok {
-		r.out = <-chan interface{}(ch)
+		log.Debugf("fakeResp.Send.if: making chan recv-only")
+		r.out = (<-chan interface{})(ch)
 	}
 
 	switch out := r.out.(type) {
 	case <-chan interface{}:
+		log.Debugf("fakeResp.Send.case ch: calling Emit in loop")
 		for x := range out {
-			log.Debugf("fakeResponse: calling Emit(%v) in loop", out)
-			if err := r.re.Emit(x); err != nil {
+			log.Debugf("fakeResp.Send.case.for: Emit(%v)", x)
+			err := r.re.Emit(x)
+			log.Debugf("fakeResp.Send.case.if: Emit err: %v", err)
+			if err != nil {
 				return err
 			}
 		}
 	default:
-		log.Debugf("fakeResponse: calling Emit(%v) once", out)
+		log.Debugf("fakeResp.Send.case dflt: calling Emit(%v) once", out)
 		return r.re.Emit(out)
 	}
 
@@ -167,6 +171,7 @@ func (r *fakeResponse) Request() oldcmds.Request {
 }
 
 func (r *fakeResponse) SetError(err error, code cmdsutil.ErrorType) {
+	log.Debugf("fakeResp.SetError: %T.SetError", r.re)
 	r.re.SetError(err, code)
 }
 
@@ -247,12 +252,13 @@ func NewMarshalerEncoder(req Request, m oldcmds.Marshaler, w io.Writer) *Marshal
 }
 
 func (me *MarshalerEncoder) Encode(v interface{}) error {
-	re, res := NewChanResponsePair(me.req)
-
 	log.Debugf("ME.Encode: me: %#v, v: %#v", me, v)
+
+	re, res := NewChanResponsePair(me.req)
 	go re.Emit(v)
 
 	r, err := me.m(&responseWrapper{Response: res})
+	log.Debugf("ME.Encode: marshal r: %#v, err: %#v", r, err)
 	if err != nil {
 		return err
 	}
@@ -262,6 +268,7 @@ func (me *MarshalerEncoder) Encode(v interface{}) error {
 	}
 
 	_, err = io.Copy(me.w, r)
+	log.Debugf("ME.Encode: copy err: %#v", err)
 	return err
 }
 

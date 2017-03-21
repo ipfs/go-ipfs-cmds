@@ -72,6 +72,7 @@ func (r *chanResponse) Next() (interface{}, error) {
 
 	v, ok := <-r.ch
 	if ok {
+		log.Debug("chResp.Next: got v=", v)
 		if err, ok := v.(*cmdsutil.Error); ok {
 			r.err = err
 			return nil, ErrRcvdError
