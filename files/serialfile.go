@@ -29,7 +29,7 @@ func NewSerialFile(name, path string, hidden bool, stat os.FileInfo) (File, erro
 		if err != nil {
 			return nil, err
 		}
-		return NewReaderFile(name, path, file, stat), nil
+		return NewReaderPathFile(name, path, file, stat)
 	case mode.IsDir():
 		// for directories, stat all of the contents first, so we know what files to
 		// open when NextFile() is called
