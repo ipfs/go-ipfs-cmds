@@ -110,8 +110,9 @@ func (re *responseEmitter) Close() error {
 	return nil
 }
 
-func (re *responseEmitter) SetError(err interface{}, code cmdsutil.ErrorType) {
-	re.Emit(&cmdsutil.Error{Message: fmt.Sprint(err), Code: code})
+func (re *responseEmitter) SetError(v interface{}, errType cmdsutil.ErrorType) {
+	log.Debugf("re.SetError(%v, %v)", v, errType)
+	re.Emit(&cmdsutil.Error{Message: fmt.Sprint(v), Code: errType})
 }
 
 // Flush the http connection
