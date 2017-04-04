@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"runtime/debug"
+	"sync"
 
 	"github.com/ipfs/go-ipfs-cmds"
 	"github.com/ipfs/go-ipfs-cmds/cmdsutil"
