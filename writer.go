@@ -98,15 +98,11 @@ type WriterResponseEmitter struct {
 	err    *cmdsutil.Error
 
 	emitted bool
-	tees    []ResponseEmitter
 }
 
-func (re *WriterResponseEmitter) SetError(err interface{}, code cmdsutil.ErrorType) {
-	re.Emit(&cmdsutil.Error{Message: fmt.Sprint(err), Code: code})
-
-	for _, re_ := range re.tees {
-		re_.SetError(err, code)
-	}
+func (re *WriterResponseEmitter) SetError(v interface{}, errType cmdsutil.ErrorType) {
+	log.Debugf("re.SetError(%v, %v)", v, errType)
+	re.Emit(&cmdsutil.Error{Message: fmt.Sprint(v), Code: errType})
 }
 
 func (re *WriterResponseEmitter) SetLength(length uint64) {
@@ -115,10 +111,6 @@ func (re *WriterResponseEmitter) SetLength(length uint64) {
 	}
 
 	*re.length = length
-
-	for _, re_ := range re.tees {
-		re_.SetLength(length)
-	}
 }
 
 func (re *WriterResponseEmitter) Close() error {
@@ -140,22 +132,7 @@ func (re *WriterResponseEmitter) Emit(v interface{}) error {
 		return err
 	}
 
-	for _, re_ := range re.tees {
-		err = re_.Emit(v)
-		if err != nil {
-			return err
-		}
-	}
-
 	return nil
-}
-
-func (re *WriterResponseEmitter) Tee(re_ ResponseEmitter) {
-	re.tees = append(re.tees, re_)
-
-	// TODO first check whether length and error have been set
-	re_.SetLength(*re.length)
-	re_.SetError(re.err.Message, re.err.Code)
 }
 
 type Any struct {
