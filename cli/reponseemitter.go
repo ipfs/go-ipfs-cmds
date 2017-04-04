@@ -118,7 +118,11 @@ func (re *responseEmitter) Emit(v interface{}) error {
 		log.Debug("case reader")
 		log.Debug("start copying received reader to cli")
 		n, err = io.Copy(re.w, t)
-		log.Debug("done copying received reader to cli, n=", n)
+		if err != nil {
+			re.SetError(err, cmdsutil.ErrNormal)
+			err = nil
+		}
+		log.Debugf("done copying received reader to cli, n=%d, err=%s", n, err)
 	default:
 		log.Debug("case default")
 		if re.enc != nil {
