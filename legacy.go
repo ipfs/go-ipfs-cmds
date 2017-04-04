@@ -132,12 +132,6 @@ type fakeResponse struct {
 
 func (r *fakeResponse) Send() error {
 	log.Debugf("fakeResponse: sending %v to RE of type %T", r.out, r.re)
-	defer func() {
-		log.Debugf("fakeResponse: closing RE")
-		r.re.Close()
-		log.Debugf("fakeResponse: done")
-	}()
-
 	if r.out == nil {
 		return nil
 	}
