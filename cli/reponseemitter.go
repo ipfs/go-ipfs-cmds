@@ -29,7 +29,8 @@ func NewResponseEmitter(w io.WriteCloser, enc func(cmds.Request) func(io.Writer)
 }
 
 type responseEmitter struct {
-	w io.WriteCloser
+	wLock sync.Mutex
+	w     io.WriteCloser
 
 	length  uint64
 	err     *cmdsutil.Error
@@ -55,6 +56,9 @@ func (re *responseEmitter) SetError(v interface{}, errType cmdsutil.ErrorType) {
 }
 
 func (re *responseEmitter) Close() error {
+	re.wLock.Lock()
+	defer re.wLock.Unlock()
+
 	if re.w == nil {
 		log.Warning("more than one call to RespEm.Close!")
 		return nil
@@ -84,9 +88,12 @@ func (re *responseEmitter) Emit(v interface{}) error {
 	}
 	log.Debugf("re.Emit(%T)", v)
 
+	re.wLock.Lock()
 	if re.w == nil {
+		re.wLock.Unlock()
 		return io.ErrClosedPipe
 	}
+	re.wLock.Unlock()
 
 	if err, ok := v.(cmdsutil.Error); ok {
 		log.Warningf("fixerr %s", debug.Stack())
