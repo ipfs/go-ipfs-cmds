@@ -30,7 +30,7 @@ func (rw *responseWrapper) Output() interface{} {
 		if err != nil {
 			return nil
 		}
-		log.Debugf("next (1st) returned x=%v, err=%s; x of type %T", x, err, x)
+		log.Debugf("next (1st) returned x=%v, err=%v; x of type %T", x, err, x)
 
 		if r, ok := x.(io.Reader); ok {
 			rw.out = r
@@ -151,7 +151,7 @@ func (r *fakeResponse) Send() error {
 	case <-chan interface{}:
 		log.Debugf("fakeResp.Send.case ch: calling Emit in loop")
 		for x := range out {
-			log.Debugf("fakeResp.Send.case.for: Emit(%v)", x)
+			log.Debugf("fakeResp.Send.case.for: Emit(%v/%T)", x, x)
 			err := r.re.Emit(x)
 			log.Debugf("fakeResp.Send.case.if: Emit err: %v", err)
 			if err != nil {
