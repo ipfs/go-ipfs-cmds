@@ -105,7 +105,7 @@ func (re *responseEmitter) Emit(v interface{}) error {
 		log.Debugf("%s", debug.Stack())
 		re.ch <- err
 		log.Debug("sent err to ch")
-		re.Close()
+		//re.Close()
 		return nil
 	}
 
