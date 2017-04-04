@@ -8,6 +8,7 @@ const (
 	ErrNormal         ErrorType = iota // general errors
 	ErrClient                          // error was caused by the client, (e.g. invalid CLI usage)
 	ErrImplementation                  // programmer error in the server
+	ErrNotFound                        // == HTTP 404
 	// TODO: add more types of errors for better error-specific handling
 )
 
