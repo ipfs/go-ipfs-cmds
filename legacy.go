@@ -12,16 +12,21 @@ import (
 	"github.com/ipfs/go-ipfs/repo/config"
 )
 
+// responseWrapper wraps Response and implements olcdms.Response.
+// It embeds a Response so some methods are taken from that.
 type responseWrapper struct {
 	Response
 
 	out interface{}
 }
 
+// Request returns a (faked) oldcmds.Request
 func (rw *responseWrapper) Request() oldcmds.Request {
 	return &requestWrapper{rw.Response.Request()}
 }
 
+// Output returns either a <-chan interface{} on which you can receive the
+// emitted values, or an emitted io.Reader
 func (rw *responseWrapper) Output() interface{} {
 	log.Debug("rw.output()")
 	log.Debugf("rw.Response is of type %T", rw.Response)
@@ -67,22 +72,38 @@ func (rw *responseWrapper) Output() interface{} {
 		}
 	}
 
+	// if we have it already, return existing value
 	return rw.out
 }
 
+// SetError is an empty stub
 func (rw *responseWrapper) SetError(error, cmdsutil.ErrorType) {}
-func (rw *responseWrapper) SetOutput(interface{})              {}
-func (rw *responseWrapper) SetLength(uint64)                   {}
-func (rw *responseWrapper) SetCloser(io.Closer)                {}
 
+// SetOutput is an empty stub
+func (rw *responseWrapper) SetOutput(interface{}) {}
+
+// SetLength is an empty stub
+func (rw *responseWrapper) SetLength(uint64) {}
+
+// SetCloser is an empty stub
+func (rw *responseWrapper) SetCloser(io.Closer) {}
+
+// Close is an empty stub
 func (rw *responseWrapper) Close() error { return nil }
 
+// Marshal is an empty stub
 func (rw *responseWrapper) Marshal() (io.Reader, error) { return nil, nil }
-func (rw *responseWrapper) Reader() (io.Reader, error)  { return nil, nil }
 
+// Reader is an empty stub
+func (rw *responseWrapper) Reader() (io.Reader, error) { return nil, nil }
+
+// Stdout returns os.Stdout
 func (rw *responseWrapper) Stdout() io.Writer { return os.Stdout }
+
+// Stderr returns os.Stderr
 func (rw *responseWrapper) Stderr() io.Writer { return os.Stderr }
 
+// WrapOldRequest returns a faked Request from an oldcmds.Request.
 func WrapOldRequest(r oldcmds.Request) Request {
 	return &oldRequestWrapper{r}
 }
@@ -92,16 +113,20 @@ type requestWrapper struct {
 	Request
 }
 
+// InvocContext retuns the invocation context of the oldcmds.Request.
+// It is faked using OldContext().
 func (r *requestWrapper) InvocContext() *oldcmds.Context {
 	ctx := OldContext(*r.Request.InvocContext())
 	return &ctx
 }
 
+// SetInvocContext sets the invocation context. First the context is converted
+// to a Context using NewContext().
 func (r *requestWrapper) SetInvocContext(ctx oldcmds.Context) {
 	r.Request.SetInvocContext(NewContext(ctx))
 }
 
-// TODO keks
+// Command is an empty stub.
 func (r *requestWrapper) Command() *oldcmds.Command { return nil }
 
 // oldRequestWrapper implements a Request from an oldcmds.Request
@@ -109,6 +134,8 @@ type oldRequestWrapper struct {
 	oldcmds.Request
 }
 
+// InvocContext retuns the invocation context of the oldcmds.Request.
+// It is faked using NewContext().
 func (r *oldRequestWrapper) InvocContext() *Context {
 	ctx := NewContext(*r.Request.InvocContext())
 	return &ctx
@@ -118,18 +145,19 @@ func (r *oldRequestWrapper) SetInvocContext(ctx Context) {
 	r.Request.SetInvocContext(OldContext(ctx))
 }
 
-// TODO keks
+// Command is an empty stub
 func (r *oldRequestWrapper) Command() *Command { return nil }
 
 ///
 
-// fakeResponse gives you a oldcmds.Response when you give it a ResponseEmitter
+// fakeResponse implements oldcmds.Response and takes a ResponseEmitter
 type fakeResponse struct {
 	req oldcmds.Request
 	re  ResponseEmitter
 	out interface{}
 }
 
+// Send emits the value(s) stored in r.out on the ResponseEmitter
 func (r *fakeResponse) Send() error {
 	log.Debugf("fakeResponse: sending %v to RE of type %T", r.out, r.re)
 	if r.out == nil {
@@ -160,66 +188,80 @@ func (r *fakeResponse) Send() error {
 	return nil
 }
 
+// Request returns the oldcmds.Request that belongs to this Response
 func (r *fakeResponse) Request() oldcmds.Request {
 	return r.req
 }
 
+// SetError forwards the call to the underlying ResponseEmitter
 func (r *fakeResponse) SetError(err error, code cmdsutil.ErrorType) {
 	log.Debugf("fakeResp.SetError: %T.SetError", r.re)
 	r.re.SetError(err, code)
 }
 
+// Error is an empty stub
 func (r *fakeResponse) Error() *cmdsutil.Error {
 	return nil
 }
 
+// SetOutput sets the output variable to the passed value
 func (r *fakeResponse) SetOutput(v interface{}) {
 	r.out = v
 }
 
+// Output returns the output variable
 func (r *fakeResponse) Output() interface{} {
 	return r.out
 }
 
+// SetLength forwards the call to the underlying ResponseEmitter
 func (r *fakeResponse) SetLength(l uint64) {
 	r.re.SetLength(l)
 }
 
+// Length is an empty stub
 func (r *fakeResponse) Length() uint64 {
 	return 0
 }
 
+// Close forwards the call to the underlying ResponseEmitter
 func (r *fakeResponse) Close() error {
 	return r.re.Close()
 }
 
+// SetCloser is an empty stub
 func (r *fakeResponse) SetCloser(io.Closer) {}
 
+// Reader is an empty stub
 func (r *fakeResponse) Reader() (io.Reader, error) {
 	return nil, nil
 }
 
+// Marshal is an empty stub
 func (r *fakeResponse) Marshal() (io.Reader, error) {
 	return nil, nil
 }
 
+// Stdout returns os.Stdout
 func (r *fakeResponse) Stdout() io.Writer {
 	return os.Stdout
 }
 
+// Stderr returns os.Stderr
 func (r *fakeResponse) Stderr() io.Writer {
 	return os.Stderr
 }
 
 ///
 
-// make an Encoder from a Marshaler
+// MarshalerEncoder implements Encoder from a Marshaler
 type MarshalerEncoder struct {
 	m   oldcmds.Marshaler
 	w   io.Writer
 	req Request
 }
 
+// NewMarshalerEncoder returns a new MarshalerEncoder
 func NewMarshalerEncoder(req Request, m oldcmds.Marshaler, w io.Writer) *MarshalerEncoder {
 	me := &MarshalerEncoder{
 		m:   m,
@@ -230,6 +272,7 @@ func NewMarshalerEncoder(req Request, m oldcmds.Marshaler, w io.Writer) *Marshal
 	return me
 }
 
+// Encode encodes v onto the io.Writer w using Marshaler m, with both m and w passed in NewMarshalerEncoder
 func (me *MarshalerEncoder) Encode(v interface{}) error {
 	log.Debugf("ME.Encode: me: %#v, v: %#v", me, v)
 
@@ -251,24 +294,27 @@ func (me *MarshalerEncoder) Encode(v interface{}) error {
 	return err
 }
 
+// wrappedResponseEmitter implements a ResponseEmitter by forwarding everything to an oldcmds.Response
 type wrappedResponseEmitter struct {
 	r oldcmds.Response
 }
 
-func (re *wrappedResponseEmitter) Tee(re_ ResponseEmitter) {}
-
+// SetLength forwards the call to the underlying oldcmds.Response
 func (re *wrappedResponseEmitter) SetLength(l uint64) {
 	re.r.SetLength(l)
 }
 
+// SetError forwards the call to the underlying oldcmds.Response
 func (re *wrappedResponseEmitter) SetError(err interface{}, code cmdsutil.ErrorType) {
 	re.r.SetError(fmt.Errorf("%v", err), code)
 }
 
+// Close forwards the call to the underlying oldcmds.Response
 func (re *wrappedResponseEmitter) Close() error {
 	return re.r.Close()
 }
 
+// Emit sends the value to the underlying oldcmds.Response
 func (re *wrappedResponseEmitter) Emit(v interface{}) error {
 	if re.r.Output() == nil {
 		switch c := v.(type) {
@@ -285,6 +331,7 @@ func (re *wrappedResponseEmitter) Emit(v interface{}) error {
 	return nil
 }
 
+// OldCommand returns an oldcmds.Command from a Command.
 func OldCommand(cmd *Command) *oldcmds.Command {
 	oldcmd := &oldcmds.Command{
 		Options:   cmd.Options,
@@ -327,13 +374,13 @@ func OldCommand(cmd *Command) *oldcmds.Command {
 	return oldcmd
 }
 
+// NewCommand returns a Command from an oldcmds.Command
 func NewCommand(oldcmd *oldcmds.Command) *Command {
 	if oldcmd == nil {
 		return nil
 	}
 	var cmd *Command
 
-	// XXX we'll set this as request inside the encoders and then copy it there later on
 	cmd = &Command{
 		Options:   oldcmd.Options,
 		Arguments: oldcmd.Arguments,
@@ -382,6 +429,7 @@ func NewCommand(oldcmd *oldcmds.Command) *Command {
 	return cmd
 }
 
+// OldContext returns an oldcmds.Context from a Context
 func OldContext(ctx Context) oldcmds.Context {
 	node, err := ctx.GetNode()
 
@@ -401,6 +449,7 @@ func OldContext(ctx Context) oldcmds.Context {
 	return oldCtx
 }
 
+// NewContext returns a Context from an oldcmds.Context
 func NewContext(ctx oldcmds.Context) Context {
 	node, err := ctx.GetNode()
 
@@ -416,6 +465,7 @@ func NewContext(ctx oldcmds.Context) Context {
 	}
 }
 
+// OldReqLog returns an oldcmds.ReqLog from a ReqLog
 func OldReqLog(newrl *ReqLog) *oldcmds.ReqLog {
 	if newrl == nil {
 		return nil

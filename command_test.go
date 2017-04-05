@@ -9,25 +9,32 @@ import (
 	"github.com/ipfs/go-ipfs-cmds/cmdsutil"
 )
 
+// nopClose implements io.Close and does nothing
 type nopCloser struct{}
 
 func (c nopCloser) Close() error { return nil }
 
+// newBufferResponseEmitter returns a ResponseEmitter that writes
+// into a bytes.Buffer
 func newBufferResponseEmitter() ResponseEmitter {
 	buf := bytes.NewBuffer(nil)
 	wc := writecloser{Writer: buf, Closer: nopCloser{}}
 	return NewWriterResponseEmitter(wc, nil, Encoders[Text])
 }
 
+// noop does nothing and can be used as a noop Run function
 func noop(req Request, re ResponseEmitter) {
 	return
 }
 
+// writecloser implements io.WriteCloser by embedding
+// an io.Writer and an io.Closer
 type writecloser struct {
 	io.Writer
 	io.Closer
 }
 
+// TestOptionValidation tests whether option type validation works
 func TestOptionValidation(t *testing.T) {
 	cmd := Command{
 		Options: []cmdsutil.Option{
@@ -234,6 +241,7 @@ type postRunTestCase struct {
 	finalLength uint64
 }
 
+// TestPostRun tests whether commands with PostRun return the intended result
 func TestPostRun(t *testing.T) {
 	var testcases = []postRunTestCase{
 		postRunTestCase{
