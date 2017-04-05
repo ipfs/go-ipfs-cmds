@@ -9,15 +9,13 @@ import (
 	"github.com/ipfs/go-ipfs-cmds/cmdsutil"
 )
 
-type dummyCloser struct{}
+type nopCloser struct{}
 
-func (c dummyCloser) Close() error {
-	return nil
-}
+func (c nopCloser) Close() error { return nil }
 
 func newBufferResponseEmitter() ResponseEmitter {
 	buf := bytes.NewBuffer(nil)
-	wc := writecloser{Writer: buf}
+	wc := writecloser{Writer: buf, Closer: nopCloser{}}
 	return NewWriterResponseEmitter(wc, nil, Encoders[Text])
 }
 
@@ -231,7 +229,7 @@ type postRunTestCase struct {
 	length      uint64
 	err         *cmdsutil.Error
 	emit        []interface{}
-	postRun     func(Request, Response) Response
+	postRun     func(Request, ResponseEmitter) ResponseEmitter
 	next        []interface{}
 	finalLength uint64
 }
@@ -244,12 +242,13 @@ func TestPostRun(t *testing.T) {
 			emit:        []interface{}{7},
 			finalLength: 4,
 			next:        []interface{}{14},
-			postRun: func(req Request, res Response) Response {
-				re, res_ := NewChanResponsePair(req)
+			postRun: func(req Request, re ResponseEmitter) ResponseEmitter {
+				re_, res := NewChanResponsePair(req)
 
-				re.SetLength(res.Length() + 1)
 				go func() {
 					defer re.Close()
+					l := res.Length()
+					re.SetLength(l + 1)
 
 					for {
 						v, err := res.Next()
@@ -271,7 +270,8 @@ func TestPostRun(t *testing.T) {
 						}
 					}
 				}()
-				return res_
+
+				return re_
 			},
 		},
 	}
@@ -281,17 +281,18 @@ func TestPostRun(t *testing.T) {
 			Run: func(req Request, re ResponseEmitter) {
 				re.SetLength(tc.length)
 
-				go func() {
-					for _, v := range tc.emit {
-						re.Emit(v)
-					}
-					err := re.Close()
+				for _, v := range tc.emit {
+					err := re.Emit(v)
 					if err != nil {
 						t.Fatal(err)
 					}
-				}()
+				}
+				err := re.Close()
+				if err != nil {
+					t.Fatal(err)
+				}
 			},
-			PostRun: map[EncodingType]func(req Request, res Response) Response{
+			PostRun: map[EncodingType]func(req Request, res ResponseEmitter) ResponseEmitter{
 				CLI: tc.postRun,
 			},
 		}
@@ -300,13 +301,6 @@ func TestPostRun(t *testing.T) {
 
 		req, _ := NewRequest(nil, nil, nil, nil, nil, cmdOpts)
 		req.SetOption(cmdsutil.EncShort, CLI)
-
-		re, res := NewChanResponsePair(req)
-
-		err := cmd.Call(req, re)
-		if err != nil {
-			t.Fatal(err)
-		}
 
 		opts := req.Options()
 		if opts == nil {
@@ -327,7 +321,13 @@ func TestPostRun(t *testing.T) {
 			t.Fatal("wrong encoding type")
 		}
 
-		res = cmd.PostRun[encType](req, res)
+		re, res := NewChanResponsePair(req)
+		re = cmd.PostRun[encType](req, re)
+
+		err := cmd.Call(req, re)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		l := res.Length()
 		if l != tc.finalLength {
