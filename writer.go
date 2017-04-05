@@ -37,7 +37,6 @@ type readerResponse struct {
 	dec     Decoder
 
 	req Request
-	t   reflect.Type
 
 	length uint64
 	err    *cmdsutil.Error
