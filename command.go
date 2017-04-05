@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"reflect"
 
 	"github.com/ipfs/go-ipfs-cmds/cmdsutil"
 
@@ -108,101 +107,6 @@ func (c *Command) Call(req Request, re ResponseEmitter) error {
 	cmd.Run(req, re)
 
 	return nil
-}
-
-func (c *Command) fakeOldCall(cmd *oldcmds.Command, req Request, re ResponseEmitter) error {
-	if cmd.Run == nil {
-		return ErrNotCallable
-	}
-
-	// fake old response
-	res := &fakeResponse{
-		re:  re,
-		req: &requestWrapper{req},
-	}
-
-	optDefs := make(map[string]cmdsutil.Option)
-
-	for k, v := range req.Options() {
-		optDefs[k] = v.(cmdsutil.Option)
-	}
-
-	// fake old request
-	oldReq, err := oldcmds.NewRequest(
-		req.Path(),
-		req.Options(),
-		req.StringArguments(),
-		req.Files(),
-		cmd,
-		optDefs,
-	)
-	if err != nil {
-		return err
-	}
-
-	err = cmd.CheckArguments(oldReq)
-	if err != nil {
-		return err
-	}
-
-	err = oldReq.ConvertOptions()
-	if err != nil {
-		return err
-	}
-
-	// do what we always did before
-	cmd.Run(oldReq, res)
-	if res.Error() != nil {
-		return res.Error()
-	}
-
-	output := res.Output()
-
-	// check if output is channel
-	isChan := false
-	actualType := reflect.TypeOf(output)
-	if actualType != nil {
-		if actualType.Kind() == reflect.Ptr {
-			actualType = actualType.Elem()
-		}
-
-		// test if output is a channel
-		isChan = actualType.Kind() == reflect.Chan
-	}
-
-	if isChan {
-		if ch, ok := output.(<-chan interface{}); ok {
-			output = ch
-
-		} else if ch, ok := output.(chan interface{}); ok {
-			output = (<-chan interface{})(ch)
-		} else {
-			re.SetError(ErrIncorrectType, cmdsutil.ErrNormal)
-			return ErrIncorrectType
-		}
-
-		go func() {
-			for v := range output.(<-chan interface{}) {
-				re.Emit(v)
-			}
-		}()
-	} else {
-		// If the command specified an output type, ensure the actual value
-		// returned is of that type
-		if cmd.Type != nil && !isChan {
-			expectedType := reflect.TypeOf(cmd.Type)
-
-			if actualType != expectedType {
-				re.SetError(ErrIncorrectType, cmdsutil.ErrNormal)
-				return ErrIncorrectType
-			}
-		}
-
-		re.Emit(output)
-	}
-
-	return nil
-
 }
 
 // Resolve returns the subcommands at the given path
