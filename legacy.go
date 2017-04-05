@@ -411,25 +411,7 @@ func OldContext(ctx Context) oldcmds.Context {
 		},
 	}
 
-	rl := ctx.ReqLog
-	if rl == nil {
-		return oldCtx
-	}
-
-	oldCtx.ReqLog = &oldcmds.ReqLog{}
-
-	for _, rle := range rl.Requests {
-		oldrle := &oldcmds.ReqLogEntry{
-			StartTime: rle.StartTime,
-			EndTime:   rle.EndTime,
-			Active:    rle.Active,
-			Command:   rle.Command,
-			Options:   rle.Options,
-			Args:      rle.Args,
-			ID:        rle.ID,
-		}
-		oldCtx.ReqLog.AddEntry(oldrle)
-	}
+	oldCtx.ReqLog = OldReqLog(ctx.ReqLog)
 
 	return oldCtx
 }
@@ -447,4 +429,27 @@ func NewContext(ctx oldcmds.Context) Context {
 			return node, err
 		},
 	}
+}
+
+func OldReqLog(newrl *ReqLog) *oldcmds.ReqLog {
+	if newrl == nil {
+		return nil
+	}
+
+	rl := &oldcmds.ReqLog{}
+
+	for _, rle := range newrl.Requests {
+		oldrle := &oldcmds.ReqLogEntry{
+			StartTime: rle.StartTime,
+			EndTime:   rle.EndTime,
+			Active:    rle.Active,
+			Command:   rle.Command,
+			Options:   rle.Options,
+			Args:      rle.Args,
+			ID:        rle.ID,
+		}
+		rl.AddEntry(oldrle)
+	}
+
+	return rl
 }
