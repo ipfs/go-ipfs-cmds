@@ -28,33 +28,40 @@ func (rw *responseWrapper) Request() oldcmds.Request {
 // Output returns either a <-chan interface{} on which you can receive the
 // emitted values, or an emitted io.Reader
 func (rw *responseWrapper) Output() interface{} {
-	log.Debug("rw.output()")
-	log.Debugf("rw.Response is of type %T", rw.Response)
+	log.Debugf("rw.Output: rw.Response is of type %T", rw.Response)
+
+	//if not called before
 	if rw.out == nil {
+		// get first emitted value
 		x, err := rw.Next()
 		if err != nil {
 			return nil
 		}
 		log.Debugf("next (1st) returned x=%v, err=%v; x of type %T", x, err, x)
 
-		if r, ok := x.(io.Reader); ok {
-			rw.out = r
-		} else if ch, ok := x.(chan interface{}); ok {
-			rw.out = (<-chan interface{})(ch)
-		} else if ch, ok := x.(<-chan interface{}); ok {
-			rw.out = ch
-		} else {
+		switch v := x.(type) {
+		case io.Reader:
+			// if it's a reader, set it
+			rw.out = v
+		case chan interface{}:
+			// if it's a chan interface, set it
+			rw.out = (<-chan interface{})(v)
+		case <-chan interface{}:
+			// again
+			rw.out = v
+		default:
+			// if it is something else, create a channel and copy values from next in there
 			ch := make(chan interface{})
 			rw.out = ch
 
 			go func() {
 				defer close(ch)
-				ch <- x
+				ch <- v
 				log.Debugf("rw.Out.go: sent %v to channel %v", x, ch)
 
 				for {
 					log.Debugf("rw.Out.go.for: waiting for Next()")
-					x, err := rw.Next()
+					v, err := rw.Next()
 					log.Debugf("next (loop) returned x=%v, err=%s; x of type %T", x, err, x)
 
 					if err == io.EOF {
@@ -65,8 +72,8 @@ func (rw *responseWrapper) Output() interface{} {
 						return
 					}
 
-					ch <- x
-					log.Debugf("rw.Out.go.for: sent %v to channel %v", x, ch)
+					ch <- v
+					log.Debugf("rw.Out.go.for: sent %v to channel %v", v, ch)
 				}
 			}()
 		}
