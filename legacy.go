@@ -213,21 +213,6 @@ func (r *fakeResponse) Stderr() io.Writer {
 
 ///
 
-type marshalerEncoderResponse struct {
-	oldcmds.Response // so we don't need to do the unimportant stuff
-
-	value interface{}
-	err   *cmdsutil.Error
-}
-
-func (mer *marshalerEncoderResponse) Output() interface{} {
-	return mer.value
-}
-
-func (mer *marshalerEncoderResponse) Error() *cmdsutil.Error {
-	return mer.err
-}
-
 // make an Encoder from a Marshaler
 type MarshalerEncoder struct {
 	m   oldcmds.Marshaler
