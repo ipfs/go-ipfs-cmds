@@ -367,5 +367,10 @@ func TestPostRun(t *testing.T) {
 				t.Fatal("too few values in next")
 			}
 		}
+
+		_, err = res.Next()
+		if err != io.EOF {
+			t.Fatal("expected EOF, got", err)
+		}
 	}
 }

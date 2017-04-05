@@ -1,10 +1,12 @@
 package cmds
 
 import (
-	// "bytes"
-	// "fmt"
+	"bytes"
+	"fmt"
 	"strings"
-	// "testing"
+	"testing"
+
+	"github.com/ipfs/go-ipfs-cmds/cmdsutil"
 )
 
 type TestOutput struct {
@@ -12,48 +14,41 @@ type TestOutput struct {
 	Baz      int
 }
 
-/*
 func TestMarshalling(t *testing.T) {
 	cmd := &Command{}
 	opts, _ := cmd.GetOptions(nil)
 
 	req, _ := NewRequest(nil, nil, nil, nil, nil, opts)
 
-	res := NewResponse(req)
-	res.SetOutput(TestOutput{"beep", "boop", 1337})
+	buf := bytes.NewBuffer(nil)
+	wc := writecloser{Writer: buf, Closer: nopCloser{}}
+	re := NewWriterResponseEmitter(wc, req, Encoders[JSON])
 
-	_, err := res.Marshal()
-	if err == nil {
-		t.Error("Should have failed (no encoding type specified in request)")
-	}
-
-	req.SetOption(EncShort, JSON)
-
-	reader, err := res.Marshal()
+	err := re.Emit(TestOutput{"beep", "boop", 1337})
 	if err != nil {
 		t.Error(err, "Should have passed")
 	}
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(reader)
+
+	req.SetOption(cmdsutil.EncShort, JSON)
+
 	output := buf.String()
 	if removeWhitespace(output) != "{\"Foo\":\"beep\",\"Bar\":\"boop\",\"Baz\":1337}" {
+		t.Log("expected: {\"Foo\":\"beep\",\"Bar\":\"boop\",\"Baz\":1337}")
+		t.Log("got:", removeWhitespace(buf.String()))
 		t.Error("Incorrect JSON output")
 	}
 
-	res.SetError(fmt.Errorf("Oops!"), ErrClient)
-	reader, err = res.Marshal()
-	if err != nil {
-		t.Error("Should have passed")
-	}
 	buf.Reset()
-	buf.ReadFrom(reader)
+
+	re.SetError(fmt.Errorf("Oops!"), cmdsutil.ErrClient)
+
 	output = buf.String()
-	fmt.Println(removeWhitespace(output))
 	if removeWhitespace(output) != "{\"Message\":\"Oops!\",\"Code\":1}" {
+		t.Log("expected: {\"Message\":\"Oops!\",\"Code\":1}")
+		t.Log("got:", removeWhitespace(buf.String()))
 		t.Error("Incorrect JSON output")
 	}
 }
-*/
 
 func removeWhitespace(input string) string {
 	input = strings.Replace(input, " ", "", -1)
