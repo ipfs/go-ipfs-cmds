@@ -300,7 +300,7 @@ func TestPostRun(t *testing.T) {
 					t.Fatal(err)
 				}
 			},
-			PostRun: map[EncodingType]func(req Request, res ResponseEmitter) ResponseEmitter{
+			PostRun: PostRunMap{
 				CLI: tc.postRun,
 			},
 		}

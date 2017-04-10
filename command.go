@@ -28,6 +28,9 @@ var log = logging.Logger("cmds")
 // It reads from the Request, and writes results to the ResponseEmitter.
 type Function func(Request, ResponseEmitter)
 
+// PostRunMap is the map used in Command.PostRun.
+type PostRunMap map[EncodingType]func(Request, ResponseEmitter) ResponseEmitter
+
 // Command is a runnable command, with input arguments and options (flags).
 // It can also have Subcommands, to group units of work into sets.
 type Command struct {
@@ -40,7 +43,7 @@ type Command struct {
 	// after writing when using multipart requests. The request body will not be
 	// available for reading after the HTTP connection has been written to.
 	Run      Function
-	PostRun  map[EncodingType]func(Request, ResponseEmitter) ResponseEmitter
+	PostRun  PostRunMap
 	Encoders map[EncodingType]func(Request) func(io.Writer) Encoder
 	Helptext cmdsutil.HelpText
 
