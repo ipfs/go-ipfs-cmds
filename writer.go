@@ -124,14 +124,23 @@ func (re *WriterResponseEmitter) Head() Head {
 }
 
 func (re *WriterResponseEmitter) Emit(v interface{}) error {
-	re.emitted = true
-
-	err := re.enc.Encode(v)
-	if err != nil {
-		return err
+	if ch, ok := v.(chan interface{}); ok {
+		v = (<-chan interface{})(ch)
 	}
 
-	return nil
+	if ch, isChan := v.(<-chan interface{}); isChan {
+		for v = range ch {
+			err := re.Emit(v)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	re.emitted = true
+
+	return re.enc.Encode(v)
 }
 
 type Any struct {

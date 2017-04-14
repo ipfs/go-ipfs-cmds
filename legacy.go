@@ -328,6 +328,12 @@ func (re *wrappedResponseEmitter) Emit(v interface{}) error {
 		case io.Reader:
 			re.r.SetOutput(c)
 			return nil
+		case chan interface{}:
+			re.r.SetOutput(c)
+			return nil
+		case <-chan interface{}:
+			re.r.SetOutput(c)
+			return nil
 		default:
 			re.r.SetOutput(make(chan interface{}))
 		}

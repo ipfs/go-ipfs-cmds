@@ -59,6 +59,21 @@ type responseEmitter struct {
 }
 
 func (re *responseEmitter) Emit(value interface{}) error {
+	ch, isChan := value.(<-chan interface{})
+	if !isChan {
+		ch, isChan = value.(chan interface{})
+	}
+
+	if isChan {
+		for value = range ch {
+			err := re.Emit(value)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
 	var err error
 	log.Debugf("Emit(%T) - %v", value, value)
 

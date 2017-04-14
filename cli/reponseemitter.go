@@ -82,6 +82,20 @@ func (re *responseEmitter) Head() cmds.Head {
 }
 
 func (re *responseEmitter) Emit(v interface{}) error {
+	if ch, ok := v.(chan interface{}); ok {
+		v = (<-chan interface{})(ch)
+	}
+
+	if ch, isChan := v.(<-chan interface{}); isChan {
+		for v = range ch {
+			err := re.Emit(v)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
 	if v == nil {
 		log.Debug(string(debug.Stack()))
 	}
@@ -99,18 +113,14 @@ func (re *responseEmitter) Emit(v interface{}) error {
 		v = &err
 	}
 
-	if err, ok := v.(*cmdsutil.Error); ok {
-		log.Warning("sending err to ch")
-		log.Debugf("%s", debug.Stack())
-		re.ch <- err
-		log.Debug("sent err to ch")
-		//re.Close()
-		return nil
-	}
-
 	var err error
 
 	switch t := v.(type) {
+	// send errors to the output channel so it will be printed and the program exits
+	case *cmdsutil.Error:
+		re.ch <- t
+		return nil
+
 	case io.Reader:
 		var n int64
 

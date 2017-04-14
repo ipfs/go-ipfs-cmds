@@ -130,6 +130,20 @@ func (re *chanResponseEmitter) Close() error {
 }
 
 func (re *chanResponseEmitter) Emit(v interface{}) error {
+	if ch, ok := v.(chan interface{}); ok {
+		v = (<-chan interface{})(ch)
+	}
+
+	if ch, isChan := v.(<-chan interface{}); isChan {
+		for v = range ch {
+			err := re.Emit(v)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
 	re.emitted = true
 	if re.wait != nil {
 		close(re.wait)
