@@ -49,9 +49,9 @@ func (re *responseEmitter) SetEncoder(enc func(io.Writer) cmds.Encoder) {
 	re.enc = enc(re.w)
 }
 
-func (re *responseEmitter) SetError(v interface{}, errType cmdsutil.ErrorType) {
+func (re *responseEmitter) SetError(v interface{}, errType cmdsutil.ErrorType) error {
 	log.Debugf("re.SetError(%v, %v)", v, errType)
-	re.Emit(&cmdsutil.Error{Message: fmt.Sprint(v), Code: errType})
+	return re.Emit(&cmdsutil.Error{Message: fmt.Sprint(v), Code: errType})
 }
 
 func (re *responseEmitter) Close() error {

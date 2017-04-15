@@ -99,9 +99,9 @@ type WriterResponseEmitter struct {
 	emitted bool
 }
 
-func (re *WriterResponseEmitter) SetError(v interface{}, errType cmdsutil.ErrorType) {
+func (re *WriterResponseEmitter) SetError(v interface{}, errType cmdsutil.ErrorType) error {
 	log.Debugf("re.SetError(%v, %v)", v, errType)
-	re.Emit(&cmdsutil.Error{Message: fmt.Sprint(v), Code: errType})
+	return re.Emit(&cmdsutil.Error{Message: fmt.Sprint(v), Code: errType})
 }
 
 func (re *WriterResponseEmitter) SetLength(length uint64) {

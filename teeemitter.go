@@ -45,7 +45,34 @@ func (re *teeEmitter) SetLength(l uint64) {
 	re.re.SetLength(l)
 }
 
-func (re *teeEmitter) SetError(err interface{}, code cmdsutil.ErrorType) {
-	re.ResponseEmitter.SetError(err, code)
-	re.re.SetError(err, code)
+func (re *teeEmitter) SetError(err interface{}, code cmdsutil.ErrorType) error {
+	err1 := re.ResponseEmitter.SetError(err, code)
+	err2 := re.re.SetError(err, code)
+
+	tErr := TeeError{err1, err2}
+	if !tErr.BothNil() {
+		return tErr
+	}
+
+	return nil
+}
+
+type TeeError struct {
+	err1, err2 error
+}
+
+func (err TeeError) BothNil() bool {
+	return err.err1 == nil && err.err2 == nil
+}
+
+func (err TeeError) Error() string {
+	if err.err1 != nil && err.err2 != nil {
+		return "1:" + err.err1.Error() + "\n2:" + err.err2.Error()
+	} else if err.err1 != nil {
+		return "1: " + err.err1.Error()
+	} else if err.err2 != nil {
+		return "2: " + err.err2.Error()
+	} else {
+		return ""
+	}
 }
