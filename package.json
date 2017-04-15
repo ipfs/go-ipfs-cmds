@@ -29,6 +29,6 @@
   "language": "go",
   "license": "MIT",
   "name": "go-ipfs-cmds",
-  "version": "0.1.0-dev"
+  "version": "0.1.0"
 }
 
