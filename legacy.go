@@ -43,16 +43,10 @@ func (rw *responseWrapper) Output() interface{} {
 		case io.Reader:
 			// if it's a reader, set it
 			rw.out = v
-		case chan interface{}:
-			// if it's a chan interface, set it
-			rw.out = (<-chan interface{})(v)
-		case <-chan interface{}:
-			// again
-			rw.out = v
 		default:
 			// if it is something else, create a channel and copy values from next in there
 			ch := make(chan interface{})
-			rw.out = ch
+			rw.out = (<-chan interface{})(ch)
 
 			go func() {
 				defer close(ch)
