@@ -23,6 +23,11 @@
       "hash": "QmZuY8aV7zbNXVy6DyN9SmnuH3o9nG852F4aTiSBpts8d1",
       "name": "go-ipfs-util",
       "version": "1.2.1"
+    },
+    {
+      "hash": "QmYiqbfRCkryYvJsxBopy77YEhxNZXTmq5Y2qiKyenc59C",
+      "name": "go-ipfs-cmdkit",
+      "version": "0.2.0"
     }
   ],
   "gxVersion": "0.10.0",
