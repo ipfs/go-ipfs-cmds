@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"io"
+	"os"
 	"runtime/debug"
 	"sync"
 
@@ -66,6 +67,12 @@ func (re *responseEmitter) Close() error {
 	log.Debug("closing RE, err=", re.err)
 	close(re.ch)
 	log.Debug("re.ch closed.")
+	if f, ok := re.w.(*os.File); ok {
+		err := f.Sync()
+		if err != nil {
+			return err
+		}
+	}
 	re.w = nil
 
 	return nil
