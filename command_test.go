@@ -2,6 +2,7 @@ package cmds
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"testing"
 	"time"
@@ -307,7 +308,10 @@ func TestPostRun(t *testing.T) {
 
 		cmdOpts, _ := cmd.GetOptions(nil)
 
-		req, _ := NewRequest(nil, nil, nil, nil, nil, cmdOpts)
+		req, err := NewRequest(nil, nil, nil, nil, nil, cmdOpts)
+		if err != nil {
+			t.Fatal(err)
+		}
 		req.SetOption(cmdsutil.EncShort, CLI)
 
 		opts := req.Options()
@@ -332,7 +336,7 @@ func TestPostRun(t *testing.T) {
 		re, res := NewChanResponsePair(req)
 		re = cmd.PostRun[encType](req, re)
 
-		err := cmd.Call(req, re)
+		err = cmd.Call(req, re)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -373,4 +377,37 @@ func TestPostRun(t *testing.T) {
 			t.Fatal("expected EOF, got", err)
 		}
 	}
+}
+
+func TestCancel(t *testing.T) {
+	wait := make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
+
+	req, err := NewRequest(nil, nil, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req.SetRootContext(ctx)
+
+	re, res := NewChanResponsePair(req)
+
+	go func() {
+		err := re.Emit("abc")
+		if err != context.Canceled {
+			t.Fatalf("re:  expected context.Canceled but got %v", err)
+		}
+		t.Log("re.Emit err:", err)
+		re.Close()
+		close(wait)
+	}()
+
+	cancel()
+
+	_, err = res.Next()
+	if err != context.Canceled {
+		t.Fatalf("res: expected context.Canceled but got %v", err)
+	}
+	t.Log("res.Emit err:", err)
+	<-wait
 }

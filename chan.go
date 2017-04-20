@@ -1,6 +1,7 @@
 package cmds
 
 import (
+	"context"
 	"fmt"
 	"io"
 
@@ -10,17 +11,20 @@ import (
 func NewChanResponsePair(req Request) (ResponseEmitter, Response) {
 	ch := make(chan interface{})
 	wait := make(chan struct{})
+	done := make(chan struct{})
 
 	r := &chanResponse{
 		req:  req,
 		ch:   ch,
 		wait: wait,
+		done: done,
 	}
 
 	re := &chanResponseEmitter{
 		ch:     ch,
 		length: &r.length,
 		wait:   wait,
+		done:   done,
 	}
 
 	return re, r
@@ -35,6 +39,7 @@ type chanResponse struct {
 	// wait makes header requests block until the body is sent
 	wait chan struct{}
 	ch   <-chan interface{}
+	done chan<- struct{}
 }
 
 func (r *chanResponse) Request() Request {
@@ -70,23 +75,37 @@ func (r *chanResponse) Next() (interface{}, error) {
 		return nil, io.EOF
 	}
 
-	v, ok := <-r.ch
-	if ok {
-		log.Debug("chResp.Next: got v=", v)
-		if err, ok := v.(*cmdsutil.Error); ok {
-			r.err = err
-			return nil, ErrRcvdError
-		} else {
-			return v, nil
-		}
+	var ctx context.Context
+	if rctx := r.req.Context(); rctx != nil {
+		ctx = rctx
+	} else {
+		ctx = context.Background()
 	}
 
-	return nil, io.EOF
+	select {
+	case v, ok := <-r.ch:
+		if ok {
+			log.Debug("chResp.Next: got v=", v)
+			if err, ok := v.(*cmdsutil.Error); ok {
+				r.err = err
+				return nil, ErrRcvdError
+			}
+
+			return v, nil
+		}
+
+		return nil, io.EOF
+	case <-ctx.Done():
+		close(r.done)
+		return nil, r.req.Context().Err()
+	}
+
 }
 
 type chanResponseEmitter struct {
 	ch   chan<- interface{}
 	wait chan struct{}
+	done <-chan struct{}
 
 	length *uint64
 	err    **cmdsutil.Error
@@ -154,7 +173,12 @@ func (re *chanResponseEmitter) Emit(v interface{}) error {
 		return fmt.Errorf("emitter closed")
 	}
 
-	re.ch <- v
+	select {
+	case re.ch <- v:
+		return nil
+	case <-re.done:
+		return context.Canceled
+	}
 
 	return nil
 }

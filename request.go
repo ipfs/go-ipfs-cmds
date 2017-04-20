@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"time"
 
-	"gx/ipfs/QmYiqbfRCkryYvJsxBopy77YEhxNZXTmq5Y2qiKyenc59C/go-ipfs-cmdkit/files"
 	"gx/ipfs/QmYiqbfRCkryYvJsxBopy77YEhxNZXTmq5Y2qiKyenc59C/go-ipfs-cmdkit"
+	"gx/ipfs/QmYiqbfRCkryYvJsxBopy77YEhxNZXTmq5Y2qiKyenc59C/go-ipfs-cmdkit/files"
 
 	"github.com/ipfs/go-ipfs/core"
 	"github.com/ipfs/go-ipfs/repo/config"
@@ -259,9 +259,17 @@ func (r *request) VarArgs(f func(string) error) error {
 }
 
 func getContext(base context.Context, req Request) (context.Context, error) {
-	tout, found, err := req.Option("timeout").String()
-	if err != nil {
-		return nil, fmt.Errorf("error parsing timeout option: %s", err)
+	var (
+		found bool
+		tout  string
+	)
+
+	if optVal := req.Option("timeout"); optVal != nil {
+		var err error
+		tout, found, err = optVal.String()
+		if err != nil {
+			return nil, fmt.Errorf("error parsing timeout option: %s", err)
+		}
 	}
 
 	var ctx context.Context
