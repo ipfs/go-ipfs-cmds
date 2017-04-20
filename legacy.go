@@ -28,8 +28,6 @@ func (rw *responseWrapper) Request() oldcmds.Request {
 // Output returns either a <-chan interface{} on which you can receive the
 // emitted values, or an emitted io.Reader
 func (rw *responseWrapper) Output() interface{} {
-	log.Debugf("rw.Output: rw.Response is of type %T", rw.Response)
-
 	//if not called before
 	if rw.out == nil {
 		// get first emitted value
@@ -37,7 +35,6 @@ func (rw *responseWrapper) Output() interface{} {
 		if err != nil {
 			return nil
 		}
-		log.Debugf("next (1st) returned x=%v, err=%v; x of type %T", x, err, x)
 
 		switch v := x.(type) {
 		case io.Reader:
@@ -51,23 +48,19 @@ func (rw *responseWrapper) Output() interface{} {
 			go func() {
 				defer close(ch)
 				ch <- v
-				log.Debugf("rw.Out.go: sent %v to channel %v", x, ch)
 
 				for {
-					log.Debugf("rw.Out.go.for: waiting for Next()")
 					v, err := rw.Next()
-					log.Debugf("next (loop) returned x=%v, err=%s; x of type %T", x, err, x)
 
 					if err == io.EOF {
 						return
 					}
 					if err != nil {
-						log.Debug("unhandled error in call to Next()")
+						log.Error(err)
 						return
 					}
 
 					ch <- v
-					log.Debugf("rw.Out.go.for: sent %v to channel %v", v, ch)
 				}
 			}()
 		}
@@ -160,29 +153,23 @@ type fakeResponse struct {
 
 // Send emits the value(s) stored in r.out on the ResponseEmitter
 func (r *fakeResponse) Send() error {
-	log.Debugf("fakeResponse: sending %v to RE of type %T", r.out, r.re)
 	if r.out == nil {
 		return nil
 	}
 
 	if ch, ok := r.out.(chan interface{}); ok {
-		log.Debugf("fakeResp.Send.if: making chan recv-only")
 		r.out = (<-chan interface{})(ch)
 	}
 
 	switch out := r.out.(type) {
 	case <-chan interface{}:
-		log.Debugf("fakeResp.Send.case ch: calling Emit in loop")
 		for x := range out {
-			log.Debugf("fakeResp.Send.case.for: Emit(%v/%T)", x, x)
 			err := r.re.Emit(x)
-			log.Debugf("fakeResp.Send.case.if: Emit err: %v", err)
 			if err != nil {
 				return err
 			}
 		}
 	default:
-		log.Debugf("fakeResp.Send.case dflt: calling Emit(%v) once", out)
 		return r.re.Emit(out)
 	}
 
@@ -196,7 +183,6 @@ func (r *fakeResponse) Request() oldcmds.Request {
 
 // SetError forwards the call to the underlying ResponseEmitter
 func (r *fakeResponse) SetError(err error, code cmdsutil.ErrorType) {
-	log.Debugf("fakeResp.SetError: %T.SetError", r.re)
 	r.re.SetError(err, code)
 }
 
@@ -275,13 +261,10 @@ func NewMarshalerEncoder(req Request, m oldcmds.Marshaler, w io.Writer) *Marshal
 
 // Encode encodes v onto the io.Writer w using Marshaler m, with both m and w passed in NewMarshalerEncoder
 func (me *MarshalerEncoder) Encode(v interface{}) error {
-	log.Debugf("ME.Encode: me: %#v, v: %#v", me, v)
-
 	re, res := NewChanResponsePair(me.req)
 	go re.Emit(v)
 
 	r, err := me.m(&responseWrapper{Response: res})
-	log.Debugf("ME.Encode: marshal r: %#v, err: %#v", r, err)
 	if err != nil {
 		return err
 	}
@@ -291,7 +274,6 @@ func (me *MarshalerEncoder) Encode(v interface{}) error {
 	}
 
 	_, err = io.Copy(me.w, r)
-	log.Debugf("ME.Encode: copy err: %#v", err)
 	return err
 }
 
@@ -372,7 +354,6 @@ func OldCommand(cmd *Command) *oldcmds.Command {
 
 			cmd.Run(req, re)
 		}
-		log.Debugf("faker: added Run %v", oldcmd.Run)
 	}
 	if cmd.PreRun != nil {
 		oldcmd.PreRun = func(oldReq oldcmds.Request) error {
@@ -406,11 +387,8 @@ func NewCommand(oldcmd *oldcmds.Command) *Command {
 			oldReq := &requestWrapper{req}
 			res := &fakeResponse{req: oldReq, re: re}
 
-			log.Debugf("fakecmd.Run: calling real cmd.Run")
 			oldcmd.Run(oldReq, res)
-			log.Debugf("fakecmd.Run: calling res.Send")
 			res.Send()
-			log.Debugf("fakecmd.Run: done")
 		}
 	}
 
@@ -424,12 +402,9 @@ func NewCommand(oldcmd *oldcmds.Command) *Command {
 	cmd.Encoders = make(map[EncodingType]func(Request) func(io.Writer) Encoder)
 
 	for encType, m := range oldcmd.Marshalers {
-		log.Debugf("adding marshaler %v for type encType %v", m, encType)
 		cmd.Encoders[EncodingType(encType)] = func(m oldcmds.Marshaler, encType oldcmds.EncodingType) func(req Request) func(io.Writer) Encoder {
 			return func(req Request) func(io.Writer) Encoder {
 				return func(w io.Writer) Encoder {
-					log.Debugf("adding marshalerencoder for %v: %v; res: %v", encType, m, req)
-
 					return NewMarshalerEncoder(req, m, w)
 				}
 			}

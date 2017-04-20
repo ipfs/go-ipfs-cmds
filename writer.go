@@ -109,7 +109,6 @@ func (re *WriterResponseEmitter) SetEncoder(mkEnc func(io.Writer) Encoder) {
 }
 
 func (re *WriterResponseEmitter) SetError(v interface{}, errType cmdsutil.ErrorType) error {
-	log.Debugf("re.SetError(%v, %v)", v, errType)
 	return re.Emit(&cmdsutil.Error{Message: fmt.Sprint(v), Code: errType})
 }
 

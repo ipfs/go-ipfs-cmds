@@ -19,9 +19,7 @@ var (
 
 // NewResponeEmitter returns a new ResponseEmitter.
 func NewResponseEmitter(w http.ResponseWriter, method string, req cmds.Request) ResponseEmitter {
-	log.Debugf("entering NewResponseEmitter with w=%v, method=%s, req=%v", w, method, req)
 	encType := cmds.GetEncoding(req)
-	log.Debugf("got encoding %s", encType)
 
 	var enc cmds.Encoder
 
@@ -75,7 +73,6 @@ func (re *responseEmitter) Emit(value interface{}) error {
 	}
 
 	var err error
-	log.Debugf("Emit(%T) - %v", value, value)
 
 	re.once.Do(func() { re.preamble(value) })
 
@@ -97,12 +94,8 @@ func (re *responseEmitter) Emit(value interface{}) error {
 	case io.Reader:
 		err = flushCopy(re.w, v)
 	case cmdsutil.Error:
-		log.Debugf("Emit.switch - case cmdsutil.Error")
 		re.w.Header().Set(StreamErrHeader, v.Error())
 	case *cmdsutil.Error:
-		log.Debugf("Emit.switch - case *cmdsutil.Error")
-		log.Debug(re.w)
-		log.Debug(re.w.Header())
 		v.Error()
 		re.w.Header().Set(StreamErrHeader, v.Error())
 	default:
@@ -126,7 +119,6 @@ func (re *responseEmitter) Close() error {
 }
 
 func (re *responseEmitter) SetError(v interface{}, errType cmdsutil.ErrorType) error {
-	log.Debugf("re.SetError(%v, %v)", v, errType)
 	return re.Emit(&cmdsutil.Error{Message: fmt.Sprint(v), Code: errType})
 }
 
@@ -138,9 +130,6 @@ func (re *responseEmitter) Flush() {
 }
 
 func (re *responseEmitter) preamble(value interface{}) {
-	log.Debugf("re.preamble, v=%#v", value)
-	defer log.Debug("preemble done, headers: ", re.w.Header())
-
 	h := re.w.Header()
 	// Expose our agent to allow identification
 	h.Set("Server", "go-ipfs/"+config.CurrentVersionNumber)
@@ -160,8 +149,6 @@ func (re *responseEmitter) preamble(value interface{}) {
 		http.Error(re.w, err.Error(), status)
 		re.w = nil
 
-		log.Debug("sent error: ", err)
-
 		return
 	case io.Reader:
 		// set streams output type to text to avoid issues with browsers rendering
@@ -170,8 +157,6 @@ func (re *responseEmitter) preamble(value interface{}) {
 	default:
 		h.Set(channelHeader, "1")
 	}
-
-	log.Debugf("preamble status=%v", status)
 
 	// Set up our potential trailer
 	h.Set("Trailer", StreamErrHeader)
@@ -199,7 +184,6 @@ type responseWriterer interface {
 }
 
 func (re *responseEmitter) SetEncoder(enc func(io.Writer) cmds.Encoder) {
-	log.Debugf("SetEncoder called :( '%s'", re.encType)
 	re.enc = enc(re.w)
 }
 

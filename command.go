@@ -98,15 +98,9 @@ func (c *Command) Call(req Request, re ResponseEmitter) error {
 
 		if enc, ok := cmd.Encoders[EncodingType(encType)]; ok {
 			re_.SetEncoder(enc(req))
-			log.Debugf("updated encoder for type %s to %v", encType, enc)
-		} else {
-			log.Debugf("command has no encoder for %s", encType)
 		}
-	} else {
-		log.Debugf("responseemitter is not an EncodingEmitter, but a %T", re)
 	}
 
-	log.Debugf("Call: calling cmd.Run %v", cmd.Run)
 	cmd.Run(req, re)
 
 	return nil

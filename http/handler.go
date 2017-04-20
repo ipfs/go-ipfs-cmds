@@ -188,13 +188,11 @@ func (i internalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	re := NewResponseEmitter(w, r.Method, req)
 
-	log.Debug("root.Call()")
 	// call the command
 	err = i.root.Call(req, re)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	log.Debug("returned err=", err)
 
 	return
 }
@@ -296,7 +294,6 @@ func allowReferer(r *http.Request, cfg *ServerConfig) bool {
 	u, err := url.Parse(referer)
 	if err != nil {
 		// bad referer. but there _is_ something, so bail.
-		log.Debug("failed to parse referer: ", referer)
 		// debug because referer comes straight from the client. dont want to
 		// let people DOS by putting a huge referer that gets stored in log files.
 		return false

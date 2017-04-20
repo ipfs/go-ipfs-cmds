@@ -93,19 +93,16 @@ func (c *client) Send(req cmds.Request) (cmds.Response, error) {
 	httpReq.Cancel = req.Context().Done()
 	httpReq.Close = true
 
-	log.Debug("sending request...")
 	httpRes, err := c.httpClient.Do(httpReq)
 	if err != nil {
 		return nil, err
 	}
-	log.Debug("done")
 
 	// using the overridden JSON encoding in request
 	res, err := getResponse(httpRes, req)
 	if err != nil {
 		return nil, err
 	}
-	log.Debug("got response")
 
 	if found && len(previousUserProvidedEncoding) > 0 {
 		// reset to user provided encoding after sending request

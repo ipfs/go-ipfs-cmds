@@ -74,7 +74,6 @@ type TextEncoder struct {
 }
 
 func (e TextEncoder) Encode(v interface{}) error {
-	log.Debug("TextEncoder.Encode(%v) to %v", v, fmt.Sprintf("%s\n", v))
 	_, err := fmt.Fprintf(e.w, "%s", v)
 	return err
 }

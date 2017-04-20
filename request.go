@@ -419,8 +419,6 @@ func NewRequest(path []string, opts cmdsutil.OptMap, args []string, file files.F
 
 // GetEncoding returns the EncodingType set in a request, falling back to JSON
 func GetEncoding(req Request) EncodingType {
-	log.Debug("request options: ", req.Options())
-
 	var (
 		encType = EncodingType(Undefined)
 		encStr  = string(Undefined)
@@ -429,12 +427,10 @@ func GetEncoding(req Request) EncodingType {
 	)
 
 	// try EncShort
-	encSource := "short"
 	encIface := opts[cmdsutil.EncShort]
 
 	// if that didn't work, try EncLong
 	if encIface == nil {
-		encSource = "long"
 		encIface = opts[cmdsutil.EncLong]
 	}
 
@@ -443,8 +439,6 @@ func GetEncoding(req Request) EncodingType {
 		encStr, ok = encIface.(string)
 	}
 
-	log.Debug("req encType:", encSource, encStr, ok)
-
 	// if casting worked, convert to EncodingType
 	if ok {
 		encType = EncodingType(encStr)
@@ -452,11 +446,8 @@ func GetEncoding(req Request) EncodingType {
 
 	// in case of error, use default
 	if !ok || encType == Undefined {
-		encSource = "default"
 		encType = JSON
 	}
-
-	log.Debug("chose encoding ", encType, " from source ", encSource)
 
 	return encType
 }

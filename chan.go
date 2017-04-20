@@ -85,7 +85,6 @@ func (r *chanResponse) Next() (interface{}, error) {
 	select {
 	case v, ok := <-r.ch:
 		if ok {
-			log.Debug("chResp.Next: got v=", v)
 			if err, ok := v.(*cmdsutil.Error); ok {
 				r.err = err
 				return nil, ErrRcvdError
@@ -114,7 +113,6 @@ type chanResponseEmitter struct {
 }
 
 func (re *chanResponseEmitter) SetError(v interface{}, errType cmdsutil.ErrorType) error {
-	log.Debugf("re.SetError(%v, %v)", v, errType)
 	return re.Emit(&cmdsutil.Error{Message: fmt.Sprint(v), Code: errType})
 }
 
@@ -141,7 +139,6 @@ func (re *chanResponseEmitter) Close() error {
 		return nil
 	}
 
-	log.Debug("closing chanRE ", re)
 	close(re.ch)
 	re.ch = nil
 

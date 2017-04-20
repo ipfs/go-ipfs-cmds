@@ -51,7 +51,6 @@ func (re *responseEmitter) SetEncoder(enc func(io.Writer) cmds.Encoder) {
 }
 
 func (re *responseEmitter) SetError(v interface{}, errType cmdsutil.ErrorType) error {
-	log.Debugf("re.SetError(%v, %v)", v, errType)
 	return re.Emit(&cmdsutil.Error{Message: fmt.Sprint(v), Code: errType})
 }
 
@@ -64,9 +63,7 @@ func (re *responseEmitter) Close() error {
 		return nil
 	}
 
-	log.Debug("closing RE, err=", re.err)
 	close(re.ch)
-	log.Debug("re.ch closed.")
 	if f, ok := re.w.(*os.File); ok {
 		err := f.Sync()
 		if err != nil {
@@ -104,9 +101,7 @@ func (re *responseEmitter) Emit(v interface{}) error {
 	}
 
 	if v == nil {
-		log.Debug(string(debug.Stack()))
 	}
-	log.Debugf("re.Emit(%T)", v)
 
 	re.wLock.Lock()
 	if re.w == nil {
@@ -131,21 +126,15 @@ func (re *responseEmitter) Emit(v interface{}) error {
 	case io.Reader:
 		var n int64
 
-		log.Debug("case reader")
-		log.Debug("start copying received reader to cli")
 		n, err = io.Copy(re.w, t)
 		if err != nil {
 			re.SetError(err, cmdsutil.ErrNormal)
 			err = nil
 		}
-		log.Debugf("done copying received reader to cli, n=%d, err=%s", n, err)
 	default:
-		log.Debug("case default")
 		if re.enc != nil {
-			log.Debug("using encoder")
 			err = re.enc.Encode(v)
 		} else {
-			log.Debug("using fprintln")
 			_, err = fmt.Fprintln(re.w, t)
 		}
 	}

@@ -38,14 +38,12 @@ func (res *Response) Length() uint64 {
 
 func (res *Response) Next() (v interface{}, err error) {
 	if res.err != nil {
-		log.Debug("returning because res.err != nil")
 		return nil, cmds.ErrRcvdError
 	}
 
 	// nil decoder means stream not chunks
 	// but only do that once
 	if res.dec == nil {
-		log.Debug("Resp.Next: res.rr=", res.rr)
 		if res.rr == nil {
 			return nil, io.EOF
 		} else {
@@ -70,14 +68,12 @@ func (res *Response) Next() (v interface{}, err error) {
 
 	if err != nil {
 		rxErr := res.res.Trailer.Get(StreamErrHeader)
-		log.Debugf("qwertz %v_%s,,,%s...", v, err, rxErr)
 		if err.Error() == rxErr {
 			res.err = &cmdsutil.Error{Message: rxErr, Code: cmdsutil.ErrNormal}
 			return nil, cmds.ErrRcvdError
 		}
 	}
 
-	log.Debug("returning at end of function body")
 	return v, err
 }
 
@@ -102,8 +98,6 @@ func getResponse(httpRes *http.Response, req cmds.Request) (cmds.Response, error
 	contentType := httpRes.Header.Get(contentTypeHeader)
 	contentType = strings.Split(contentType, ";")[0]
 
-	log.Debug("header", httpRes.Header)
-
 	// If we ran into an error
 	if httpRes.StatusCode >= http.StatusBadRequest {
 		e := &cmdsutil.Error{}
@@ -123,15 +117,12 @@ func getResponse(httpRes *http.Response, req cmds.Request) (cmds.Response, error
 			e.Message = string(mes)
 			e.Code = cmdsutil.ErrNormal
 
-			log.Debug("getResp - err - plaintext:", e.Message)
-
 		default:
 			// handle marshalled errors
 			err = res.dec.Decode(&e)
 			if err != nil {
 				return nil, err
 			}
-			log.Debug("getResp - err - default", e.Message)
 		}
 
 		e.Message = strings.Trim(e.Message, "\n\r\t ")
