@@ -52,13 +52,6 @@ func Copy(re ResponseEmitter, res Response) error {
 	re.SetLength(res.Length())
 
 	for {
-		if res.Error() != nil {
-			e := res.Error()
-			log.Debugf("Copy: copying error `%v` to a ResponseEmitter of type %T", e, re)
-			re.SetError(e.Message, e.Code)
-			return nil
-		}
-
 		v, err := res.Next()
 		log.Debug("copy ", v, err)
 		if err == io.EOF {
