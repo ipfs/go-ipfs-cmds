@@ -67,7 +67,7 @@ func (err TeeError) BothNil() bool {
 
 func (err TeeError) Error() string {
 	if err.err1 != nil && err.err2 != nil {
-		return "1:" + err.err1.Error() + "\n2:" + err.err2.Error()
+		return "1: " + err.err1.Error() + "\n2: " + err.err2.Error()
 	} else if err.err1 != nil {
 		return "1: " + err.err1.Error()
 	} else if err.err2 != nil {

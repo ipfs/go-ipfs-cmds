@@ -11,12 +11,17 @@ import (
 )
 
 func NewWriterResponseEmitter(w io.WriteCloser, req Request, enc func(Request) func(io.Writer) Encoder) *WriterResponseEmitter {
-	return &WriterResponseEmitter{
+	re := &WriterResponseEmitter{
 		w:   w,
 		c:   w,
-		enc: enc(req)(w),
 		req: req,
 	}
+
+	if enc != nil {
+		re.enc = enc(req)(w)
+	}
+
+	return re
 }
 
 func NewReaderResponse(r io.Reader, encType EncodingType, req Request) Response {
@@ -97,6 +102,10 @@ type WriterResponseEmitter struct {
 	err    *cmdsutil.Error
 
 	emitted bool
+}
+
+func (re *WriterResponseEmitter) SetEncoder(mkEnc func(io.Writer) Encoder) {
+	re.enc = mkEnc(re.w)
 }
 
 func (re *WriterResponseEmitter) SetError(v interface{}, errType cmdsutil.ErrorType) error {

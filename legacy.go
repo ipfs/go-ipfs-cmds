@@ -334,7 +334,9 @@ func (re *wrappedResponseEmitter) Emit(v interface{}) error {
 		}
 	}
 
-	re.r.Output().(chan interface{}) <- v
+	go func() {
+		re.r.Output().(chan interface{}) <- v
+	}()
 
 	return nil
 }
