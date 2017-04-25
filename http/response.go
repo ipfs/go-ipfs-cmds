@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/ipfs/go-ipfs-cmds"
-	"gx/ipfs/QmYiqbfRCkryYvJsxBopy77YEhxNZXTmq5Y2qiKyenc59C/go-ipfs-cmdkit"
+	"gx/ipfs/QmadYQbq2fJpaRE3XhpMLH68NNxmWMwfMQy1ntr1cKf7eo/go-ipfs-cmdkit"
 )
 
 type Response struct {

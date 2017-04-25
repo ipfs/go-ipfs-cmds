@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/ipfs/go-ipfs-cmds"
-	"gx/ipfs/QmYiqbfRCkryYvJsxBopy77YEhxNZXTmq5Y2qiKyenc59C/go-ipfs-cmdkit"
+	"gx/ipfs/QmadYQbq2fJpaRE3XhpMLH68NNxmWMwfMQy1ntr1cKf7eo/go-ipfs-cmdkit"
 )
 
 type ErrSet struct {
@@ -124,9 +124,7 @@ func (re *responseEmitter) Emit(v interface{}) error {
 		return nil
 
 	case io.Reader:
-		var n int64
-
-		n, err = io.Copy(re.w, t)
+		_, err = io.Copy(re.w, t)
 		if err != nil {
 			re.SetError(err, cmdsutil.ErrNormal)
 			err = nil
