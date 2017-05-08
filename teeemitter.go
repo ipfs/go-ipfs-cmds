@@ -51,6 +51,7 @@ func (re *teeEmitter) SetError(err interface{}, code cmdsutil.ErrorType) error {
 
 	tErr := TeeError{err1, err2}
 	if !tErr.BothNil() {
+		log.Error(tErr)
 		return tErr
 	}
 

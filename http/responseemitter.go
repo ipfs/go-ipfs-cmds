@@ -119,7 +119,12 @@ func (re *responseEmitter) Close() error {
 }
 
 func (re *responseEmitter) SetError(v interface{}, errType cmdsutil.ErrorType) error {
-	return re.Emit(&cmdsutil.Error{Message: fmt.Sprint(v), Code: errType})
+	err := re.Emit(&cmdsutil.Error{Message: fmt.Sprint(v), Code: errType})
+	if err != nil {
+		log.Error(err)
+	}
+
+	return err
 }
 
 // Flush the http connection
