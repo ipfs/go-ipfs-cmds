@@ -50,14 +50,16 @@ func Copy(re ResponseEmitter, res Response) error {
 
 	for {
 		v, err := res.Next()
-		if err == io.EOF {
+		switch err {
+		case nil:
+			// all good, go on
+		case io.EOF:
 			re.Close()
 			return nil
-		}
-		if err == ErrRcvdError {
-			re.SetError(res.Error().Message, res.Error().Code)
-		}
-		if err != nil {
+		case ErrRcvdError:
+			re.Emit(res.Error())
+			continue
+		default:
 			return err
 		}
 

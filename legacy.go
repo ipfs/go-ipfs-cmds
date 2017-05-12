@@ -288,9 +288,8 @@ func (re *wrappedResponseEmitter) SetLength(l uint64) {
 }
 
 // SetError forwards the call to the underlying oldcmds.Response
-func (re *wrappedResponseEmitter) SetError(err interface{}, code cmdsutil.ErrorType) error {
+func (re *wrappedResponseEmitter) SetError(err interface{}, code cmdsutil.ErrorType) {
 	re.r.SetError(fmt.Errorf("%v", err), code)
-	return nil
 }
 
 // Close forwards the call to the underlying oldcmds.Response

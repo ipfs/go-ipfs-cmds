@@ -69,7 +69,9 @@ var ErrNoFormatter = ClientError("This command cannot be formatted to plain text
 var ErrIncorrectType = errors.New("The command returned a value with a different type than expected")
 
 // Call invokes the command for the given Request
-func (c *Command) Call(req Request, re ResponseEmitter) error {
+func (c *Command) Call(req Request, re ResponseEmitter) (err error) {
+	// we need the named return parameter so we can change the value from defer()
+
 	defer re.Close()
 
 	cmd, err := c.Get(req.Path())
@@ -101,9 +103,26 @@ func (c *Command) Call(req Request, re ResponseEmitter) error {
 		}
 	}
 
+	defer func() {
+		// catch panics (esp. from re.SetError)
+		v := recover()
+
+		if v == nil {
+			return
+		}
+
+		// if they are errors
+		if e, ok := v.(error); ok {
+			// use them as return error
+			err = e
+		}
+
+		// otherwise keep panicking.
+		panic(v)
+	}()
 	cmd.Run(req, re)
 
-	return nil
+	return err
 }
 
 // Resolve returns the subcommands at the given path

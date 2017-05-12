@@ -45,17 +45,9 @@ func (re *teeEmitter) SetLength(l uint64) {
 	re.re.SetLength(l)
 }
 
-func (re *teeEmitter) SetError(err interface{}, code cmdsutil.ErrorType) error {
-	err1 := re.ResponseEmitter.SetError(err, code)
-	err2 := re.re.SetError(err, code)
-
-	tErr := TeeError{err1, err2}
-	if !tErr.BothNil() {
-		log.Error(tErr)
-		return tErr
-	}
-
-	return nil
+func (re *teeEmitter) SetError(err interface{}, code cmdsutil.ErrorType) {
+	re.ResponseEmitter.SetError(err, code)
+	re.re.SetError(err, code)
 }
 
 type TeeError struct {

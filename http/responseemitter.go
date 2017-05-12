@@ -118,13 +118,11 @@ func (re *responseEmitter) Close() error {
 	return nil
 }
 
-func (re *responseEmitter) SetError(v interface{}, errType cmdsutil.ErrorType) error {
+func (re *responseEmitter) SetError(v interface{}, errType cmdsutil.ErrorType) {
 	err := re.Emit(&cmdsutil.Error{Message: fmt.Sprint(v), Code: errType})
 	if err != nil {
-		log.Error(err)
+		panic(err)
 	}
-
-	return err
 }
 
 // Flush the http connection

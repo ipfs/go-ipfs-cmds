@@ -112,13 +112,11 @@ type chanResponseEmitter struct {
 	emitted bool
 }
 
-func (re *chanResponseEmitter) SetError(v interface{}, errType cmdsutil.ErrorType) error {
+func (re *chanResponseEmitter) SetError(v interface{}, errType cmdsutil.ErrorType) {
 	err := re.Emit(&cmdsutil.Error{Message: fmt.Sprint(v), Code: errType})
 	if err != nil {
-		log.Error(err)
+		panic(err)
 	}
-
-	return err
 }
 
 func (re *chanResponseEmitter) SetLength(l uint64) {
