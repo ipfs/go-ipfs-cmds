@@ -20,15 +20,6 @@ type ResponseEmitter interface {
 	// err is an interface{} so we don't have to manually convert to error.
 	SetError(err interface{}, code cmdsutil.ErrorType)
 
-	// Gets Stdout and Stderr, for writing to console without using SetOutput
-	// TODO I'm not sure we really need that, but lets see
-	//Stdout() io.Writer
-	//Stderr() io.Writer
-
-	// Tee makes this Responseemitter forward all calls to SetError, SetLength and
-	// Emit to the passed ResponseEmitter
-	//Tee(ResponseEmitter)
-
 	// Emit sends a value
 	// if value is io.Reader we just copy that to the connection
 	// other values are marshalled
