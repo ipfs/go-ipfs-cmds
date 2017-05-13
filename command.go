@@ -105,20 +105,15 @@ func (c *Command) Call(req Request, re ResponseEmitter) (err error) {
 
 	defer func() {
 		// catch panics (esp. from re.SetError)
-		v := recover()
-
-		if v == nil {
-			return
+		if v := recover(); v != nil {
+			// if they are errors
+			if e, ok := v.(error); ok {
+				// use them as return error
+				err = e
+			}
+			// otherwise keep panicking.
+			panic(v)
 		}
-
-		// if they are errors
-		if e, ok := v.(error); ok {
-			// use them as return error
-			err = e
-		}
-
-		// otherwise keep panicking.
-		panic(v)
 	}()
 	cmd.Run(req, re)
 
