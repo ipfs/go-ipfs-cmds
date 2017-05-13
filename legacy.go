@@ -146,34 +146,40 @@ func (r *oldRequestWrapper) Command() *Command { return nil }
 
 // fakeResponse implements oldcmds.Response and takes a ResponseEmitter
 type fakeResponse struct {
-	req oldcmds.Request
-	re  ResponseEmitter
-	out interface{}
+	req  oldcmds.Request
+	re   ResponseEmitter
+	out  interface{}
+	wait chan struct{}
 }
 
 // Send emits the value(s) stored in r.out on the ResponseEmitter
-func (r *fakeResponse) Send() error {
-	if r.out == nil {
-		return nil
+func (r *fakeResponse) Send(errCh chan<- error) {
+	defer close(errCh)
+
+	out := r.Output()
+	if out == nil {
+		return
 	}
 
-	if ch, ok := r.out.(chan interface{}); ok {
-		r.out = (<-chan interface{})(ch)
+	if ch, ok := out.(chan interface{}); ok {
+		out = (<-chan interface{})(ch)
 	}
 
-	switch out := r.out.(type) {
+	switch v := out.(type) {
 	case <-chan interface{}:
-		for x := range out {
+		for x := range v {
 			err := r.re.Emit(x)
 			if err != nil {
-				return err
+				errCh <- err
+				return
 			}
 		}
 	default:
-		return r.re.Emit(out)
+		errCh <- r.re.Emit(v)
+		return
 	}
 
-	return nil
+	return
 }
 
 // Request returns the oldcmds.Request that belongs to this Response
@@ -194,10 +200,12 @@ func (r *fakeResponse) Error() *cmdsutil.Error {
 // SetOutput sets the output variable to the passed value
 func (r *fakeResponse) SetOutput(v interface{}) {
 	r.out = v
+	close(r.wait)
 }
 
 // Output returns the output variable
 func (r *fakeResponse) Output() interface{} {
+	<-r.wait
 	return r.out
 }
 
@@ -384,10 +392,15 @@ func NewCommand(oldcmd *oldcmds.Command) *Command {
 	if oldcmd.Run != nil {
 		cmd.Run = func(req Request, re ResponseEmitter) {
 			oldReq := &requestWrapper{req}
-			res := &fakeResponse{req: oldReq, re: re}
+			res := &fakeResponse{req: oldReq, re: re, wait: make(chan struct{})}
 
+			errCh := make(chan error)
+			go res.Send(errCh)
 			oldcmd.Run(oldReq, res)
-			res.Send()
+			err := <-errCh
+			if err != nil {
+				log.Error(err)
+			}
 		}
 	}
 
