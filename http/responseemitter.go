@@ -96,11 +96,14 @@ func (re *responseEmitter) Emit(value interface{}) error {
 	case cmdsutil.Error:
 		re.w.Header().Set(StreamErrHeader, v.Error())
 	case *cmdsutil.Error:
-		v.Error()
 		re.w.Header().Set(StreamErrHeader, v.Error())
 	default:
 		err = re.enc.Encode(value)
 		re.w.(http.Flusher).Flush()
+	}
+
+	if err != nil {
+		log.Error(err)
 	}
 
 	return err
@@ -121,6 +124,7 @@ func (re *responseEmitter) Close() error {
 func (re *responseEmitter) SetError(v interface{}, errType cmdsutil.ErrorType) {
 	err := re.Emit(&cmdsutil.Error{Message: fmt.Sprint(v), Code: errType})
 	if err != nil {
+		log.Debug("http.SetError err=", err)
 		panic(err)
 	}
 }
