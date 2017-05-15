@@ -51,6 +51,52 @@ type responseEmitter struct {
 	ch chan<- *cmdsutil.Error
 }
 
+func (re *responseEmitter) SetLength(l uint64) {
+	re.length = l
+}
+
+func (re *responseEmitter) SetEncoder(enc func(io.Writer) cmds.Encoder) {
+	re.enc = enc(re.w)
+}
+
+func (re *responseEmitter) SetError(v interface{}, errType cmdsutil.ErrorType) {
+	err := re.Emit(&cmdsutil.Error{Message: fmt.Sprint(v), Code: errType})
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (re *responseEmitter) Close() error {
+	re.wLock.Lock()
+	defer re.wLock.Unlock()
+
+	if re.w == nil {
+		log.Warning("more than one call to RespEm.Close!")
+		return nil
+	}
+
+	close(re.ch)
+	if f, ok := re.w.(*os.File); ok {
+		err := f.Sync()
+		if err != nil {
+			return err
+		}
+	}
+	re.w = nil
+
+	return nil
+}
+
+// Head returns the current head.
+// TODO: maybe it makes sense to make these pointers to shared memory?
+//   might not be so clever though...concurrency and stuff
+func (re *responseEmitter) Head() cmds.Head {
+	return cmds.Head{
+		Len: re.length,
+		Err: re.err,
+	}
+}
+
 func (re *responseEmitter) Emit(v interface{}) error {
 	if ch, ok := v.(chan interface{}); ok {
 		v = (<-chan interface{})(ch)
@@ -106,34 +152,6 @@ func (re *responseEmitter) Emit(v interface{}) error {
 	return err
 }
 
-func (re *responseEmitter) SetError(v interface{}, errType cmdsutil.ErrorType) {
-	err := re.Emit(&cmdsutil.Error{Message: fmt.Sprint(v), Code: errType})
-	if err != nil {
-		panic(err)
-	}
-}
-
-func (re *responseEmitter) Close() error {
-	re.wLock.Lock()
-	defer re.wLock.Unlock()
-
-	if re.w == nil {
-		log.Warning("more than one call to RespEm.Close!")
-		return nil
-	}
-
-	close(re.ch)
-	if f, ok := re.w.(*os.File); ok {
-		err := f.Sync()
-		if err != nil {
-			return err
-		}
-	}
-	re.w = nil
-
-	return nil
-}
-
 func (re *responseEmitter) Stdout() *os.File {
 	return os.Stdout
 }
@@ -144,22 +162,4 @@ func (re *responseEmitter) Stderr() *os.File {
 
 func (re *responseEmitter) Exit(code int) {
 	os.Exit(code)
-}
-
-// Head returns the current head.
-// TODO: maybe it makes sense to make these pointers to shared memory?
-//   might not be so clever though...concurrency and stuff
-func (re *responseEmitter) Head() cmds.Head {
-	return cmds.Head{
-		Len: re.length,
-		Err: re.err,
-	}
-}
-
-func (re *responseEmitter) SetLength(l uint64) {
-	re.length = l
-}
-
-func (re *responseEmitter) SetEncoder(enc func(io.Writer) cmds.Encoder) {
-	re.enc = enc(re.w)
 }
