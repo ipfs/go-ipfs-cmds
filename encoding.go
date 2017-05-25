@@ -24,11 +24,12 @@ type EncodingType string
 const (
 	Undefined = ""
 
-	JSON     = "json"
-	XML      = "xml"
-	Protobuf = "protobuf"
-	Text     = "text"
-	CLI      = "cli"
+	JSON        = "json"
+	XML         = "xml"
+	Protobuf    = "protobuf"
+	Text        = "text"
+	TextNewline = "textnl"
+	CLI         = "cli"
 
 	// TODO: support more encoding types
 )
@@ -42,7 +43,10 @@ var Decoders = map[EncodingType]func(w io.Reader) Decoder{
 	},
 }
 
-var Encoders = map[EncodingType]func(req Request) func(w io.Writer) Encoder{
+type EncoderFunc func(req Request) func(w io.Writer) Encoder
+type EncoderMap map[EncodingType]EncoderFunc
+
+var Encoders = EncoderMap{
 	XML: func(req Request) func(io.Writer) Encoder {
 		return func(w io.Writer) Encoder { return xml.NewEncoder(w) }
 	},
@@ -50,7 +54,10 @@ var Encoders = map[EncodingType]func(req Request) func(w io.Writer) Encoder{
 		return func(w io.Writer) Encoder { return json.NewEncoder(w) }
 	},
 	Text: func(req Request) func(io.Writer) Encoder {
-		return func(w io.Writer) Encoder { return TextEncoder{w} }
+		return func(w io.Writer) Encoder { return TextEncoder{w: w} }
+	},
+	TextNewline: func(req Request) func(io.Writer) Encoder {
+		return func(w io.Writer) Encoder { return TextEncoder{w: w, suffix: "\n"} }
 	},
 }
 
@@ -70,10 +77,11 @@ func (e *genericEncoder) Encode(v interface{}) error {
 }
 
 type TextEncoder struct {
-	w io.Writer
+	w      io.Writer
+	suffix string
 }
 
 func (e TextEncoder) Encode(v interface{}) error {
-	_, err := fmt.Fprintf(e.w, "%s", v)
+	_, err := fmt.Fprintf(e.w, "%s%s", v, e.suffix)
 	return err
 }
