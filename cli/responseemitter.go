@@ -17,8 +17,8 @@ type ErrSet struct {
 	error
 }
 
-func NewResponseEmitter(w io.WriteCloser, enc func(cmds.Request) func(io.Writer) cmds.Encoder, req cmds.Request) (cmds.ResponseEmitter, <-chan *cmdsutil.Error) {
-	ch := make(chan *cmdsutil.Error)
+func NewResponseEmitter(stdout, stderr io.Writer, enc func(cmds.Request) func(io.Writer) cmds.Encoder, req cmds.Request) (cmds.ResponseEmitter, <-chan int) {
+	ch := make(chan int)
 	encType := cmds.GetEncoding(req)
 
 	if enc == nil {
@@ -29,28 +29,33 @@ func NewResponseEmitter(w io.WriteCloser, enc func(cmds.Request) func(io.Writer)
 		}
 	}
 
-	return &responseEmitter{w: w, encType: encType, enc: enc(req)(w), ch: ch}, ch
+	return &responseEmitter{stdout: stdout, stderr: stderr, encType: encType, enc: enc(req)(stdout), ch: ch}, ch
 }
 
 // ResponseEmitter extends cmds.ResponseEmitter to give better control over the command line
 type ResponseEmitter interface {
 	cmds.ResponseEmitter
 
-	Stdout() *os.File
-	Stderr() *os.File
+	Stdout() io.Writer
+	Stderr() io.Writer
 	Exit(int)
 }
 
 type responseEmitter struct {
-	wLock sync.Mutex
-	w     io.WriteCloser
+	wLock  sync.Mutex
+	stdout io.Writer
+	stderr io.Writer
 
 	length  uint64
 	err     *cmdsutil.Error
 	enc     cmds.Encoder
 	encType cmds.EncodingType
+	exit    int
+	closed  bool
 
-	ch chan<- *cmdsutil.Error
+	errOccurred bool
+
+	ch chan<- int
 }
 
 func (re *responseEmitter) SetLength(l uint64) {
@@ -58,33 +63,60 @@ func (re *responseEmitter) SetLength(l uint64) {
 }
 
 func (re *responseEmitter) SetEncoder(enc func(io.Writer) cmds.Encoder) {
-	re.enc = enc(re.w)
+	re.enc = enc(re.stdout)
 }
 
 func (re *responseEmitter) SetError(v interface{}, errType cmdsutil.ErrorType) {
+	re.errOccurred = true
+
 	err := re.Emit(&cmdsutil.Error{Message: fmt.Sprint(v), Code: errType})
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (re *responseEmitter) Close() error {
+func (re *responseEmitter) isClosed() bool {
 	re.wLock.Lock()
 	defer re.wLock.Unlock()
 
-	if re.w == nil {
-		log.Warning("more than one call to RespEm.Close!")
+	return re.closed
+}
+
+func (re *responseEmitter) Close() error {
+	log.Debugf("err=%v exit=%v\nStack:\n%s", re.err, re.exit, debug.Stack())
+
+	if re.isClosed() {
 		return nil
 	}
 
+	re.wLock.Lock()
+	defer re.wLock.Unlock()
+
+	re.ch <- re.exit
 	close(re.ch)
-	if f, ok := re.w.(*os.File); ok {
+
+	defer func() {
+		re.stdout = nil
+		re.stderr = nil
+		re.closed = true
+	}()
+
+	if re.stdout == nil || re.stderr == nil {
+		log.Warning("more than one call to RespEm.Close!")
+	}
+
+	if f, ok := re.stderr.(*os.File); ok {
 		err := f.Sync()
 		if err != nil {
 			return err
 		}
 	}
-	re.w = nil
+	if f, ok := re.stdout.(*os.File); ok {
+		err := f.Sync()
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -104,7 +136,20 @@ func (re *responseEmitter) Emit(v interface{}) error {
 		v = (<-chan interface{})(ch)
 	}
 
+	log.Debugf("%T:%v, enc:%p", v, v, re.enc)
+
+	// TODO find a better solution for this.
+	// Idea: use the actual cmd.Type and not *cmd.Type
+	// would need to fix all commands though
+	switch c := v.(type) {
+	case *string:
+		v = *c
+	case *int:
+		v = *c
+	}
+
 	if ch, isChan := v.(<-chan interface{}); isChan {
+		log.Debug("iterating over chan...", ch)
 		for v = range ch {
 			err := re.Emit(v)
 			if err != nil {
@@ -117,12 +162,9 @@ func (re *responseEmitter) Emit(v interface{}) error {
 	if v == nil {
 	}
 
-	re.wLock.Lock()
-	if re.w == nil {
-		re.wLock.Unlock()
+	if re.isClosed() {
 		return io.ErrClosedPipe
 	}
-	re.wLock.Unlock()
 
 	if err, ok := v.(cmdsutil.Error); ok {
 		log.Warningf("fixerr %s", debug.Stack())
@@ -132,13 +174,19 @@ func (re *responseEmitter) Emit(v interface{}) error {
 	var err error
 
 	switch t := v.(type) {
-	// send errors to the output channel so it will be printed and the program exits
 	case *cmdsutil.Error:
-		re.ch <- t
+		_, err = fmt.Fprintln(re.stderr, "Error:", t.Message)
+		if t.Code == cmdsutil.ErrFatal {
+			defer re.Close()
+		}
+		re.wLock.Lock()
+		defer re.wLock.Unlock()
+		re.exit = 1
+
 		return nil
 
 	case io.Reader:
-		_, err = io.Copy(re.w, t)
+		_, err = io.Copy(re.stdout, t)
 		if err != nil {
 			re.SetError(err, cmdsutil.ErrNormal)
 			err = nil
@@ -147,21 +195,28 @@ func (re *responseEmitter) Emit(v interface{}) error {
 		if re.enc != nil {
 			err = re.enc.Encode(v)
 		} else {
-			_, err = fmt.Fprintln(re.w, t)
+			_, err = fmt.Fprintln(re.stdout, t)
 		}
 	}
 
 	return err
 }
 
-func (re *responseEmitter) Stdout() *os.File {
-	return os.Stdout
+// Stderr returns the ResponseWriter's stderr
+func (re *responseEmitter) Stderr() io.Writer {
+	return re.stderr
 }
 
-func (re *responseEmitter) Stderr() *os.File {
-	return os.Stderr
+// Stdout returns the ResponseWriter's stdout
+func (re *responseEmitter) Stdout() io.Writer {
+	return re.stdout
 }
 
+// Exit sends code to the channel that was returned by NewResponseEmitter, so main() can pass it to os.Exit()
 func (re *responseEmitter) Exit(code int) {
-	os.Exit(code)
+	defer re.Close()
+
+	re.wLock.Lock()
+	defer re.wLock.Unlock()
+	re.exit = code
 }
