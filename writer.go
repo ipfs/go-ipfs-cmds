@@ -155,7 +155,8 @@ func (re *WriterResponseEmitter) Emit(v interface{}) error {
 }
 
 type Any struct {
-	types []reflect.Type
+	types map[reflect.Type]bool
+	order []reflect.Type
 
 	v interface{}
 }
@@ -166,12 +167,41 @@ func (a *Any) UnmarshalJSON(data []byte) error {
 		err error
 	)
 
-	for _, t := range a.types {
-		v := reflect.New(t)
+	for _, t := range a.order {
+		v := reflect.New(t).Elem().Addr()
+
+		isNil := func(v reflect.Value) (yup, ok bool) {
+			ok = true
+			defer func() {
+				r := recover()
+				if r != nil {
+					ok = false
+				}
+			}()
+			yup = v.IsNil()
+			return
+		}
+
+		isZero := func(v reflect.Value, t reflect.Type) (yup, ok bool) {
+			ok = true
+			defer func() {
+				r := recover()
+				if r != nil {
+					ok = false
+				}
+			}()
+			yup = v.Elem().Interface() == reflect.Zero(t).Interface()
+			return
+		}
 
 		err = json.Unmarshal(data, v.Interface())
-		if err == nil && v.Elem().Interface() != reflect.Zero(t).Interface() {
-			a.v = v.Elem().Interface()
+
+		vIsNil, isNilOk := isNil(v)
+		vIsZero, isZeroOk := isZero(v, t)
+
+		nilish := (isNilOk && vIsNil) || (isZeroOk && vIsZero)
+		if err == nil && !nilish {
+			a.v = v.Interface()
 			return nil
 		}
 	}
@@ -183,12 +213,20 @@ func (a *Any) UnmarshalJSON(data []byte) error {
 }
 
 func (a *Any) Add(v interface{}) {
+	if v == nil {
+		return
+	}
+	if a.types == nil {
+		a.types = map[reflect.Type]bool{}
+	}
 	t := reflect.TypeOf(v)
-	if t.Kind() == reflect.Ptr || t.Kind() == reflect.Interface {
+	isPtr := t.Kind() == reflect.Ptr
+	if isPtr || t.Kind() == reflect.Interface {
 		t = t.Elem()
 	}
 
-	a.types = append(a.types, t)
+	a.types[t] = isPtr
+	a.order = append(a.order, t)
 }
 
 func (a *Any) Interface() interface{} {

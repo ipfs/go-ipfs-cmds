@@ -3,6 +3,7 @@ package cmds
 import (
 	"encoding/json"
 	"io"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -32,8 +33,8 @@ func TestMaybe(t *testing.T) {
 			Types: []interface{}{Foo{}, &Bar{}},
 			JSON:  `{"Bar":2}{"Foo":"abc"}`,
 			Decoded: []ValueError{
-				ValueError{Error: nil, Value: Foo{2}},
-				ValueError{Error: nil, Value: Bar{"abc"}},
+				ValueError{Error: nil, Value: &Foo{2}},
+				ValueError{Error: nil, Value: &Bar{"abc"}},
 			},
 		},
 	}
@@ -56,7 +57,22 @@ func TestMaybe(t *testing.T) {
 				t.Fatalf("error is %v, expected %v", err, dec.Error)
 			}
 
-			if a.Interface() != dec.Value {
+			rx := a.Interface()
+			rxIsPtr := reflect.TypeOf(rx).Kind() == reflect.Ptr
+
+			ex := dec.Value
+			exIsPtr := reflect.TypeOf(ex).Kind() == reflect.Ptr
+
+			if rxIsPtr != exIsPtr {
+				t.Fatalf("value is %#v, expected %#v", a.Interface(), dec.Value)
+			}
+
+			if rxIsPtr {
+				rx = reflect.ValueOf(rx).Elem().Interface()
+				ex = reflect.ValueOf(ex).Elem().Interface()
+			}
+
+			if rx != ex {
 				t.Fatalf("value is %#v, expected %#v", a.Interface(), dec.Value)
 			}
 		}
