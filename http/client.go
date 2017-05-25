@@ -41,7 +41,6 @@ func NewClient(address string) Client {
 }
 
 func (c *client) Send(req cmds.Request) (cmds.Response, error) {
-
 	if req.Context() == nil {
 		log.Warningf("no context set in request")
 		if err := req.SetRootContext(context.TODO()); err != nil {

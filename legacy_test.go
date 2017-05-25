@@ -141,11 +141,11 @@ func TestPipePair(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	str, ok := v.(string)
+	str, ok := v.(*string)
 	if !ok {
 		t.Fatalf("expected type %T but got %T", expect, v)
 	}
-	if str != expect {
+	if *str != expect {
 		t.Fatalf("expected value %#v but got %#v", expect, v)
 	}
 
