@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 
 	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
 
@@ -35,6 +36,12 @@ func (rw *responseWrapper) Output() interface{} {
 		if err != nil {
 			return nil
 		}
+		if e, ok := x.(*cmdsutil.Error); ok {
+			ch := make(chan interface{})
+			log.Error(e)
+			close(ch)
+			return (<-chan interface{})(ch)
+		}
 
 		switch v := x.(type) {
 		case io.Reader:
@@ -55,8 +62,8 @@ func (rw *responseWrapper) Output() interface{} {
 					if err == io.EOF {
 						return
 					}
-					if err != nil {
-						log.Error(err)
+					if e, ok := v.(*cmdsutil.Error); ok || err != nil {
+						log.Error(e, err)
 						return
 					}
 
@@ -150,6 +157,7 @@ type fakeResponse struct {
 	re   ResponseEmitter
 	out  interface{}
 	wait chan struct{}
+	once sync.Once
 }
 
 // Send emits the value(s) stored in r.out on the ResponseEmitter
@@ -165,20 +173,9 @@ func (r *fakeResponse) Send(errCh chan<- error) {
 		out = (<-chan interface{})(ch)
 	}
 
-	switch v := out.(type) {
-	case <-chan interface{}:
-		for x := range v {
-			err := r.re.Emit(x)
-			if err != nil {
-				errCh <- err
-				return
-			}
-		}
-	default:
-		errCh <- r.re.Emit(v)
-		return
-	}
 
+	err := r.re.Emit(out)
+	errCh <- err
 	return
 }
 
@@ -189,6 +186,7 @@ func (r *fakeResponse) Request() oldcmds.Request {
 
 // SetError forwards the call to the underlying ResponseEmitter
 func (r *fakeResponse) SetError(err error, code cmdsutil.ErrorType) {
+	defer r.once.Do(func() { close(r.wait) })
 	r.re.SetError(err, code)
 }
 
@@ -200,7 +198,7 @@ func (r *fakeResponse) Error() *cmdsutil.Error {
 // SetOutput sets the output variable to the passed value
 func (r *fakeResponse) SetOutput(v interface{}) {
 	r.out = v
-	close(r.wait)
+	r.once.Do(func() { close(r.wait) })
 }
 
 // Output returns the output variable
