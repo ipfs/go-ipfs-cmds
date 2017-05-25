@@ -5,7 +5,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"reflect"
 	"strconv"
 	"strings"
 
@@ -29,17 +28,16 @@ func (res *Response) Request() cmds.Request {
 }
 
 func (res *Response) Error() *cmdsutil.Error {
-	return res.err
+	e := res.err
+	res.err = nil
+	return e
 }
 
 func (res *Response) Length() uint64 {
 	return res.length
 }
 
-func (res *Response) Next() (v interface{}, err error) {
-	if res.err != nil {
-		return nil, cmds.ErrRcvdError
-	}
+func (res *Response) Next() (interface{}, error) {
 
 	// nil decoder means stream not chunks
 	// but only do that once
@@ -53,28 +51,21 @@ func (res *Response) Next() (v interface{}, err error) {
 		}
 	}
 
-	var (
-		t = reflect.TypeOf(res.req.Command().Type)
-	)
+	a := &cmds.Any{}
+	a.Add(&cmdsutil.Error{})
+	a.Add(res.req.Command().Type)
 
-	if t != nil {
-		// reflection worked, decode into proper type
-		v = reflect.New(t).Interface()
-		err = res.dec.Decode(v)
-	} else {
-		// reflection didn't work, decode into empty interface
-		err = res.dec.Decode(&v)
+	err := res.dec.Decode(a)
+
+	// last error was sent as value, now we get the same error from the headers. ignore and EOF!
+	if err != nil && res.err != nil && err.Error() == res.err.Error() {
+		err = io.EOF
 	}
-
 	if err != nil {
-		rxErr := res.res.Trailer.Get(StreamErrHeader)
-		if err.Error() == rxErr {
-			res.err = &cmdsutil.Error{Message: rxErr, Code: cmdsutil.ErrNormal}
-			return nil, cmds.ErrRcvdError
-		}
+		return nil, err
 	}
 
-	return v, err
+	return a.Interface(), err
 }
 
 // getResponse decodes a http.Response to create a cmds.Response
@@ -97,6 +88,19 @@ func getResponse(httpRes *http.Response, req cmds.Request) (cmds.Response, error
 
 	contentType := httpRes.Header.Get(contentTypeHeader)
 	contentType = strings.Split(contentType, ";")[0]
+
+	if len(httpRes.Header.Get(channelHeader)) > 0 {
+		encTypeStr, found, err := req.Option(cmdsutil.EncShort).String()
+		if err != nil {
+			return nil, err
+		}
+
+		encType := cmds.EncodingType(encTypeStr)
+
+		if found {
+			res.dec = cmds.Decoders[encType](res.rr)
+		}
+	}
 
 	// If we ran into an error
 	if httpRes.StatusCode >= http.StatusBadRequest {
@@ -125,30 +129,7 @@ func getResponse(httpRes *http.Response, req cmds.Request) (cmds.Response, error
 			}
 		}
 
-		e.Message = strings.Trim(e.Message, "\n\r\t ")
-
 		res.err = e
-
-		return res, nil
-	}
-
-	if contentType != applicationJson {
-		// nil decoder means stream
-		return res, nil
-
-	} else if len(httpRes.Header.Get(channelHeader)) > 0 {
-		encTypeStr, found, err := req.Option(cmdsutil.EncShort).String()
-		if err != nil {
-			return nil, err
-		}
-
-		encType := cmds.EncodingType(encTypeStr)
-
-		if !found || len(encType) == 0 {
-			encType = cmds.JSON
-		}
-
-		res.dec = cmds.Decoders[encType](res.rr)
 
 		return res, nil
 	}
