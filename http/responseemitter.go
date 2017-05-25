@@ -52,8 +52,9 @@ type responseEmitter struct {
 	length uint64
 	err    *cmdsutil.Error
 
-	once   sync.Once
-	method string
+	streaming bool
+	once      sync.Once
+	method    string
 }
 
 func (re *responseEmitter) Emit(value interface{}) error {
@@ -90,16 +91,28 @@ func (re *responseEmitter) Emit(value interface{}) error {
 		return nil
 	}
 
+	if _, ok := value.(cmdsutil.Error); ok {
+		log.Warning("fixme: got Error not *Error: ", value)
+		value = &value
+	}
+
 	switch v := value.(type) {
 	case io.Reader:
+		re.streaming = true
 		err = flushCopy(re.w, v)
-	case cmdsutil.Error:
-		re.w.Header().Set(StreamErrHeader, v.Error())
 	case *cmdsutil.Error:
-		re.w.Header().Set(StreamErrHeader, v.Error())
+		if re.streaming || v.Code == cmdsutil.ErrFatal {
+			// abort by sending an error trailer
+			re.w.Header().Add(StreamErrHeader, v.Error())
+		} else {
+			err = re.enc.Encode(value)
+		}
 	default:
 		err = re.enc.Encode(value)
-		re.w.(http.Flusher).Flush()
+	}
+
+	if f, ok := re.w.(http.Flusher); ok {
+		f.Flush()
 	}
 
 	if err != nil {
@@ -145,18 +158,22 @@ func (re *responseEmitter) preamble(value interface{}) {
 
 	switch v := value.(type) {
 	case *cmdsutil.Error:
-		err := v
+		h.Set(channelHeader, "1")
+		// if this is not a head request, the error will be sent as a trailer or as a value
+		if re.method == "HEAD" {
+			err := v
 
-		if err.Code == cmdsutil.ErrClient {
-			status = http.StatusBadRequest
-		} else {
-			status = http.StatusInternalServerError
+			if err.Code == cmdsutil.ErrClient {
+				status = http.StatusBadRequest
+			} else {
+				status = http.StatusInternalServerError
+			}
+
+			http.Error(re.w, err.Error(), status)
+			re.w = nil
+
+			return
 		}
-
-		http.Error(re.w, err.Error(), status)
-		re.w = nil
-
-		return
 	case io.Reader:
 		// set streams output type to text to avoid issues with browsers rendering
 		// html pages on priveleged api ports
