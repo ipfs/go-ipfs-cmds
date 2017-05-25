@@ -11,6 +11,8 @@ import (
 	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
 )
 
+var _ ResponseEmitter = &responseEmitter{}
+
 type ErrSet struct {
 	error
 }
