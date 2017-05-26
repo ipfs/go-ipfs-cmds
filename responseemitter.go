@@ -3,7 +3,7 @@ package cmds
 import (
 	"io"
 
-	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
+	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
 )
 
 // ResponseEmitter encodes and sends the command code's output to the client.
@@ -18,7 +18,7 @@ type ResponseEmitter interface {
 
 	// SetError sets the response error
 	// err is an interface{} so we don't have to manually convert to error.
-	SetError(err interface{}, code cmdsutil.ErrorType)
+	SetError(err interface{}, code cmdkit.ErrorType)
 
 	// Emit sends a value
 	// if value is io.Reader we just copy that to the connection

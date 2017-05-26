@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"sync"
 
-	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
+	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
 )
 
 func NewWriterResponseEmitter(w io.WriteCloser, req Request, enc func(Request) func(io.Writer) Encoder) *WriterResponseEmitter {
@@ -44,7 +44,7 @@ type readerResponse struct {
 	req Request
 
 	length uint64
-	err    *cmdsutil.Error
+	err    *cmdkit.Error
 
 	emitted chan struct{}
 	once    sync.Once
@@ -54,7 +54,7 @@ func (r *readerResponse) Request() Request {
 	return r.req
 }
 
-func (r *readerResponse) Error() *cmdsutil.Error {
+func (r *readerResponse) Error() *cmdkit.Error {
 	<-r.emitted
 
 	return r.err
@@ -68,7 +68,7 @@ func (r *readerResponse) Length() uint64 {
 
 func (r *readerResponse) Next() (interface{}, error) {
 	a := &Any{}
-	a.Add(cmdsutil.Error{})
+	a.Add(cmdkit.Error{})
 	a.Add(r.req.Command().Type)
 
 	err := r.dec.Decode(a)
@@ -79,11 +79,11 @@ func (r *readerResponse) Next() (interface{}, error) {
 	r.once.Do(func() { close(r.emitted) })
 
 	v := a.Interface()
-	if err, ok := v.(cmdsutil.Error); ok {
+	if err, ok := v.(cmdkit.Error); ok {
 		r.err = &err
 		return nil, ErrRcvdError
 	}
-	if err, ok := v.(*cmdsutil.Error); ok {
+	if err, ok := v.(*cmdkit.Error); ok {
 		r.err = err
 		return nil, ErrRcvdError
 	}
@@ -99,7 +99,7 @@ type WriterResponseEmitter struct {
 	req Request
 
 	length *uint64
-	err    *cmdsutil.Error
+	err    *cmdkit.Error
 
 	emitted bool
 }
@@ -108,8 +108,8 @@ func (re *WriterResponseEmitter) SetEncoder(mkEnc func(io.Writer) Encoder) {
 	re.enc = mkEnc(re.w)
 }
 
-func (re *WriterResponseEmitter) SetError(v interface{}, errType cmdsutil.ErrorType) {
-	err := re.Emit(&cmdsutil.Error{Message: fmt.Sprint(v), Code: errType})
+func (re *WriterResponseEmitter) SetError(v interface{}, errType cmdkit.ErrorType) {
+	err := re.Emit(&cmdkit.Error{Message: fmt.Sprint(v), Code: errType})
 	if err != nil {
 		panic(err)
 	}

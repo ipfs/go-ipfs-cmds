@@ -9,12 +9,12 @@ import (
 	"strings"
 
 	"github.com/ipfs/go-ipfs-cmds"
-	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
+	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
 )
 
 type Response struct {
 	length uint64
-	err    *cmdsutil.Error
+	err    *cmdkit.Error
 
 	res *http.Response
 	req cmds.Request
@@ -27,7 +27,7 @@ func (res *Response) Request() cmds.Request {
 	return res.req
 }
 
-func (res *Response) Error() *cmdsutil.Error {
+func (res *Response) Error() *cmdkit.Error {
 	e := res.err
 	res.err = nil
 	return e
@@ -52,7 +52,7 @@ func (res *Response) Next() (interface{}, error) {
 	}
 
 	a := &cmds.Any{}
-	a.Add(&cmdsutil.Error{})
+	a.Add(&cmdkit.Error{})
 	a.Add(res.req.Command().Type)
 
 	err := res.dec.Decode(a)
@@ -90,7 +90,7 @@ func getResponse(httpRes *http.Response, req cmds.Request) (cmds.Response, error
 	contentType = strings.Split(contentType, ";")[0]
 
 	if len(httpRes.Header.Get(channelHeader)) > 0 {
-		encTypeStr, found, err := req.Option(cmdsutil.EncShort).String()
+		encTypeStr, found, err := req.Option(cmdkit.EncShort).String()
 		if err != nil {
 			return nil, err
 		}
@@ -104,13 +104,13 @@ func getResponse(httpRes *http.Response, req cmds.Request) (cmds.Response, error
 
 	// If we ran into an error
 	if httpRes.StatusCode >= http.StatusBadRequest {
-		e := &cmdsutil.Error{}
+		e := &cmdkit.Error{}
 
 		switch {
 		case httpRes.StatusCode == http.StatusNotFound:
 			// handle 404s
 			e.Message = "Command not found."
-			e.Code = cmdsutil.ErrClient
+			e.Code = cmdkit.ErrClient
 
 		case contentType == plainText:
 			// handle non-marshalled errors
@@ -119,7 +119,7 @@ func getResponse(httpRes *http.Response, req cmds.Request) (cmds.Response, error
 				return nil, err
 			}
 			e.Message = string(mes)
-			e.Code = cmdsutil.ErrNormal
+			e.Code = cmdkit.ErrNormal
 
 		default:
 			// handle marshalled errors

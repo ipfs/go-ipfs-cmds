@@ -3,7 +3,7 @@ package cmds
 import (
 	"fmt"
 
-	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
+	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
 )
 
 var (
@@ -14,7 +14,7 @@ var (
 type Response interface {
 	Request() Request
 
-	Error() *cmdsutil.Error
+	Error() *cmdkit.Error
 	Length() uint64
 
 	// Next returns the next emitted value.
@@ -26,13 +26,13 @@ type Response interface {
 
 type Head struct {
 	Len uint64
-	Err *cmdsutil.Error
+	Err *cmdkit.Error
 }
 
 func (h Head) Length() uint64 {
 	return h.Len
 }
 
-func (h Head) Error() *cmdsutil.Error {
+func (h Head) Error() *cmdkit.Error {
 	return h.Err
 }

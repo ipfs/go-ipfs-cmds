@@ -25,15 +25,15 @@
       "version": "1.2.4"
     },
     {
-      "hash": "QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ",
+      "hash": "QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4",
       "name": "go-ipfs-cmdkit",
-      "version": "0.2.4"
+      "version": "0.3.0"
     }
   ],
   "gxVersion": "0.10.0",
   "language": "go",
   "license": "MIT",
   "name": "go-ipfs-cmds",
-  "version": "0.3.0"
+  "version": "0.3.1"
 }
 

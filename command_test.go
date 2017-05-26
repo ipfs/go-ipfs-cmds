@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
+	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
 )
 
 // nopClose implements io.Close and does nothing
@@ -38,9 +38,9 @@ type writecloser struct {
 // TestOptionValidation tests whether option type validation works
 func TestOptionValidation(t *testing.T) {
 	cmd := Command{
-		Options: []cmdsutil.Option{
-			cmdsutil.IntOption("b", "beep", "enables beeper"),
-			cmdsutil.StringOption("B", "boop", "password for booper"),
+		Options: []cmdkit.Option{
+			cmdkit.IntOption("b", "beep", "enables beeper"),
+			cmdkit.StringOption("B", "boop", "password for booper"),
 		},
 		Run: noop,
 	}
@@ -91,7 +91,7 @@ func TestOptionValidation(t *testing.T) {
 
 	re = newBufferResponseEmitter()
 	req, _ = NewRequest(nil, nil, nil, nil, nil, opts)
-	req.SetOption(cmdsutil.EncShort, "json")
+	req.SetOption(cmdkit.EncShort, "json")
 	err = cmd.Call(req, re)
 	if err != nil {
 		t.Error("Should have passed")
@@ -130,15 +130,15 @@ func TestOptionValidation(t *testing.T) {
 
 func TestRegistration(t *testing.T) {
 	cmdA := &Command{
-		Options: []cmdsutil.Option{
-			cmdsutil.IntOption("beep", "number of beeps"),
+		Options: []cmdkit.Option{
+			cmdkit.IntOption("beep", "number of beeps"),
 		},
 		Run: noop,
 	}
 
 	cmdB := &Command{
-		Options: []cmdsutil.Option{
-			cmdsutil.IntOption("beep", "number of beeps"),
+		Options: []cmdkit.Option{
+			cmdkit.IntOption("beep", "number of beeps"),
 		},
 		Run: noop,
 		Subcommands: map[string]*Command{
@@ -147,8 +147,8 @@ func TestRegistration(t *testing.T) {
 	}
 
 	cmdC := &Command{
-		Options: []cmdsutil.Option{
-			cmdsutil.StringOption("encoding", "data encoding type"),
+		Options: []cmdkit.Option{
+			cmdkit.StringOption("encoding", "data encoding type"),
 		},
 		Run: noop,
 	}
@@ -212,12 +212,12 @@ func TestWalking(t *testing.T) {
 
 func TestHelpProcessing(t *testing.T) {
 	cmdB := &Command{
-		Helptext: cmdsutil.HelpText{
+		Helptext: cmdkit.HelpText{
 			ShortDescription: "This is other short",
 		},
 	}
 	cmdA := &Command{
-		Helptext: cmdsutil.HelpText{
+		Helptext: cmdkit.HelpText{
 			ShortDescription: "This is short",
 		},
 		Subcommands: map[string]*Command{
@@ -235,7 +235,7 @@ func TestHelpProcessing(t *testing.T) {
 
 type postRunTestCase struct {
 	length      uint64
-	err         *cmdsutil.Error
+	err         *cmdkit.Error
 	emit        []interface{}
 	postRun     func(Request, ResponseEmitter) ResponseEmitter
 	next        []interface{}
@@ -265,7 +265,7 @@ func TestPostRun(t *testing.T) {
 							return
 						}
 						if err != nil {
-							re.SetError(err, cmdsutil.ErrNormal)
+							re.SetError(err, cmdkit.ErrNormal)
 							t.Fatal(err)
 							return
 						}
@@ -274,7 +274,7 @@ func TestPostRun(t *testing.T) {
 
 						err = re.Emit(2 * i)
 						if err != nil {
-							re.SetError(err, cmdsutil.ErrNormal)
+							re.SetError(err, cmdkit.ErrNormal)
 							return
 						}
 					}
@@ -312,16 +312,16 @@ func TestPostRun(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		req.SetOption(cmdsutil.EncShort, CLI)
+		req.SetOption(cmdkit.EncShort, CLI)
 
 		opts := req.Options()
 		if opts == nil {
 			t.Fatal("req.Options() is nil")
 		}
 
-		encTypeIface := opts[cmdsutil.EncShort]
+		encTypeIface := opts[cmdkit.EncShort]
 		if encTypeIface == nil {
-			t.Fatal("req.Options()[cmdsutil.EncShort] is nil")
+			t.Fatal("req.Options()[cmdkit.EncShort] is nil")
 		}
 
 		encType := EncodingType(encTypeIface.(string))

@@ -1,7 +1,7 @@
 package cmds
 
 import (
-	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
+	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
 )
 
 // NewTeeEmitter creates a new ResponseEmitter.
@@ -45,7 +45,7 @@ func (re *teeEmitter) SetLength(l uint64) {
 	re.re.SetLength(l)
 }
 
-func (re *teeEmitter) SetError(err interface{}, code cmdsutil.ErrorType) {
+func (re *teeEmitter) SetError(err interface{}, code cmdkit.ErrorType) {
 	re.ResponseEmitter.SetError(err, code)
 	re.re.SetError(err, code)
 }

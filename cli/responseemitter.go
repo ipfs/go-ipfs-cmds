@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/ipfs/go-ipfs-cmds"
-	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
+	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
 )
 
 var _ ResponseEmitter = &responseEmitter{}
@@ -47,7 +47,7 @@ type responseEmitter struct {
 	stderr io.Writer
 
 	length  uint64
-	err     *cmdsutil.Error
+	err     *cmdkit.Error
 	enc     cmds.Encoder
 	encType cmds.EncodingType
 	exit    int
@@ -66,10 +66,10 @@ func (re *responseEmitter) SetEncoder(enc func(io.Writer) cmds.Encoder) {
 	re.enc = enc(re.stdout)
 }
 
-func (re *responseEmitter) SetError(v interface{}, errType cmdsutil.ErrorType) {
+func (re *responseEmitter) SetError(v interface{}, errType cmdkit.ErrorType) {
 	re.errOccurred = true
 
-	err := re.Emit(&cmdsutil.Error{Message: fmt.Sprint(v), Code: errType})
+	err := re.Emit(&cmdkit.Error{Message: fmt.Sprint(v), Code: errType})
 	if err != nil {
 		panic(err)
 	}
@@ -159,14 +159,11 @@ func (re *responseEmitter) Emit(v interface{}) error {
 		return nil
 	}
 
-	if v == nil {
-	}
-
 	if re.isClosed() {
 		return io.ErrClosedPipe
 	}
 
-	if err, ok := v.(cmdsutil.Error); ok {
+	if err, ok := v.(cmdkit.Error); ok {
 		log.Warningf("fixerr %s", debug.Stack())
 		v = &err
 	}
@@ -174,9 +171,9 @@ func (re *responseEmitter) Emit(v interface{}) error {
 	var err error
 
 	switch t := v.(type) {
-	case *cmdsutil.Error:
+	case *cmdkit.Error:
 		_, err = fmt.Fprintln(re.stderr, "Error:", t.Message)
-		if t.Code == cmdsutil.ErrFatal {
+		if t.Code == cmdkit.ErrFatal {
 			defer re.Close()
 		}
 		re.wLock.Lock()
@@ -188,7 +185,7 @@ func (re *responseEmitter) Emit(v interface{}) error {
 	case io.Reader:
 		_, err = io.Copy(re.stdout, t)
 		if err != nil {
-			re.SetError(err, cmdsutil.ErrNormal)
+			re.SetError(err, cmdkit.ErrNormal)
 			err = nil
 		}
 	default:

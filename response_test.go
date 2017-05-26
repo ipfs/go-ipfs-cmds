@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
+	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
 )
 
 type TestOutput struct {
@@ -29,7 +29,7 @@ func TestMarshalling(t *testing.T) {
 		t.Error(err, "Should have passed")
 	}
 
-	req.SetOption(cmdsutil.EncShort, JSON)
+	req.SetOption(cmdkit.EncShort, JSON)
 
 	output := buf.String()
 	if removeWhitespace(output) != "{\"Foo\":\"beep\",\"Bar\":\"boop\",\"Baz\":1337}" {
@@ -40,7 +40,7 @@ func TestMarshalling(t *testing.T) {
 
 	buf.Reset()
 
-	re.SetError(fmt.Errorf("Oops!"), cmdsutil.ErrClient)
+	re.SetError(fmt.Errorf("Oops!"), cmdkit.ErrClient)
 
 	output = buf.String()
 	if removeWhitespace(output) != "{\"Message\":\"Oops!\",\"Code\":1}" {

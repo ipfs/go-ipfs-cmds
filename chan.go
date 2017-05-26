@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
+	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
 )
 
 func NewChanResponsePair(req Request) (ResponseEmitter, Response) {
@@ -33,7 +33,7 @@ func NewChanResponsePair(req Request) (ResponseEmitter, Response) {
 type chanResponse struct {
 	req Request
 
-	err    *cmdsutil.Error
+	err    *cmdkit.Error
 	length uint64
 
 	// wait makes header requests block until the body is sent
@@ -50,7 +50,7 @@ func (r *chanResponse) Request() Request {
 	return r.req
 }
 
-func (r *chanResponse) Error() *cmdsutil.Error {
+func (r *chanResponse) Error() *cmdkit.Error {
 	<-r.wait
 
 	if r == nil {
@@ -85,7 +85,7 @@ func (r *chanResponse) Next() (interface{}, error) {
 	select {
 	case v, ok := <-r.ch:
 		if ok {
-			if err, ok := v.(*cmdsutil.Error); ok {
+			if err, ok := v.(*cmdkit.Error); ok {
 				r.err = err
 				return nil, ErrRcvdError
 			}
@@ -107,13 +107,13 @@ type chanResponseEmitter struct {
 	done <-chan struct{}
 
 	length *uint64
-	err    **cmdsutil.Error
+	err    **cmdkit.Error
 
 	emitted bool
 }
 
-func (re *chanResponseEmitter) SetError(v interface{}, errType cmdsutil.ErrorType) {
-	err := re.Emit(&cmdsutil.Error{Message: fmt.Sprint(v), Code: errType})
+func (re *chanResponseEmitter) SetError(v interface{}, errType cmdkit.ErrorType) {
+	err := re.Emit(&cmdkit.Error{Message: fmt.Sprint(v), Code: errType})
 	if err != nil {
 		panic(err)
 	}

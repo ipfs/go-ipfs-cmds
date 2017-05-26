@@ -6,7 +6,7 @@ import (
 	"os"
 	"sync"
 
-	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
+	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
 
 	oldcmds "github.com/ipfs/go-ipfs/commands"
 	core "github.com/ipfs/go-ipfs/core"
@@ -36,7 +36,7 @@ func (rw *responseWrapper) Output() interface{} {
 		if err != nil {
 			return nil
 		}
-		if e, ok := x.(*cmdsutil.Error); ok {
+		if e, ok := x.(*cmdkit.Error); ok {
 			ch := make(chan interface{})
 			log.Error(e)
 			close(ch)
@@ -62,7 +62,7 @@ func (rw *responseWrapper) Output() interface{} {
 					if err == io.EOF {
 						return
 					}
-					if e, ok := v.(*cmdsutil.Error); ok || err != nil {
+					if e, ok := v.(*cmdkit.Error); ok || err != nil {
 						log.Error(e, err)
 						return
 					}
@@ -78,7 +78,7 @@ func (rw *responseWrapper) Output() interface{} {
 }
 
 // SetError is an empty stub
-func (rw *responseWrapper) SetError(error, cmdsutil.ErrorType) {}
+func (rw *responseWrapper) SetError(error, cmdkit.ErrorType) {}
 
 // SetOutput is an empty stub
 func (rw *responseWrapper) SetOutput(interface{}) {}
@@ -173,7 +173,6 @@ func (r *fakeResponse) Send(errCh chan<- error) {
 		out = (<-chan interface{})(ch)
 	}
 
-
 	err := r.re.Emit(out)
 	errCh <- err
 	return
@@ -185,13 +184,13 @@ func (r *fakeResponse) Request() oldcmds.Request {
 }
 
 // SetError forwards the call to the underlying ResponseEmitter
-func (r *fakeResponse) SetError(err error, code cmdsutil.ErrorType) {
+func (r *fakeResponse) SetError(err error, code cmdkit.ErrorType) {
 	defer r.once.Do(func() { close(r.wait) })
 	r.re.SetError(err, code)
 }
 
 // Error is an empty stub
-func (r *fakeResponse) Error() *cmdsutil.Error {
+func (r *fakeResponse) Error() *cmdkit.Error {
 	return nil
 }
 
@@ -294,7 +293,7 @@ func (re *wrappedResponseEmitter) SetLength(l uint64) {
 }
 
 // SetError forwards the call to the underlying oldcmds.Response
-func (re *wrappedResponseEmitter) SetError(err interface{}, code cmdsutil.ErrorType) {
+func (re *wrappedResponseEmitter) SetError(err interface{}, code cmdkit.ErrorType) {
 	re.r.SetError(fmt.Errorf("%v", err), code)
 }
 

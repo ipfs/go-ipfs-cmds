@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	cmds "github.com/ipfs/go-ipfs-cmds"
-	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
+	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
 
 	"github.com/ipfs/go-ipfs/repo/config"
 )
@@ -50,7 +50,7 @@ type responseEmitter struct {
 	req     cmds.Request
 
 	length uint64
-	err    *cmdsutil.Error
+	err    *cmdkit.Error
 
 	streaming bool
 	once      sync.Once
@@ -91,7 +91,7 @@ func (re *responseEmitter) Emit(value interface{}) error {
 		return nil
 	}
 
-	if _, ok := value.(cmdsutil.Error); ok {
+	if _, ok := value.(cmdkit.Error); ok {
 		log.Warning("fixme: got Error not *Error: ", value)
 		value = &value
 	}
@@ -100,8 +100,8 @@ func (re *responseEmitter) Emit(value interface{}) error {
 	case io.Reader:
 		re.streaming = true
 		err = flushCopy(re.w, v)
-	case *cmdsutil.Error:
-		if re.streaming || v.Code == cmdsutil.ErrFatal {
+	case *cmdkit.Error:
+		if re.streaming || v.Code == cmdkit.ErrFatal {
 			// abort by sending an error trailer
 			re.w.Header().Add(StreamErrHeader, v.Error())
 		} else {
@@ -134,8 +134,8 @@ func (re *responseEmitter) Close() error {
 	return nil
 }
 
-func (re *responseEmitter) SetError(v interface{}, errType cmdsutil.ErrorType) {
-	err := re.Emit(&cmdsutil.Error{Message: fmt.Sprint(v), Code: errType})
+func (re *responseEmitter) SetError(v interface{}, errType cmdkit.ErrorType) {
+	err := re.Emit(&cmdkit.Error{Message: fmt.Sprint(v), Code: errType})
 	if err != nil {
 		log.Debug("http.SetError err=", err)
 		panic(err)
@@ -157,13 +157,13 @@ func (re *responseEmitter) preamble(value interface{}) {
 	status := http.StatusOK
 
 	switch v := value.(type) {
-	case *cmdsutil.Error:
+	case *cmdkit.Error:
 		h.Set(channelHeader, "1")
 		// if this is not a head request, the error will be sent as a trailer or as a value
 		if re.method == "HEAD" {
 			err := v
 
-			if err.Code == cmdsutil.ErrClient {
+			if err.Code == cmdkit.ErrClient {
 				status = http.StatusBadRequest
 			} else {
 				status = http.StatusInternalServerError

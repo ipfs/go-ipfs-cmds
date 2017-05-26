@@ -11,8 +11,8 @@ import (
 	"strings"
 
 	"github.com/ipfs/go-ipfs-cmds"
-	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
-	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit/files"
+	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
+	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit/files"
 
 	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
 	u "gx/ipfs/QmWbjfz3u6HkAdPh34dgPchGbQjob6LXLhAeCGii2TX69n/go-ipfs-util"
@@ -62,14 +62,14 @@ func Parse(input []string, stdin *os.File, root *cmds.Command) (cmds.Request, *c
 	return req, cmd, path, cmd.CheckArguments(req)
 }
 
-func ParseArgs(req cmds.Request, inputs []string, stdin *os.File, argDefs []cmdsutil.Argument, root *cmds.Command) ([]string, []files.File, error) {
+func ParseArgs(req cmds.Request, inputs []string, stdin *os.File, argDefs []cmdkit.Argument, root *cmds.Command) ([]string, []files.File, error) {
 	var err error
 
 	// if -r is provided, and it is associated with the package builtin
 	// recursive path option, allow recursive file paths
-	recursiveOpt := req.Option(cmdsutil.RecShort)
+	recursiveOpt := req.Option(cmdkit.RecShort)
 	recursive := false
-	if recursiveOpt != nil && recursiveOpt.Definition() == cmdsutil.OptionRecursivePath {
+	if recursiveOpt != nil && recursiveOpt.Definition() == cmdkit.OptionRecursivePath {
 		recursive, _, err = recursiveOpt.Bool()
 		if err != nil {
 			return nil, nil, u.ErrCast()
@@ -98,7 +98,7 @@ func parseOpts(args []string, root *cmds.Command) (
 ) {
 	path = make([]string, 0, len(args))
 	stringVals = make([]string, 0, len(args))
-	optDefs := map[string]cmdsutil.Option{}
+	optDefs := map[string]cmdkit.Option{}
 	opts = map[string]interface{}{}
 	cmd = root
 
@@ -120,7 +120,7 @@ func parseOpts(args []string, root *cmds.Command) (
 		// eg. ipfs -r <file> means disregard <file> since there is no '='
 		//		mustUse == false in the above situation
 		//arg == nil implies the flag was specified without an argument
-		if optDef.Type() == cmdsutil.Bool {
+		if optDef.Type() == cmdkit.Bool {
 			if arg == nil || !mustUse {
 				opts[name] = true
 				return false, nil
@@ -255,7 +255,7 @@ func parseOpts(args []string, root *cmds.Command) (
 
 const msgStdinInfo = "ipfs: Reading from %s; send Ctrl-d to stop."
 
-func parseArgs(inputs []string, stdin *os.File, argDefs []cmdsutil.Argument, recursive, hidden bool, root *cmds.Command) ([]string, []files.File, error) {
+func parseArgs(inputs []string, stdin *os.File, argDefs []cmdkit.Argument, recursive, hidden bool, root *cmds.Command) ([]string, []files.File, error) {
 	// ignore stdin on Windows
 	if runtime.GOOS == "windows" {
 		stdin = nil
@@ -304,7 +304,7 @@ func parseArgs(inputs []string, stdin *os.File, argDefs []cmdsutil.Argument, rec
 
 		fillingVariadic := argDefIndex+1 > len(argDefs)
 		switch argDef.Type {
-		case cmdsutil.ArgString:
+		case cmdkit.ArgString:
 			if len(inputs) > 0 {
 				stringArgs, inputs = append(stringArgs, inputs[0]), inputs[1:]
 			} else if stdin != nil && argDef.SupportsStdin && !fillingVariadic {
@@ -313,7 +313,7 @@ func parseArgs(inputs []string, stdin *os.File, argDefs []cmdsutil.Argument, rec
 					stdin = nil
 				}
 			}
-		case cmdsutil.ArgFile:
+		case cmdkit.ArgFile:
 			if len(inputs) > 0 {
 				// treat stringArg values as file paths
 				fpath := inputs[0]
@@ -380,7 +380,7 @@ func filesMapToSortedArr(fs map[string]files.File) []files.File {
 	return out
 }
 
-func getArgDef(i int, argDefs []cmdsutil.Argument) *cmdsutil.Argument {
+func getArgDef(i int, argDefs []cmdkit.Argument) *cmdkit.Argument {
 	if i < len(argDefs) {
 		// get the argument definition (usually just argDefs[i])
 		return &argDefs[i]
@@ -397,7 +397,7 @@ func getArgDef(i int, argDefs []cmdsutil.Argument) *cmdsutil.Argument {
 const notRecursiveFmtStr = "'%s' is a directory, use the '-%s' flag to specify directories"
 const dirNotSupportedFmtStr = "Invalid path '%s', argument '%s' does not support directories"
 
-func appendFile(fpath string, argDef *cmdsutil.Argument, recursive, hidden bool) (files.File, error) {
+func appendFile(fpath string, argDef *cmdkit.Argument, recursive, hidden bool) (files.File, error) {
 	if fpath == "." {
 		cwd, err := os.Getwd()
 		if err != nil {
@@ -422,7 +422,7 @@ func appendFile(fpath string, argDef *cmdsutil.Argument, recursive, hidden bool)
 			return nil, fmt.Errorf(dirNotSupportedFmtStr, fpath, argDef.Name)
 		}
 		if !recursive {
-			return nil, fmt.Errorf(notRecursiveFmtStr, fpath, cmdsutil.RecShort)
+			return nil, fmt.Errorf(notRecursiveFmtStr, fpath, cmdkit.RecShort)
 		}
 	}
 

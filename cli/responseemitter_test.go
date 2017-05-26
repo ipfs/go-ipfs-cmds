@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/ipfs/go-ipfs-cmds"
-	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
+	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
 )
 
 type writeCloser struct {
@@ -60,7 +60,7 @@ func TestSetError(t *testing.T) {
 			exExit:   1,
 			f: func(re ResponseEmitter, t *testing.T) {
 				re.Emit("a")
-				re.SetError("some error", cmdsutil.ErrFatal)
+				re.SetError("some error", cmdkit.ErrFatal)
 				re.Emit("b")
 			},
 		},
@@ -74,7 +74,7 @@ func TestSetError(t *testing.T) {
 			f: func(re ResponseEmitter, t *testing.T) {
 				defer re.Close()
 				re.Emit("a")
-				re.SetError("some error", cmdsutil.ErrNormal)
+				re.SetError("some error", cmdkit.ErrNormal)
 				re.Emit("b")
 			},
 		},
@@ -87,7 +87,7 @@ func TestSetError(t *testing.T) {
 			exExit:   3,
 			f: func(re ResponseEmitter, t *testing.T) {
 				re.Emit("a")
-				re.SetError("some error", cmdsutil.ErrNormal)
+				re.SetError("some error", cmdkit.ErrNormal)
 				re.Emit("b")
 				re.Exit(3)
 			},

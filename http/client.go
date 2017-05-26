@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	cmds "github.com/ipfs/go-ipfs-cmds"
-	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
+	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
 
 	config "github.com/ipfs/go-ipfs/repo/config"
 )
@@ -49,16 +49,16 @@ func (c *client) Send(req cmds.Request) (cmds.Response, error) {
 	}
 
 	// save user-provided encoding
-	previousUserProvidedEncoding, found, err := req.Option(cmdsutil.EncShort).String()
+	previousUserProvidedEncoding, found, err := req.Option(cmdkit.EncShort).String()
 	if err != nil {
 		return nil, err
 	}
 
 	// override with json to send to server
-	req.SetOption(cmdsutil.EncShort, cmds.JSON)
+	req.SetOption(cmdkit.EncShort, cmds.JSON)
 
 	// stream channel output
-	req.SetOption(cmdsutil.ChanOpt, "true")
+	req.SetOption(cmdkit.ChanOpt, "true")
 
 	query, err := getQuery(req)
 	if err != nil {
@@ -107,7 +107,7 @@ func (c *client) Send(req cmds.Request) (cmds.Response, error) {
 		// reset to user provided encoding after sending request
 		// NB: if user has provided an encoding but it is the empty string,
 		// still leave it as JSON.
-		req.SetOption(cmdsutil.EncShort, previousUserProvidedEncoding)
+		req.SetOption(cmdkit.EncShort, previousUserProvidedEncoding)
 	}
 
 	return res, nil
@@ -131,7 +131,7 @@ func getQuery(req cmds.Request) (string, error) {
 	for _, arg := range args {
 		argDef := argDefs[argDefIndex]
 		// skip ArgFiles
-		for argDef.Type == cmdsutil.ArgFile {
+		for argDef.Type == cmdkit.ArgFile {
 			argDefIndex++
 			argDef = argDefs[argDefIndex]
 		}
