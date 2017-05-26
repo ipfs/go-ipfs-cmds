@@ -1,4 +1,4 @@
-package cmdsutil
+package cmdkit
 
 // HelpText is a set of strings used to generate command help text. The help
 // text follows formats similar to man pages, but not exactly the same.

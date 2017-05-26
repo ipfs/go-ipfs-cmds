@@ -1,4 +1,4 @@
-package cmdsutil
+package cmdkit
 
 type ArgumentType int
 

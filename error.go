@@ -1,4 +1,4 @@
-package cmdsutil
+package cmdkit
 
 // ErrorType signfies a category of errors
 type ErrorType uint
