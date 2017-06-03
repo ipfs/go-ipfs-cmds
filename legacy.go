@@ -408,7 +408,7 @@ func NewCommand(oldcmd *oldcmds.Command) *Command {
 		}
 	}
 
-	cmd.Encoders = make(map[EncodingType]func(Request) func(io.Writer) Encoder)
+	cmd.Encoders = make(EncoderMap)
 
 	for encType, m := range oldcmd.Marshalers {
 		cmd.Encoders[EncodingType(encType)] = func(m oldcmds.Marshaler, encType oldcmds.EncodingType) func(req Request) func(io.Writer) Encoder {

@@ -11,7 +11,6 @@ package cmds
 import (
 	"errors"
 	"fmt"
-	"io"
 
 	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
 
@@ -44,7 +43,7 @@ type Command struct {
 	// available for reading after the HTTP connection has been written to.
 	Run      Function
 	PostRun  PostRunMap
-	Encoders map[EncodingType]func(Request) func(io.Writer) Encoder
+	Encoders EncoderMap
 	Helptext cmdkit.HelpText
 
 	// External denotes that a command is actually an external binary.
