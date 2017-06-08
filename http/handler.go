@@ -10,11 +10,11 @@ import (
 
 	context "context"
 	"github.com/ipfs/go-ipfs/repo/config"
-	cors "gx/ipfs/QmPG2kW5t27LuHgHnvhUwbHCNHAt2eUcb4gPHqofrESUdB/cors"
+	cors "github.com/rs/cors"
 
 	cmds "github.com/ipfs/go-ipfs-cmds"
 
-	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
+	logging "github.com/ipfs/go-log"
 )
 
 var log = logging.Logger("cmds/http")
@@ -160,7 +160,6 @@ func (i internalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if err == ErrNotFound {
 			w.WriteHeader(http.StatusNotFound)
 		} else {
-
 			w.WriteHeader(http.StatusBadRequest)
 		}
 		w.Write([]byte(err.Error()))

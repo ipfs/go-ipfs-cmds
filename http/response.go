@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/ipfs/go-ipfs-cmds"
-	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
+	"github.com/ipfs/go-ipfs-cmdkit"
 )
 
 type Response struct {
@@ -38,7 +38,6 @@ func (res *Response) Length() uint64 {
 }
 
 func (res *Response) Next() (interface{}, error) {
-
 	// nil decoder means stream not chunks
 	// but only do that once
 	if res.dec == nil {
