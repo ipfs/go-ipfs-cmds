@@ -133,18 +133,18 @@ type OptionValue struct {
 }
 
 // Found returns true if the option value was provided by the user (not a default value)
-func (ov OptionValue) Found() bool {
+func (ov *OptionValue) Found() bool {
 	return ov.ValueFound
 }
 
 // Definition returns the option definition for the provided value
-func (ov OptionValue) Definition() Option {
+func (ov *OptionValue) Definition() Option {
 	return ov.Def
 }
 
 // value accessor methods, gets the value as a certain type
-func (ov OptionValue) Bool() (value bool, found bool, err error) {
-	if !ov.ValueFound && ov.Value == nil {
+func (ov *OptionValue) Bool() (value bool, found bool, err error) {
+	if ov == nil || !ov.ValueFound && ov.Value == nil {
 		return false, false, nil
 	}
 	val, ok := ov.Value.(bool)
@@ -154,8 +154,8 @@ func (ov OptionValue) Bool() (value bool, found bool, err error) {
 	return val, ov.ValueFound, err
 }
 
-func (ov OptionValue) Int() (value int, found bool, err error) {
-	if !ov.ValueFound && ov.Value == nil {
+func (ov *OptionValue) Int() (value int, found bool, err error) {
+	if ov == nil || !ov.ValueFound && ov.Value == nil {
 		return 0, false, nil
 	}
 	val, ok := ov.Value.(int)
@@ -165,8 +165,8 @@ func (ov OptionValue) Int() (value int, found bool, err error) {
 	return val, ov.ValueFound, err
 }
 
-func (ov OptionValue) Uint() (value uint, found bool, err error) {
-	if !ov.ValueFound && ov.Value == nil {
+func (ov *OptionValue) Uint() (value uint, found bool, err error) {
+	if ov == nil || !ov.ValueFound && ov.Value == nil {
 		return 0, false, nil
 	}
 	val, ok := ov.Value.(uint)
@@ -176,8 +176,8 @@ func (ov OptionValue) Uint() (value uint, found bool, err error) {
 	return val, ov.ValueFound, err
 }
 
-func (ov OptionValue) Float() (value float64, found bool, err error) {
-	if !ov.ValueFound && ov.Value == nil {
+func (ov *OptionValue) Float() (value float64, found bool, err error) {
+	if ov == nil || !ov.ValueFound && ov.Value == nil {
 		return 0, false, nil
 	}
 	val, ok := ov.Value.(float64)
@@ -187,8 +187,8 @@ func (ov OptionValue) Float() (value float64, found bool, err error) {
 	return val, ov.ValueFound, err
 }
 
-func (ov OptionValue) String() (value string, found bool, err error) {
-	if !ov.ValueFound && ov.Value == nil {
+func (ov *OptionValue) String() (value string, found bool, err error) {
+	if ov == nil || !ov.ValueFound && ov.Value == nil {
 		return "", false, nil
 	}
 	val, ok := ov.Value.(string)
