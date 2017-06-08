@@ -130,6 +130,7 @@ func (re *responseEmitter) SetLength(l uint64) {
 }
 
 func (re *responseEmitter) Close() error {
+	re.once.Do(func() { re.preamble(nil) })
 	// can't close HTTP connections
 	return nil
 }
