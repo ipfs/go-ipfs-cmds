@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"runtime/debug"
 	"strings"
 	"sync"
 
@@ -124,6 +125,7 @@ func (i internalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if r := recover(); r != nil {
 			log.Error("a panic has occurred in the commands handler!")
 			log.Error(r)
+			log.Errorf("stack trace:\n%s", debug.Stack())
 		}
 	}()
 
