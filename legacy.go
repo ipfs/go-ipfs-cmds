@@ -62,8 +62,8 @@ func (rw *responseWrapper) Output() interface{} {
 					if err == io.EOF {
 						return
 					}
-					if e, ok := v.(*cmdkit.Error); ok || err != nil {
-						log.Error(e, err)
+					if err != nil {
+						log.Error(err)
 						return
 					}
 
