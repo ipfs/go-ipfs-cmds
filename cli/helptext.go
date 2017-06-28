@@ -358,13 +358,19 @@ func subcommandText(cmd *cmds.Command, rootName string, path []string) []string 
 	for name := range cmd.Subcommands {
 		sortedNames = append(sortedNames, name)
 	}
+	for name := range cmd.OldSubcommands {
+		sortedNames = append(sortedNames, name)
+	}
 	sort.Strings(sortedNames)
 
-	subcmds := make([]*cmds.Command, len(cmd.Subcommands))
-	lines := make([]string, len(cmd.Subcommands))
+	subcmds := make([]*cmds.Command, len(cmd.Subcommands) + len(cmd.OldSubcommands))
+	lines := make([]string, len(cmd.Subcommands) + len(cmd.OldSubcommands))
 
 	for i, name := range sortedNames {
 		sub := cmd.Subcommands[name]
+		if sub == nil {
+			sub = cmds.NewCommand(cmd.OldSubcommands[name])
+		}
 		usage := usageText(sub)
 		if len(usage) > 0 {
 			usage = " " + usage
