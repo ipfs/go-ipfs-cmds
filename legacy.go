@@ -1,6 +1,7 @@
 package cmds
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -59,7 +60,7 @@ func (rw *responseWrapper) Output() interface{} {
 				for {
 					v, err := rw.Next()
 
-					if err == io.EOF {
+					if err == io.EOF || err == context.Canceled {
 						return
 					}
 					if err != nil {
