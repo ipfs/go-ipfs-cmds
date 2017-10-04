@@ -1,5 +1,10 @@
 package cmdkit
 
+import (
+	"encoding/json"
+	"errors"
+)
+
 // ErrorType signfies a category of errors
 type ErrorType uint
 
@@ -21,4 +26,38 @@ type Error struct {
 
 func (e Error) Error() string {
 	return e.Message
+}
+
+func (e Error) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Message string
+		Code    ErrorType
+		Type    string
+	}{
+		Message: e.Message,
+		Code:    e.Code,
+		Type:    "error",
+	})
+}
+
+func (e *Error) UnmarshalJSON(data []byte) error {
+	var w struct {
+		Message string
+		Code    ErrorType
+		Type    string
+	}
+
+	err := json.Unmarshal(data, &w)
+	if err != nil {
+		return err
+	}
+
+	if w.Type != "error" {
+		return errors.New("not of type error")
+	}
+
+	e.Message = w.Message
+	e.Code = w.Code
+
+	return nil
 }
