@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ipfs/go-ipfs-cmds"
 	"github.com/ipfs/go-ipfs-cmdkit"
+	"github.com/ipfs/go-ipfs-cmds"
 )
 
 func TestSynopsisGenerator(t *testing.T) {

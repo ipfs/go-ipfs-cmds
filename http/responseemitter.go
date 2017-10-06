@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"sync"
 
-	cmds "github.com/ipfs/go-ipfs-cmds"
 	"github.com/ipfs/go-ipfs-cmdkit"
+	cmds "github.com/ipfs/go-ipfs-cmds"
 
 	"github.com/ipfs/go-ipfs/repo/config"
 )

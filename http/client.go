@@ -8,8 +8,8 @@ import (
 	"net/url"
 	"strings"
 
-	cmds "github.com/ipfs/go-ipfs-cmds"
 	"github.com/ipfs/go-ipfs-cmdkit"
+	cmds "github.com/ipfs/go-ipfs-cmds"
 
 	config "github.com/ipfs/go-ipfs/repo/config"
 )

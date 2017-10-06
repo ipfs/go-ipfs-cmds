@@ -7,8 +7,8 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/ipfs/go-ipfs-cmds"
 	"github.com/ipfs/go-ipfs-cmdkit"
+	"github.com/ipfs/go-ipfs-cmds"
 )
 
 const (
@@ -363,8 +363,8 @@ func subcommandText(cmd *cmds.Command, rootName string, path []string) []string 
 	}
 	sort.Strings(sortedNames)
 
-	subcmds := make([]*cmds.Command, len(cmd.Subcommands) + len(cmd.OldSubcommands))
-	lines := make([]string, len(cmd.Subcommands) + len(cmd.OldSubcommands))
+	subcmds := make([]*cmds.Command, len(cmd.Subcommands)+len(cmd.OldSubcommands))
+	lines := make([]string, len(cmd.Subcommands)+len(cmd.OldSubcommands))
 
 	for i, name := range sortedNames {
 		sub := cmd.Subcommands[name]

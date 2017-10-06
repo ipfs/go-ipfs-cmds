@@ -10,12 +10,12 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ipfs/go-ipfs-cmds"
 	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-cmdkit/files"
+	"github.com/ipfs/go-ipfs-cmds"
 
-	logging "github.com/ipfs/go-log"
 	u "github.com/ipfs/go-ipfs-util"
+	logging "github.com/ipfs/go-log"
 )
 
 var log = logging.Logger("cmds/cli")

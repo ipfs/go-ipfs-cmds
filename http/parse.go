@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"strings"
 
-	cmds "github.com/ipfs/go-ipfs-cmds"
-	path "github.com/ipfs/go-ipfs/path"
 	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-cmdkit/files"
+	cmds "github.com/ipfs/go-ipfs-cmds"
+	path "github.com/ipfs/go-ipfs/path"
 )
 
 // Parse parses the data in a http.Request and returns a command Request object
