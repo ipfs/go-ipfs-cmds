@@ -61,19 +61,20 @@ var Encoders = EncoderMap{
 	},
 }
 
-func MakeEncoder(f func(io.Writer, interface{}) error) func(Request) func(io.Writer) Encoder {
+func MakeEncoder(f func(Request, io.Writer, interface{}) error) func(Request) func(io.Writer) Encoder {
 	return func(req Request) func(io.Writer) Encoder {
-		return func(w io.Writer) Encoder { return &genericEncoder{f: f, w: w} }
+		return func(w io.Writer) Encoder { return &genericEncoder{f: f, w: w, req: req} }
 	}
 }
 
 type genericEncoder struct {
-	f func(io.Writer, interface{}) error
-	w io.Writer
+	f   func(Request, io.Writer, interface{}) error
+	w   io.Writer
+	req Request
 }
 
 func (e *genericEncoder) Encode(v interface{}) error {
-	return e.f(e.w, v)
+	return e.f(e.req, e.w, v)
 }
 
 type TextEncoder struct {
