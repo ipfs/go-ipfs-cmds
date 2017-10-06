@@ -43,8 +43,8 @@ func TestMarshalling(t *testing.T) {
 	re.SetError(fmt.Errorf("Oops!"), cmdkit.ErrClient)
 
 	output = buf.String()
-	if removeWhitespace(output) != "{\"Message\":\"Oops!\",\"Code\":1}" {
-		t.Log("expected: {\"Message\":\"Oops!\",\"Code\":1}")
+	if removeWhitespace(output) != `{"Message":"Oops!","Code":1,"Type":"error"}` {
+		t.Log(`expected: {"Message":"Oops!","Code":1,"Type":"error"}`)
 		t.Log("got:", removeWhitespace(buf.String()))
 		t.Error("Incorrect JSON output")
 	}
