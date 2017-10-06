@@ -113,10 +113,7 @@ type chanResponseEmitter struct {
 }
 
 func (re *chanResponseEmitter) SetError(v interface{}, errType cmdkit.ErrorType) {
-	err := re.Emit(&cmdkit.Error{Message: fmt.Sprint(v), Code: errType})
-	if err != nil {
-		panic(err)
-	}
+	re.Emit(&cmdkit.Error{Message: fmt.Sprint(v), Code: errType})
 }
 
 func (re *chanResponseEmitter) SetLength(l uint64) {
