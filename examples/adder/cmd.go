@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"gx/ipfs/QmPMeikDc7tQEDvaS66j1bVPQ2jBkvFwz3Qom5eA5i4xip/go-ipfs-cmdkit"
+	"github.com/ipfs/go-ipfs-cmdkit"
 	"gx/ipfs/QmezbW7VUAiu3aSV6r4TdB9pwficnnbtWYKRsoEKF2w8G2/go-ipfs-cmds"
 )
 
