@@ -5,7 +5,8 @@ import (
 
 	"github.com/ipfs/go-ipfs-cmds/examples/adder"
 
-	"gx/ipfs/QmezbW7VUAiu3aSV6r4TdB9pwficnnbtWYKRsoEKF2w8G2/go-ipfs-cmds/cli"
+	"gx/ipfs/QmPhtZyjPYddJ8yGPWreisp47H6iQjt3Lg8sZrzqMP5noy/go-ipfs-cmds/cli"
+	"gx/ipfs/QmPhtZyjPYddJ8yGPWreisp47H6iQjt3Lg8sZrzqMP5noy/go-ipfs-cmds"
 )
 
 func main() {
@@ -14,12 +15,21 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	
+	req.SetOption("encoding", cmds.Text)
 
 	// create an emitter
 	re, retCh := cli.NewResponseEmitter(os.Stdout, os.Stderr, cmd.Encoders["Text"], req)
 
+	if pr, ok := cmd.PostRun[cmds.CLI]; ok {
+		re = pr(req, re)
+	}
+
+	wait := make(chan struct{})
 	// call command in background
 	go func() {
+		defer close(wait)
+		
 		err = adder.RootCmd.Call(req, re)
 		if err != nil {
 			panic(err)
@@ -27,5 +37,8 @@ func main() {
 	}()
 
 	// wait until command has returned and exit
-	os.Exit(<-retCh)
+	ret := <-retCh
+	<-wait
+	
+	os.Exit(ret)
 }

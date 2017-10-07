@@ -5,11 +5,10 @@ import (
 
 	"github.com/ipfs/go-ipfs-cmds/examples/adder"
 
-	cmdkit "github.com/ipfs/go-ipfs-cmdkit"
-	cmds "gx/ipfs/QmezbW7VUAiu3aSV6r4TdB9pwficnnbtWYKRsoEKF2w8G2/go-ipfs-cmds"
-
-	cli "gx/ipfs/QmezbW7VUAiu3aSV6r4TdB9pwficnnbtWYKRsoEKF2w8G2/go-ipfs-cmds/cli"
-	http "gx/ipfs/QmezbW7VUAiu3aSV6r4TdB9pwficnnbtWYKRsoEKF2w8G2/go-ipfs-cmds/http"
+	cmdkit "gx/ipfs/QmPMeikDc7tQEDvaS66j1bVPQ2jBkvFwz3Qom5eA5i4xip/go-ipfs-cmdkit"
+	cmds "gx/ipfs/QmPhtZyjPYddJ8yGPWreisp47H6iQjt3Lg8sZrzqMP5noy/go-ipfs-cmds"
+	cli "gx/ipfs/QmPhtZyjPYddJ8yGPWreisp47H6iQjt3Lg8sZrzqMP5noy/go-ipfs-cmds/cli"
+	http "gx/ipfs/QmPhtZyjPYddJ8yGPWreisp47H6iQjt3Lg8sZrzqMP5noy/go-ipfs-cmds/http"
 )
 
 func main() {
@@ -27,9 +26,15 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	
+	req.SetOption("encoding", cmds.Text)
 
 	// create an emitter
 	re, retCh := cli.NewResponseEmitter(os.Stdout, os.Stderr, cmd.Encoders["Text"], req)
+
+	if pr, ok := cmd.PostRun[cmds.CLI]; ok {
+		re = pr(req, re)
+	}
 
 	wait := make(chan struct{})
 	// copy received result into cli emitter

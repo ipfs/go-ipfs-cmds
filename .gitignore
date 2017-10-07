@@ -1,3 +1,6 @@
 .*.swp
 .*.swo
 cover.out
+examples/adder/local/local
+examples/adder/remote/client/client
+examples/adder/remote/server/server
