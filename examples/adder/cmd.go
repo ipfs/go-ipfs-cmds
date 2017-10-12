@@ -9,6 +9,7 @@ import (
 
 	"gx/ipfs/QmPMeikDc7tQEDvaS66j1bVPQ2jBkvFwz3Qom5eA5i4xip/go-ipfs-cmdkit"
 	"gx/ipfs/QmPhtZyjPYddJ8yGPWreisp47H6iQjt3Lg8sZrzqMP5noy/go-ipfs-cmds"
+	"gx/ipfs/QmPhtZyjPYddJ8yGPWreisp47H6iQjt3Lg8sZrzqMP5noy/go-ipfs-cmds/cli"
 )
 
 // AddStatus describes the progress of the add operation
@@ -146,6 +147,79 @@ var RootCmd = &cmds.Command{
 								lastLen, _ = fmt.Printf("\rsum is %d.", s.Current)
 							}
 						}
+					}()
+					
+					return reNext
+				},
+			},
+		},
+		// how to set program's return value
+		"exitAdd": &cmds.Command{
+			Arguments: []cmdkit.Argument{
+				cmdkit.StringArg("summands", true, true, "values that are supposed to be summed"),
+			},
+			// this is the same as for encoderAdd
+			Run: func(req cmds.Request, re cmds.ResponseEmitter) {
+				sum := 0
+
+				for i, str := range req.Arguments() {
+					num, err := strconv.Atoi(str)
+					if err != nil {
+						re.SetError(err, cmdkit.ErrNormal)
+						return
+					}
+
+					sum += num
+					re.Emit(&AddStatus{
+						Current: sum,
+						Left: len(req.Arguments())-i-1,
+					})
+					time.Sleep(200 * time.Millisecond)
+				}
+			},
+			Type: &AddStatus{},
+			PostRun: cmds.PostRunMap{
+				cmds.CLI: func(req cmds.Request, re cmds.ResponseEmitter) cmds.ResponseEmitter {
+					reNext, res := cmds.NewChanResponsePair(req)
+					clire := re.(cli.ResponseEmitter)
+					
+					go func() {
+						defer re.Close()
+						defer fmt.Println()
+						
+						// length of line at last iteration
+						var lastLen int
+						
+						var exit int
+						defer func() {
+							clire.Exit(exit)
+						}()
+
+						for {
+							v, err := res.Next()
+							if err == io.EOF {
+								return
+							}
+							if err == cmds.ErrRcvdError {
+								fmt.Println("\nreceived error:", res.Error())
+								break
+							}
+							if err != nil {
+								fmt.Println("\nerror:", err)
+								break
+							}
+
+							fmt.Print("\r" + strings.Repeat(" ", lastLen))
+
+							s := v.(*AddStatus)
+							if s.Left > 0 {
+								lastLen, _ = fmt.Printf("\rcalculation sum... current: %d; left: %d", s.Current, s.Left)
+							} else {
+								lastLen, _ = fmt.Printf("\rsum is %d.", s.Current)
+								exit = s.Current
+							}
+						}
+
 					}()
 					
 					return reNext
