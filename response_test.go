@@ -14,6 +14,20 @@ type TestOutput struct {
 	Baz      int
 }
 
+func eqStringSlice(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
 func TestMarshalling(t *testing.T) {
 	cmd := &Command{}
 	opts, _ := cmd.GetOptions(nil)
@@ -47,6 +61,42 @@ func TestMarshalling(t *testing.T) {
 		t.Log(`expected: {"Message":"Oops!","Code":1,"Type":"error"}`)
 		t.Log("got:", removeWhitespace(buf.String()))
 		t.Error("Incorrect JSON output")
+	}
+}
+
+func TestHandleError(t *testing.T) {
+	var (
+		out []string
+		exp = []string{"1", "2", "3", "EOF"}
+	)
+
+	cmd := &Command{}
+	opts, _ := cmd.GetOptions(nil)
+
+	req, _ := NewRequest(nil, nil, nil, nil, nil, opts)
+
+	re, res := NewChanResponsePair(req)
+	go func() {
+		re.Emit(1)
+		re.Emit(2)
+		re.Emit(3)
+		re.Close()
+	}()
+
+	var err error
+	for HandleError(err, res, re) {
+		var v interface{}
+		v, err = res.Next()
+		if v != nil {
+			out = append(out, fmt.Sprint(v))
+		} else {
+			out = append(out, fmt.Sprint(err))
+		}
+
+	}
+
+	if !eqStringSlice(out, exp) {
+		t.Fatalf("expected %v, got %v", exp, out)
 	}
 }
 

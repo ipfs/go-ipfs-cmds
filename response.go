@@ -2,6 +2,7 @@ package cmds
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 )
@@ -35,4 +36,26 @@ func (h Head) Length() uint64 {
 
 func (h Head) Error() *cmdkit.Error {
 	return h.Err
+}
+
+// HandleError handles the error from cmds.Response.Next(), it returns
+// true if Next() should be called again
+func HandleError(err error, res Response, re ResponseEmitter) bool {
+	if err != nil {
+		if err == io.EOF {
+			return false
+		}
+
+		if err == ErrRcvdError {
+			err = res.Error()
+		}
+
+		if e, ok := err.(*cmdkit.Error); ok {
+			re.SetError(e.Message, e.Code)
+		} else {
+			re.SetError(err, cmdkit.ErrNormal)
+		}
+		return false
+	}
+	return true
 }
