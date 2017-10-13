@@ -26,7 +26,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	
+
 	req.SetOption("encoding", cmds.Text)
 
 	// create an emitter

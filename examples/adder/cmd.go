@@ -16,7 +16,7 @@ import (
 type AddStatus struct {
 	// Current is the current value of the sum.
 	Current int
-	
+
 	// Left is how many summands are left
 	Left int
 }
@@ -64,7 +64,7 @@ var RootCmd = &cmds.Command{
 					sum += num
 					re.Emit(&AddStatus{
 						Current: sum,
-						Left: len(req.Arguments())-i-1,
+						Left:    len(req.Arguments()) - i - 1,
 					})
 					time.Sleep(200 * time.Millisecond)
 				}
@@ -77,13 +77,13 @@ var RootCmd = &cmds.Command{
 					if !ok {
 						return fmt.Errorf("cast error, got type %T", v)
 					}
-					
+
 					if s.Left == 0 {
 						fmt.Fprintln(w, "total:", s.Current)
 					} else {
 						fmt.Fprintf(w, "intermediate result: %d; %d left\n", s.Current, s.Left)
 					}
-					
+
 					return nil
 				}),
 			},
@@ -107,7 +107,7 @@ var RootCmd = &cmds.Command{
 					sum += num
 					re.Emit(&AddStatus{
 						Current: sum,
-						Left: len(req.Arguments())-i-1,
+						Left:    len(req.Arguments()) - i - 1,
 					})
 					time.Sleep(200 * time.Millisecond)
 				}
@@ -116,14 +116,14 @@ var RootCmd = &cmds.Command{
 			PostRun: cmds.PostRunMap{
 				cmds.CLI: func(req cmds.Request, re cmds.ResponseEmitter) cmds.ResponseEmitter {
 					reNext, res := cmds.NewChanResponsePair(req)
-					
+
 					go func() {
 						defer re.Close()
 						defer fmt.Println()
-						
+
 						// length of line at last iteration
 						var lastLen int
-						
+
 						for {
 							v, err := res.Next()
 							if err == io.EOF {
@@ -148,7 +148,7 @@ var RootCmd = &cmds.Command{
 							}
 						}
 					}()
-					
+
 					return reNext
 				},
 			},
@@ -172,7 +172,7 @@ var RootCmd = &cmds.Command{
 					sum += num
 					re.Emit(&AddStatus{
 						Current: sum,
-						Left: len(req.Arguments())-i-1,
+						Left:    len(req.Arguments()) - i - 1,
 					})
 					time.Sleep(200 * time.Millisecond)
 				}
@@ -182,14 +182,14 @@ var RootCmd = &cmds.Command{
 				cmds.CLI: func(req cmds.Request, re cmds.ResponseEmitter) cmds.ResponseEmitter {
 					reNext, res := cmds.NewChanResponsePair(req)
 					clire := re.(cli.ResponseEmitter)
-					
+
 					go func() {
 						defer re.Close()
 						defer fmt.Println()
-						
+
 						// length of line at last iteration
 						var lastLen int
-						
+
 						var exit int
 						defer func() {
 							clire.Exit(exit)
@@ -221,7 +221,7 @@ var RootCmd = &cmds.Command{
 						}
 
 					}()
-					
+
 					return reNext
 				},
 			},
