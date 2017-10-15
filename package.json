@@ -25,9 +25,9 @@
       "version": "1.2.4"
     },
     {
-      "hash": "QmPMeikDc7tQEDvaS66j1bVPQ2jBkvFwz3Qom5eA5i4xip",
+      "hash": "QmSNbH2A1evCCbJSDC6u3RV3GGDhgu6pRGbXHvrN89tMKf",
       "name": "go-ipfs-cmdkit",
-      "version": "0.3.2"
+      "version": "0.3.3"
     }
   ],
   "gxVersion": "0.10.0",
