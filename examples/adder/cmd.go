@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"gx/ipfs/QmPhtZyjPYddJ8yGPWreisp47H6iQjt3Lg8sZrzqMP5noy/go-ipfs-cmds"
-	"gx/ipfs/QmPhtZyjPYddJ8yGPWreisp47H6iQjt3Lg8sZrzqMP5noy/go-ipfs-cmds/cli"
-	"gx/ipfs/QmSNbH2A1evCCbJSDC6u3RV3GGDhgu6pRGbXHvrN89tMKf/go-ipfs-cmdkit"
+	"github.com/ipfs/go-ipfs-cmdkit"
+	"gx/ipfs/QmQVvuDwXUGbtYmbmTcbLtGRYXnEbymaR2zEj38GVysqWe/go-ipfs-cmds"
+	"gx/ipfs/QmQVvuDwXUGbtYmbmTcbLtGRYXnEbymaR2zEj38GVysqWe/go-ipfs-cmds/cli"
 )
 
 // AddStatus describes the progress of the add operation

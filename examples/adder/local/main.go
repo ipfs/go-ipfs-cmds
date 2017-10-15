@@ -5,8 +5,8 @@ import (
 
 	"github.com/ipfs/go-ipfs-cmds/examples/adder"
 
-	"gx/ipfs/QmPhtZyjPYddJ8yGPWreisp47H6iQjt3Lg8sZrzqMP5noy/go-ipfs-cmds"
-	"gx/ipfs/QmPhtZyjPYddJ8yGPWreisp47H6iQjt3Lg8sZrzqMP5noy/go-ipfs-cmds/cli"
+	"gx/ipfs/QmQVvuDwXUGbtYmbmTcbLtGRYXnEbymaR2zEj38GVysqWe/go-ipfs-cmds"
+	"gx/ipfs/QmQVvuDwXUGbtYmbmTcbLtGRYXnEbymaR2zEj38GVysqWe/go-ipfs-cmds/cli"
 )
 
 func main() {
