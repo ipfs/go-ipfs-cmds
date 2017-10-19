@@ -3,6 +3,7 @@ package cmds
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 
@@ -64,6 +65,54 @@ func TestMarshalling(t *testing.T) {
 	}
 }
 
+func TestHandleError_Error(t *testing.T) {
+	var (
+		out []string
+		exp = []string{"1", "2", "received command error"}
+	)
+
+	cmd := &Command{}
+	opts, _ := cmd.GetOptions(nil)
+
+	req, _ := NewRequest(nil, nil, nil, nil, nil, opts)
+
+	re, res := NewChanResponsePair(req)
+	reFwd, resFwd := NewChanResponsePair(req)
+
+	go func() {
+		re.Emit(1)
+		re.Emit(2)
+		re.Emit(&cmdkit.Error{Message: "test errors", Code: cmdkit.ErrNormal})
+		re.Close()
+	}()
+
+	go func() {
+		for v, err := resFwd.Next(); err != io.EOF; {
+			t.Logf("received forwarded value %#v, error  %#v", v, err)
+		}
+	}()
+
+	for {
+		v, err := res.Next()
+
+		if err == nil {
+			t.Log("err == nil")
+			out = append(out, fmt.Sprint(v))
+		} else {
+			t.Log("err != nil")
+			out = append(out, fmt.Sprint(err))
+		}
+
+		if !HandleError(err, res, reFwd) {
+			break
+		}
+	}
+
+	if !eqStringSlice(out, exp) {
+		t.Fatalf("expected %v, got %v", exp, out)
+	}
+}
+
 func TestHandleError(t *testing.T) {
 	var (
 		out []string
@@ -76,6 +125,7 @@ func TestHandleError(t *testing.T) {
 	req, _ := NewRequest(nil, nil, nil, nil, nil, opts)
 
 	re, res := NewChanResponsePair(req)
+	reFwd, resFwd := NewChanResponsePair(req)
 	go func() {
 		re.Emit(1)
 		re.Emit(2)
@@ -83,8 +133,14 @@ func TestHandleError(t *testing.T) {
 		re.Close()
 	}()
 
+	go func() {
+		for v, err := resFwd.Next(); err != io.EOF; {
+			t.Log("received forwarded value %#v, error  %#v", v, err)
+		}
+	}()
+
 	var err error
-	for HandleError(err, res, re) {
+	for HandleError(err, res, reFwd) {
 		var v interface{}
 		v, err = res.Next()
 		if v != nil {
@@ -92,7 +148,6 @@ func TestHandleError(t *testing.T) {
 		} else {
 			out = append(out, fmt.Sprint(err))
 		}
-
 	}
 
 	if !eqStringSlice(out, exp) {
