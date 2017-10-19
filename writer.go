@@ -66,6 +66,22 @@ func (r *readerResponse) Length() uint64 {
 	return r.length
 }
 
+func (r *readerResponse) RawNext() (interface{}, error) {
+	a := &Any{}
+	a.Add(cmdkit.Error{})
+	a.Add(r.req.Command().Type)
+
+	err := r.dec.Decode(a)
+	if err != nil {
+		return nil, err
+	}
+
+	r.once.Do(func() { close(r.emitted) })
+
+	v := a.Interface()
+	return v, nil
+}
+
 func (r *readerResponse) Next() (interface{}, error) {
 	a := &Any{}
 	a.Add(cmdkit.Error{})
@@ -80,15 +96,18 @@ func (r *readerResponse) Next() (interface{}, error) {
 
 	v := a.Interface()
 	if err, ok := v.(cmdkit.Error); ok {
-		r.err = &err
-		return nil, ErrRcvdError
-	}
-	if err, ok := v.(*cmdkit.Error); ok {
-		r.err = err
-		return nil, ErrRcvdError
+		v = &err
 	}
 
-	return v, nil
+	switch val := v.(type) {
+	case *cmdkit.Error:
+		r.err = val
+		return nil, ErrRcvdError
+	case Single:
+		return val.Value, nil
+	default:
+		return v, nil
+	}
 }
 
 type WriterResponseEmitter struct {
@@ -150,6 +169,10 @@ func (re *WriterResponseEmitter) Emit(v interface{}) error {
 	}
 
 	re.emitted = true
+
+	if _, ok := v.(Single); ok {
+		defer re.Close()
+	}
 
 	return re.enc.Encode(v)
 }

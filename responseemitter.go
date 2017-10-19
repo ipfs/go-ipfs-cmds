@@ -6,6 +6,17 @@ import (
 	"github.com/ipfs/go-ipfs-cmdkit"
 )
 
+// Single can be used to signal to any ResponseEmitter that only one value will be emitted.
+// This is important e.g. for the http.ResponseEmitter so it can set the HTTP headers appropriately.
+type Single struct {
+	Value interface{}
+}
+
+// EmitOnce is a helper that emits a value wrapped in Single, to signal that this will be the only value sent.
+func EmitOnce(re ResponseEmitter, v interface{}) error {
+	return re.Emit(Single{v})
+}
+
 // ResponseEmitter encodes and sends the command code's output to the client.
 // It is all a command can write to.
 type ResponseEmitter interface {
@@ -36,20 +47,18 @@ type Header interface {
 	Head() Head
 }
 
+// Copy sends all values received on res to re. If res is closed, it closes re.
 func Copy(re ResponseEmitter, res Response) error {
 	re.SetLength(res.Length())
 
 	for {
-		v, err := res.Next()
+		v, err := res.RawNext()
 		switch err {
 		case nil:
 			// all good, go on
 		case io.EOF:
 			re.Close()
 			return nil
-		case ErrRcvdError:
-			re.Emit(res.Error())
-			continue
 		default:
 			return err
 		}

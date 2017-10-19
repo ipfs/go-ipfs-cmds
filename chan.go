@@ -70,7 +70,7 @@ func (r *chanResponse) Length() uint64 {
 	return r.length
 }
 
-func (r *chanResponse) Next() (interface{}, error) {
+func (r *chanResponse) RawNext() (interface{}, error) {
 	if r == nil {
 		return nil, io.EOF
 	}
@@ -85,15 +85,44 @@ func (r *chanResponse) Next() (interface{}, error) {
 	select {
 	case v, ok := <-r.ch:
 		if ok {
-			if err, ok := v.(*cmdkit.Error); ok {
-				r.err = err
-				return nil, ErrRcvdError
-			}
-
 			return v, nil
 		}
 
 		return nil, io.EOF
+	case <-ctx.Done():
+		close(r.done)
+		return nil, r.req.Context().Err()
+	}
+
+}
+
+func (r *chanResponse) Next() (interface{}, error) {
+	if r == nil {
+		return nil, io.EOF
+	}
+
+	var ctx context.Context
+	if rctx := r.req.Context(); rctx != nil {
+		ctx = rctx
+	} else {
+		ctx = context.Background()
+	}
+
+	select {
+	case v, ok := <-r.ch:
+		if !ok {
+			return nil, io.EOF
+		}
+
+		switch val := v.(type) {
+		case *cmdkit.Error:
+			r.err = val
+			return nil, ErrRcvdError
+		case Single:
+			return val.Value, nil
+		default:
+			return v, nil
+		}
 	case <-ctx.Done():
 		close(r.done)
 		return nil, r.req.Context().Err()
@@ -171,6 +200,10 @@ func (re *chanResponseEmitter) Emit(v interface{}) error {
 
 	if re.ch == nil {
 		return fmt.Errorf("emitter closed")
+	}
+
+	if _, ok := v.(Single); ok {
+		defer re.Close()
 	}
 
 	select {

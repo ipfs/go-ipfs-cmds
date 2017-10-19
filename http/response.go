@@ -37,6 +37,33 @@ func (res *Response) Length() uint64 {
 	return res.length
 }
 
+func (res *Response) RawNext() (interface{}, error) {
+	// nil decoder means stream not chunks
+	// but only do that once
+	if res.dec == nil {
+		if res.rr == nil {
+			return nil, io.EOF
+		} else {
+			rr := res.rr
+			res.rr = nil
+			return rr, nil
+		}
+	}
+
+	a := &cmds.Any{}
+	a.Add(&cmdkit.Error{})
+	a.Add(res.req.Command().Type)
+
+	err := res.dec.Decode(a)
+
+	// last error was sent as value, now we get the same error from the headers. ignore and EOF!
+	if err != nil && res.err != nil && err.Error() == res.err.Error() {
+		err = io.EOF
+	}
+
+	return a.Interface(), err
+}
+
 func (res *Response) Next() (interface{}, error) {
 	// nil decoder means stream not chunks
 	// but only do that once
@@ -64,7 +91,20 @@ func (res *Response) Next() (interface{}, error) {
 		return nil, err
 	}
 
-	return a.Interface(), err
+	v := a.Interface()
+	if err, ok := v.(cmdkit.Error); ok {
+		v = &err
+	}
+
+	switch val := v.(type) {
+	case *cmdkit.Error:
+		res.err = val
+		return nil, cmds.ErrRcvdError
+	case cmds.Single:
+		return val.Value, nil
+	default:
+		return v, nil
+	}
 }
 
 // getResponse decodes a http.Response to create a cmds.Response

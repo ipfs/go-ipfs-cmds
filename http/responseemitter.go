@@ -107,6 +107,9 @@ func (re *responseEmitter) Emit(value interface{}) error {
 		} else {
 			err = re.enc.Encode(value)
 		}
+	case cmds.Single:
+		defer re.Close()
+		err = re.enc.Encode(value)
 	default:
 		err = re.enc.Encode(value)
 	}
