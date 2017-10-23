@@ -70,32 +70,6 @@ func (r *chanResponse) Length() uint64 {
 	return r.length
 }
 
-func (r *chanResponse) RawNext() (interface{}, error) {
-	if r == nil {
-		return nil, io.EOF
-	}
-
-	var ctx context.Context
-	if rctx := r.req.Context(); rctx != nil {
-		ctx = rctx
-	} else {
-		ctx = context.Background()
-	}
-
-	select {
-	case v, ok := <-r.ch:
-		if ok {
-			return v, nil
-		}
-
-		return nil, io.EOF
-	case <-ctx.Done():
-		close(r.done)
-		return nil, r.req.Context().Err()
-	}
-
-}
-
 func (r *chanResponse) Next() (interface{}, error) {
 	if r == nil {
 		return nil, io.EOF
@@ -130,6 +104,32 @@ func (r *chanResponse) Next() (interface{}, error) {
 
 }
 
+func (r *chanResponse) RawNext() (interface{}, error) {
+	if r == nil {
+		return nil, io.EOF
+	}
+
+	var ctx context.Context
+	if rctx := r.req.Context(); rctx != nil {
+		ctx = rctx
+	} else {
+		ctx = context.Background()
+	}
+
+	select {
+	case v, ok := <-r.ch:
+		if ok {
+			return v, nil
+		}
+
+		return nil, io.EOF
+	case <-ctx.Done():
+		close(r.done)
+		return nil, r.req.Context().Err()
+	}
+
+}
+
 type chanResponseEmitter struct {
 	ch   chan<- interface{}
 	wait chan struct{}
@@ -139,42 +139,6 @@ type chanResponseEmitter struct {
 	err    **cmdkit.Error
 
 	emitted bool
-}
-
-func (re *chanResponseEmitter) SetError(v interface{}, errType cmdkit.ErrorType) {
-	err := re.Emit(&cmdkit.Error{Message: fmt.Sprint(v), Code: errType})
-	if err != nil {
-		panic(err)
-	}
-}
-
-func (re *chanResponseEmitter) SetLength(l uint64) {
-	// don't change value after emitting
-	if re.emitted {
-		return
-	}
-
-	*re.length = l
-}
-
-func (re *chanResponseEmitter) Head() Head {
-	<-re.wait
-
-	return Head{
-		Len: *re.length,
-		Err: *re.err,
-	}
-}
-
-func (re *chanResponseEmitter) Close() error {
-	if re.ch == nil {
-		return nil
-	}
-
-	close(re.ch)
-	re.ch = nil
-
-	return nil
 }
 
 func (re *chanResponseEmitter) Emit(v interface{}) error {
@@ -212,6 +176,42 @@ func (re *chanResponseEmitter) Emit(v interface{}) error {
 	case <-re.done:
 		return context.Canceled
 	}
+
+	return nil
+}
+
+func (re *chanResponseEmitter) SetError(v interface{}, errType cmdkit.ErrorType) {
+	err := re.Emit(&cmdkit.Error{Message: fmt.Sprint(v), Code: errType})
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (re *chanResponseEmitter) SetLength(l uint64) {
+	// don't change value after emitting
+	if re.emitted {
+		return
+	}
+
+	*re.length = l
+}
+
+func (re *chanResponseEmitter) Head() Head {
+	<-re.wait
+
+	return Head{
+		Len: *re.length,
+		Err: *re.err,
+	}
+}
+
+func (re *chanResponseEmitter) Close() error {
+	if re.ch == nil {
+		return nil
+	}
+
+	close(re.ch)
+	re.ch = nil
 
 	return nil
 }

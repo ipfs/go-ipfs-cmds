@@ -132,11 +132,14 @@ func (re *responseEmitter) Head() cmds.Head {
 }
 
 func (re *responseEmitter) Emit(v interface{}) error {
+	// unwrap
+	if val, ok := v.(cmds.Single); ok {
+		v = val.Value
+	}
+
 	if ch, ok := v.(chan interface{}); ok {
 		v = (<-chan interface{})(ch)
 	}
-
-	log.Debugf("%T:%v, enc:%p", v, v, re.enc)
 
 	// TODO find a better solution for this.
 	// Idea: use the actual cmd.Type and not *cmd.Type

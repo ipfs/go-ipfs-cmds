@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"sync"
 
@@ -77,6 +78,11 @@ func (re *responseEmitter) Emit(value interface{}) error {
 
 	re.once.Do(func() { re.preamble(value) })
 
+	if single, ok := value.(cmds.Single); ok {
+		value = single.Value
+		defer re.Close()
+	}
+
 	if re.w == nil {
 		return fmt.Errorf("connection already closed / custom - http.respem - TODO")
 	}
@@ -107,9 +113,6 @@ func (re *responseEmitter) Emit(value interface{}) error {
 		} else {
 			err = re.enc.Encode(value)
 		}
-	case cmds.Single:
-		defer re.Close()
-		err = re.enc.Encode(value)
 	default:
 		err = re.enc.Encode(value)
 	}
@@ -154,25 +157,37 @@ func (re *responseEmitter) Flush() {
 }
 
 func (re *responseEmitter) preamble(value interface{}) {
+	fmt.Fprintf(os.Stderr, "preamble(%#v)\n", value)
 	h := re.w.Header()
 	// Expose our agent to allow identification
 	h.Set("Server", "go-ipfs/"+config.CurrentVersionNumber)
 
 	status := http.StatusOK
 
+	// unpack value if it needs special treatment in the type switch below
+	if s, isSingle := value.(cmds.Single); isSingle {
+		if err, isErr := s.Value.(cmdkit.Error); isErr {
+			value = &err
+		}
+
+		if err, isErr := s.Value.(*cmdkit.Error); isErr {
+			value = err
+		}
+	}
+
+	var mime string
+
 	switch v := value.(type) {
 	case *cmdkit.Error:
-		h.Set(channelHeader, "1")
+		err := v
+		if err.Code == cmdkit.ErrClient {
+			status = http.StatusBadRequest
+		} else {
+			status = http.StatusInternalServerError
+		}
+
 		// if this is not a head request, the error will be sent as a trailer or as a value
 		if re.method == "HEAD" {
-			err := v
-
-			if err.Code == cmdkit.ErrClient {
-				status = http.StatusBadRequest
-			} else {
-				status = http.StatusInternalServerError
-			}
-
 			http.Error(re.w, err.Error(), status)
 			re.w = nil
 
@@ -182,6 +197,11 @@ func (re *responseEmitter) preamble(value interface{}) {
 		// set streams output type to text to avoid issues with browsers rendering
 		// html pages on priveleged api ports
 		h.Set(streamHeader, "1")
+
+		mime = "text/plain"
+	case cmds.Single:
+	case nil:
+		h.Set(channelHeader, "1")
 	default:
 		h.Set(channelHeader, "1")
 	}
@@ -189,12 +209,15 @@ func (re *responseEmitter) preamble(value interface{}) {
 	// Set up our potential trailer
 	h.Set("Trailer", StreamErrHeader)
 
-	// lookup mime type from map
-	mime := mimeTypes[re.encType]
-
-	// catch-all, set to text as default
 	if mime == "" {
-		mime = "text/plain"
+		var ok bool
+
+		// lookup mime type from map
+		mime, ok = mimeTypes[re.encType]
+		if !ok {
+			// catch-all, set to text as default
+			mime = "text/plain"
+		}
 	}
 
 	h.Set(contentTypeHeader, mime)

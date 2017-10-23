@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 	"sync"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
@@ -197,6 +198,13 @@ func (r *fakeResponse) Error() *cmdkit.Error {
 
 // SetOutput sets the output variable to the passed value
 func (r *fakeResponse) SetOutput(v interface{}) {
+	t := reflect.TypeOf(v)
+	_, isReader := v.(io.Reader)
+
+	if t != nil && t.Kind() != reflect.Chan && !isReader {
+		v = Single{v}
+	}
+
 	r.out = v
 	r.once.Do(func() { close(r.wait) })
 }

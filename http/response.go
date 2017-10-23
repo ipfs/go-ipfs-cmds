@@ -12,6 +12,14 @@ import (
 	"github.com/ipfs/go-ipfs-cmds"
 )
 
+var (
+	MIMEEncodings = map[string]cmds.EncodingType{
+		"application/json": cmds.JSON,
+		"application/xml":  cmds.XML,
+		"text/plain":       cmds.Text,
+	}
+)
+
 type Response struct {
 	length uint64
 	err    *cmdkit.Error
@@ -21,6 +29,8 @@ type Response struct {
 
 	rr  *responseReader
 	dec cmds.Decoder
+
+	initErr *cmdkit.Error
 }
 
 func (res *Response) Request() cmds.Request {
@@ -38,6 +48,13 @@ func (res *Response) Length() uint64 {
 }
 
 func (res *Response) RawNext() (interface{}, error) {
+	if res.initErr != nil {
+		err := res.initErr
+		res.initErr = nil
+
+		return err, nil
+	}
+
 	// nil decoder means stream not chunks
 	// but only do that once
 	if res.dec == nil {
@@ -65,33 +82,11 @@ func (res *Response) RawNext() (interface{}, error) {
 }
 
 func (res *Response) Next() (interface{}, error) {
-	// nil decoder means stream not chunks
-	// but only do that once
-	if res.dec == nil {
-		if res.rr == nil {
-			return nil, io.EOF
-		} else {
-			rr := res.rr
-			res.rr = nil
-			return rr, nil
-		}
-	}
-
-	a := &cmds.Any{}
-	a.Add(&cmdkit.Error{})
-	a.Add(res.req.Command().Type)
-
-	err := res.dec.Decode(a)
-
-	// last error was sent as value, now we get the same error from the headers. ignore and EOF!
-	if err != nil && res.err != nil && err.Error() == res.err.Error() {
-		err = io.EOF
-	}
+	v, err := res.RawNext()
 	if err != nil {
 		return nil, err
 	}
 
-	v := a.Interface()
 	if err, ok := v.(cmdkit.Error); ok {
 		v = &err
 	}
@@ -128,16 +123,11 @@ func getResponse(httpRes *http.Response, req cmds.Request) (cmds.Response, error
 	contentType := httpRes.Header.Get(contentTypeHeader)
 	contentType = strings.Split(contentType, ";")[0]
 
-	if len(httpRes.Header.Get(channelHeader)) > 0 {
-		encTypeStr, found, err := req.Option(cmdkit.EncShort).String()
-		if err != nil {
-			return nil, err
-		}
-
-		encType := cmds.EncodingType(encTypeStr)
-
-		if found {
-			res.dec = cmds.Decoders[encType](res.rr)
+	encType, found := MIMEEncodings[contentType]
+	if found {
+		makeDec, ok := cmds.Decoders[encType]
+		if ok {
+			res.dec = makeDec(res.rr)
 		}
 	}
 
@@ -150,7 +140,6 @@ func getResponse(httpRes *http.Response, req cmds.Request) (cmds.Response, error
 			// handle 404s
 			e.Message = "Command not found."
 			e.Code = cmdkit.ErrClient
-
 		case contentType == plainText:
 			// handle non-marshalled errors
 			mes, err := ioutil.ReadAll(res.rr)
@@ -159,7 +148,6 @@ func getResponse(httpRes *http.Response, req cmds.Request) (cmds.Response, error
 			}
 			e.Message = string(mes)
 			e.Code = cmdkit.ErrNormal
-
 		default:
 			// handle marshalled errors
 			err = res.dec.Decode(&e)
@@ -168,9 +156,7 @@ func getResponse(httpRes *http.Response, req cmds.Request) (cmds.Response, error
 			}
 		}
 
-		res.err = e
-
-		return res, nil
+		res.initErr = e
 	}
 
 	return res, nil

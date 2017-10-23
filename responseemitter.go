@@ -1,6 +1,7 @@
 package cmds
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
@@ -10,6 +11,14 @@ import (
 // This is important e.g. for the http.ResponseEmitter so it can set the HTTP headers appropriately.
 type Single struct {
 	Value interface{}
+}
+
+func (s Single) String() string {
+	return fmt.Sprintf("Single{%v}", s.Value)
+}
+
+func (s Single) GoString() string {
+	return fmt.Sprintf("Single{%#v}", s.Value)
 }
 
 // EmitOnce is a helper that emits a value wrapped in Single, to signal that this will be the only value sent.
