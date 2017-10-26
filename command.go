@@ -14,7 +14,7 @@ import (
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 
-	oldcmds "github.com/ipfs/go-ipfs/commands"
+	//oldcmds "github.com/ipfs/go-ipfs/commands"
 	"github.com/ipfs/go-ipfs/path"
 	logging "github.com/ipfs/go-log"
 )
@@ -57,7 +57,7 @@ type Command struct {
 	// ie. If command Run returns &Block{}, then Command.Type == &Block{}
 	Type           interface{}
 	Subcommands    map[string]*Command
-	OldSubcommands map[string]*oldcmds.Command
+	//OldSubcommands map[string]*oldcmds.Command
 }
 
 // ErrNotCallable signals a command that cannot be called.
@@ -86,7 +86,7 @@ func (c *Command) Call(req Request, re ResponseEmitter) (err error) {
 		return err
 	}
 
-	err = req.ConvertOptions()
+	err = req.(*request).ConvertOptions()
 	if err != nil {
 		return err
 	}
@@ -238,10 +238,12 @@ func (c *Command) Subcommand(id string) *Command {
 		return cmd
 	}
 
+	/*
 	oldcmd := c.OldSubcommands[id]
 	if oldcmd != nil {
 		return NewCommand(oldcmd)
 	}
+	*/
 
 	return nil
 }

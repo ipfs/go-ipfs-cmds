@@ -48,71 +48,79 @@ func TestOptionValidation(t *testing.T) {
 	opts, _ := cmd.GetOptions(nil)
 
 	re := newBufferResponseEmitter()
-	req, _ := NewRequest(nil, nil, nil, nil, nil, opts)
-	req.SetOption("beep", true)
+	req, _ := NewRequest(nil, map[string]interface{}{
+			"beep": true,
+		}, nil, nil, nil, opts)
 	err := cmd.Call(req, re)
 	if err == nil {
 		t.Error("Should have failed (incorrect type)")
 	}
 
 	re = newBufferResponseEmitter()
-	req, _ = NewRequest(nil, nil, nil, nil, nil, opts)
-	req.SetOption("beep", 5)
+	req, _ = NewRequest(nil, map[string]interface{}{
+			"beep": 5,
+		}, nil, nil, nil, opts)
 	err = cmd.Call(req, re)
 	if err != nil {
 		t.Error(err, "Should have passed")
 	}
 
 	re = newBufferResponseEmitter()
-	req, _ = NewRequest(nil, nil, nil, nil, nil, opts)
-	req.SetOption("beep", 5)
-	req.SetOption("boop", "test")
+	req, _ = NewRequest(nil, map[string]interface{}{
+			"beep": 5,
+			"boop": "test",
+		}, nil, nil, nil, opts)
 	err = cmd.Call(req, re)
 	if err != nil {
 		t.Error("Should have passed")
 	}
 
 	re = newBufferResponseEmitter()
-	req, _ = NewRequest(nil, nil, nil, nil, nil, opts)
-	req.SetOption("b", 5)
-	req.SetOption("B", "test")
+	req, _ = NewRequest(nil, map[string]interface{}{
+			"b": 5,
+			"B": "test",
+		}, nil, nil, nil, opts)
 	err = cmd.Call(req, re)
 	if err != nil {
 		t.Error("Should have passed")
 	}
 
 	re = newBufferResponseEmitter()
-	req, _ = NewRequest(nil, nil, nil, nil, nil, opts)
-	req.SetOption("foo", 5)
+	req, _ = NewRequest(nil, map[string]interface{}{
+			"foo": 5,
+		}, nil, nil, nil, opts)
 	err = cmd.Call(req, re)
 	if err != nil {
 		t.Error("Should have passed")
 	}
 
 	re = newBufferResponseEmitter()
-	req, _ = NewRequest(nil, nil, nil, nil, nil, opts)
-	req.SetOption(cmdkit.EncShort, "json")
+	req, _ = NewRequest(nil, map[string]interface{}{
+			cmdkit.EncShort: "json",
+		}, nil, nil, nil, opts)
 	err = cmd.Call(req, re)
 	if err != nil {
 		t.Error("Should have passed")
 	}
 
 	re = newBufferResponseEmitter()
-	req, _ = NewRequest(nil, nil, nil, nil, nil, opts)
-	req.SetOption("b", "100")
+	req, _ = NewRequest(nil, map[string]interface{}{
+			"b": "100",
+		}, nil, nil, nil, opts)
 	err = cmd.Call(req, re)
 	if err != nil {
 		t.Error("Should have passed")
 	}
 
 	re = newBufferResponseEmitter()
-	req, _ = NewRequest(nil, nil, nil, nil, &cmd, opts)
-	req.SetOption("b", ":)")
+	req, _ = NewRequest(nil, map[string]interface{}{
+			"b": ":)",
+		}, nil, nil, nil, opts)
 	err = cmd.Call(req, re)
 	if err == nil {
 		t.Error("Should have failed (string value not convertible to int)")
 	}
-
+/*
 	err = req.SetOptions(map[string]interface{}{
 		"b": 100,
 	})
@@ -126,6 +134,7 @@ func TestOptionValidation(t *testing.T) {
 	if err == nil {
 		t.Error("Should have failed (string value not convertible to int)")
 	}
+	*/
 }
 
 func TestRegistration(t *testing.T) {
@@ -308,11 +317,12 @@ func TestPostRun(t *testing.T) {
 
 		cmdOpts, _ := cmd.GetOptions(nil)
 
-		req, err := NewRequest(nil, nil, nil, nil, nil, cmdOpts)
+		req, err := NewRequest(nil, map[string]interface{}{
+			cmdkit.EncShort:CLI,
+		}, nil, nil, nil, cmdOpts)
 		if err != nil {
 			t.Fatal(err)
 		}
-		req.SetOption(cmdkit.EncShort, CLI)
 
 		opts := req.Options()
 		if opts == nil {
@@ -383,12 +393,10 @@ func TestCancel(t *testing.T) {
 	wait := make(chan struct{})
 	ctx, cancel := context.WithCancel(context.Background())
 
-	req, err := NewRequest(nil, nil, nil, nil, nil, nil)
+	req, err := NewRequest(ctx, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	req.SetRootContext(ctx)
 
 	re, res := NewChanResponsePair(req)
 

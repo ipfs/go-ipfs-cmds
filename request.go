@@ -67,26 +67,56 @@ func (c *Context) NodeWithoutConstructing() *core.IpfsNode {
 
 // Request represents a call to a command from a consumer
 type Request interface {
-	Path() []string
-	Option(name string) *cmdkit.OptionValue
-	Options() cmdkit.OptMap
-	SetOption(name string, val interface{})
-	SetOptions(opts cmdkit.OptMap) error
-	Arguments() []string
-	StringArguments() []string
-	SetArguments([]string)
-	Files() files.File
-	SetFiles(files.File)
 	Context() context.Context
-	SetRootContext(context.Context) error
-	InvocContext() *Context
-	SetInvocContext(Context)
 	Command() *Command
-	Values() map[string]interface{}
-	Stdin() io.Reader
-	VarArgs(func(string) error) error
+	
+	Path() []string
+	Arguments() []string
+	Options() cmdkit.OptMap
+	
+	Body() io.Reader
+}
 
-	ConvertOptions() error
+type FilesRequest interface {
+	Request
+	
+	Files() files.File
+}
+
+// NewEmptyRequest initializes an empty request
+func NewEmptyRequest() (Request, error) {
+	return NewRequest(nil, nil, nil, nil, nil, nil)
+}
+
+// NewRequest returns a request initialized with given arguments
+// An non-nil error will be returned if the provided option values are invalid
+func NewRequest(ctx context.Context, path []string, opts cmdkit.OptMap, args []string, file files.File, cmd *Command, optDefs map[string]cmdkit.Option) (Request, error) {
+	if opts == nil {
+		opts = make(cmdkit.OptMap)
+	}
+	if optDefs == nil {
+		optDefs = make(map[string]cmdkit.Option)
+	}
+
+	values := make(map[string]interface{})
+	req := &request{
+		path:       path,
+		options:    opts,
+		arguments:  args,
+		files:      file,
+		cmd:        cmd,
+		ctx:        Context{},
+		rctx: ctx,
+		optionDefs: optDefs,
+		values:     values,
+		stdin:      os.Stdin,
+	}
+	err := req.ConvertOptions()
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }
 
 type request struct {
@@ -258,33 +288,19 @@ func (r *request) VarArgs(f func(string) error) error {
 	return nil
 }
 
-func getContext(base context.Context, req Request) (context.Context, error) {
-	var (
-		found bool
-		tout  string
-	)
+func getContext(ctx context.Context, req Request) (context.Context, error) {
+	tout, ok := req.Options()["timeout"].(string)
+	
 
-	if optVal := req.Option("timeout"); optVal != nil {
-		var err error
-		tout, found, err = optVal.String()
-		if err != nil {
-			return nil, fmt.Errorf("error parsing timeout option: %s", err)
-		}
-	}
-
-	var ctx context.Context
-	if found {
+	if ok {
 		duration, err := time.ParseDuration(tout)
 		if err != nil {
 			return nil, fmt.Errorf("error parsing timeout option: %s", err)
 		}
 
-		tctx, _ := context.WithTimeout(base, duration)
-		ctx = tctx
-	} else {
-		cctx, _ := context.WithCancel(base)
-		ctx = cctx
+		ctx, _ = context.WithTimeout(ctx, duration)
 	}
+	
 	return ctx, nil
 }
 
@@ -332,7 +348,7 @@ func (r *request) Values() map[string]interface{} {
 	return r.values
 }
 
-func (r *request) Stdin() io.Reader {
+func (r *request) Body() io.Reader {
 	return r.stdin
 }
 
@@ -366,8 +382,6 @@ func (r *request) ConvertOptions() error {
 				return fmt.Errorf("Option '%s' should be type '%s', but got type '%s'",
 					k, opt.Type().String(), kind.String())
 			}
-		} else {
-			r.options[k] = v
 		}
 
 		for _, name := range opt.Names() {
@@ -379,42 +393,6 @@ func (r *request) ConvertOptions() error {
 	}
 
 	return nil
-}
-
-// NewEmptyRequest initializes an empty request
-func NewEmptyRequest() (Request, error) {
-	return NewRequest(nil, nil, nil, nil, nil, nil)
-}
-
-// NewRequest returns a request initialized with given arguments
-// An non-nil error will be returned if the provided option values are invalid
-func NewRequest(path []string, opts cmdkit.OptMap, args []string, file files.File, cmd *Command, optDefs map[string]cmdkit.Option) (Request, error) {
-	if opts == nil {
-		opts = make(cmdkit.OptMap)
-	}
-	if optDefs == nil {
-		optDefs = make(map[string]cmdkit.Option)
-	}
-
-	ctx := Context{}
-	values := make(map[string]interface{})
-	req := &request{
-		path:       path,
-		options:    opts,
-		arguments:  args,
-		files:      file,
-		cmd:        cmd,
-		ctx:        ctx,
-		optionDefs: optDefs,
-		values:     values,
-		stdin:      os.Stdin,
-	}
-	err := req.ConvertOptions()
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
 }
 
 // GetEncoding returns the EncodingType set in a request, falling back to JSON
