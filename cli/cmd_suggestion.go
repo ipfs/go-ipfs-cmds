@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	cmds "github.com/ipfs/go-ipfs-cmds"
-	levenshtein "github.com/ipfs/go-ipfs/Godeps/_workspace/src/github.com/texttheater/golang-levenshtein/levenshtein"
+	levenshtein "github.com/texttheater/golang-levenshtein/levenshtein"
 )
 
 // Make a custom slice that can be sorted by its levenshtein value
@@ -56,12 +56,14 @@ func suggestUnknownCmd(args []string, root *cmds.Command) []string {
 		}
 	}
 
-	// Start with a simple strings.Contains check
-	for name, _ := range root.OldSubcommands {
-		if strings.Contains(arg, name) {
-			suggestions = append(suggestions, name)
+	/*
+		// Start with a simple strings.Contains check
+		for name, _ := range root.OldSubcommands {
+			if strings.Contains(arg, name) {
+				suggestions = append(suggestions, name)
+			}
 		}
-	}
+	*/
 
 	// If the string compare returns a match, return
 	if len(suggestions) > 0 {
@@ -74,12 +76,14 @@ func suggestUnknownCmd(args []string, root *cmds.Command) []string {
 			sortableSuggestions = append(sortableSuggestions, &suggestion{name, lev})
 		}
 	}
-	for name, _ := range root.OldSubcommands {
-		lev := levenshtein.DistanceForStrings([]rune(arg), []rune(name), options)
-		if lev <= MIN_LEVENSHTEIN {
-			sortableSuggestions = append(sortableSuggestions, &suggestion{name, lev})
+	/*
+		for name, _ := range root.OldSubcommands {
+			lev := levenshtein.DistanceForStrings([]rune(arg), []rune(name), options)
+			if lev <= MIN_LEVENSHTEIN {
+				sortableSuggestions = append(sortableSuggestions, &suggestion{name, lev})
+			}
 		}
-	}
+	*/
 	sort.Sort(sortableSuggestions)
 
 	for _, j := range sortableSuggestions {

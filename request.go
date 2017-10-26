@@ -3,376 +3,137 @@ package cmds
 import (
 	"bufio"
 	"context"
-	"errors"
 	"fmt"
-	"io"
-	"os"
 	"reflect"
-	"strconv"
-	"time"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-cmdkit/files"
-
-	u "github.com/ipfs/go-ipfs-util"
-	"github.com/ipfs/go-ipfs/core"
-	"github.com/ipfs/go-ipfs/repo/config"
 )
 
-type OptMap map[string]interface{}
-
-type Context struct {
-	Online     bool
-	ConfigRoot string
-	ReqLog     *ReqLog
-
-	config     *config.Config
-	LoadConfig func(path string) (*config.Config, error)
-
-	node          *core.IpfsNode
-	ConstructNode func() (*core.IpfsNode, error)
-}
-
-// GetConfig returns the config of the current Command exection
-// context. It may load it with the providied function.
-func (c *Context) GetConfig() (*config.Config, error) {
-	var err error
-	if c.config == nil {
-		if c.LoadConfig == nil {
-			return nil, errors.New("nil LoadConfig function")
-		}
-		c.config, err = c.LoadConfig(c.ConfigRoot)
-	}
-	return c.config, err
-}
-
-// GetNode returns the node of the current Command exection
-// context. It may construct it with the provided function.
-func (c *Context) GetNode() (*core.IpfsNode, error) {
-	var err error
-	if c.node == nil {
-		if c.ConstructNode == nil {
-			return nil, errors.New("nil ConstructNode function")
-		}
-		c.node, err = c.ConstructNode()
-	}
-	return c.node, err
-}
-
-// NodeWithoutConstructing returns the underlying node variable
-// so that clients may close it.
-func (c *Context) NodeWithoutConstructing() *core.IpfsNode {
-	return c.node
-}
-
 // Request represents a call to a command from a consumer
-type Request interface {
-	Path() []string
-	Option(name string) *cmdkit.OptionValue
-	Options() cmdkit.OptMap
-	SetOption(name string, val interface{})
-	SetOptions(opts cmdkit.OptMap) error
-	Arguments() []string
-	StringArguments() []string
-	SetArguments([]string)
-	Files() files.File
-	SetFiles(files.File)
-	Context() context.Context
-	SetRootContext(context.Context) error
-	InvocContext() *Context
-	SetInvocContext(Context)
-	Command() *Command
-	Values() map[string]interface{}
-	Stdin() io.Reader
-	VarArgs(func(string) error) error
+type Request struct {
+	Context       context.Context
+	Root, Command *Command
 
-	ConvertOptions() error
+	Path      []string
+	Arguments []string
+	Options   cmdkit.OptMap
+
+	Files files.File
 }
 
-type request struct {
-	path       []string
-	options    cmdkit.OptMap
-	arguments  []string
-	files      files.File
-	cmd        *Command
-	ctx        Context
-	rctx       context.Context
-	optionDefs map[string]cmdkit.Option
-	values     map[string]interface{}
-	stdin      io.Reader
-}
-
-// Path returns the command path of this request
-func (r *request) Path() []string {
-	return r.path
-}
-
-// Option returns the value of the option for given name.
-func (r *request) Option(name string) *cmdkit.OptionValue {
-	// find the option with the specified name
-	option, found := r.optionDefs[name]
-	if !found {
-		return nil
+// NewRequest returns a request initialized with given arguments
+// An non-nil error will be returned if the provided option values are invalid
+func NewRequest(ctx context.Context, path []string, opts cmdkit.OptMap, args []string, file files.File, root *Command) (*Request, error) {
+	if opts == nil {
+		opts = make(cmdkit.OptMap)
 	}
 
-	// try all the possible names, break if we find a value
-	for _, n := range option.Names() {
-		val, found := r.options[n]
-		if found {
-			return &cmdkit.OptionValue{Value: val, ValueFound: found, Def: option}
-		}
+	cmd, err := root.Get(path)
+	if err != nil {
+		return nil, err
 	}
 
-	return &cmdkit.OptionValue{Value: option.Default(), ValueFound: false, Def: option}
-}
-
-// Options returns a copy of the option map
-func (r *request) Options() cmdkit.OptMap {
-	output := make(cmdkit.OptMap)
-	for k, v := range r.options {
-		output[k] = v
+	req := &Request{
+		Path:      path,
+		Options:   opts,
+		Arguments: args,
+		Files:     file,
+		Root:      root,
+		Command:   cmd,
+		Context:   ctx,
 	}
-	return output
+
+	return req, req.convertOptions(root)
 }
 
-func (r *request) SetRootContext(ctx context.Context) error {
-	ctx, err := getContext(ctx, r)
+// BodyArgs returns a scanner that returns arguments passed in the body as tokens.
+func (req *Request) BodyArgs() (*bufio.Scanner, error) {
+	if len(req.Arguments) >= len(req.Command.Arguments) {
+		return nil, fmt.Errorf("all arguments covered by positional arguments")
+	}
+
+	if req.Files == nil {
+		return nil, fmt.Errorf("expected more arguments from stdin")
+	}
+
+	fi, err := req.Files.NextFile()
+	if err != nil {
+		return nil, err
+	}
+
+	return bufio.NewScanner(fi), nil
+}
+
+func (req *Request) ParseBodyArgs() error {
+	s, err := req.BodyArgs()
 	if err != nil {
 		return err
 	}
 
-	r.rctx = ctx
-	return nil
+	for s.Scan() {
+		req.Arguments = append(req.Arguments, s.Text())
+	}
+
+	return s.Err()
 }
 
-// SetOption sets the value of the option for given name.
-func (r *request) SetOption(name string, val interface{}) {
-	// find the option with the specified name
-	option, found := r.optionDefs[name]
-	if !found {
+func (req *Request) SetOption(name string, value interface{}) {
+	optDefs, err := req.Root.GetOptions(req.Path)
+	optDef, found := optDefs[name]
+
+	if req.Options == nil {
+		req.Options = map[string]interface{}{}
+	}
+
+	// unknown option, simply set the value and return
+	// TODO we might error out here instead
+	if err != nil || !found {
+		req.Options[name] = value
 		return
 	}
 
-	// try all the possible names, if we already have a value then set over it
-	for _, n := range option.Names() {
-		_, found := r.options[n]
-		if found {
-			r.options[n] = val
-			return
-		}
-	}
+	name = optDef.Name()
+	req.Options[name] = value
 
-	r.options[name] = val
+	return
 }
 
-// SetOptions sets the option values, unsetting any values that were previously set
-func (r *request) SetOptions(opts cmdkit.OptMap) error {
-	r.options = opts
-	return r.ConvertOptions()
-}
-
-func (r *request) StringArguments() []string {
-	return r.arguments
-}
-
-// Arguments returns the arguments slice
-func (r *request) Arguments() []string {
-	if r.haveVarArgsFromStdin() {
-		err := r.VarArgs(func(s string) error {
-			r.arguments = append(r.arguments, s)
-			return nil
-		})
-		if err != nil && err != io.EOF {
-			log.Error(err)
-		}
-	}
-
-	return r.arguments
-}
-
-func (r *request) SetArguments(args []string) {
-	r.arguments = args
-}
-
-func (r *request) Files() files.File {
-	return r.files
-}
-
-func (r *request) SetFiles(f files.File) {
-	r.files = f
-}
-
-func (r *request) Context() context.Context {
-	return r.rctx
-}
-
-func (r *request) haveVarArgsFromStdin() bool {
-	// we expect varargs if we have a string argument that supports stdin
-	// and not arguments to satisfy it
-	if len(r.cmd.Arguments) == 0 {
-		return false
-	}
-
-	last := r.cmd.Arguments[len(r.cmd.Arguments)-1]
-	return last.SupportsStdin && last.Type == cmdkit.ArgString && (last.Required || last.Variadic) &&
-		len(r.arguments) < len(r.cmd.Arguments)
-}
-
-// VarArgs can be used when you want string arguments as input
-// and also want to be able to handle them in a streaming fashion
-func (r *request) VarArgs(f func(string) error) error {
-	if len(r.arguments) >= len(r.cmd.Arguments) {
-		for _, arg := range r.arguments[len(r.cmd.Arguments)-1:] {
-			err := f(arg)
-			if err != nil {
-				return err
-			}
-		}
-
-		return nil
-	}
-
-	if r.files == nil {
-		log.Warning("expected more arguments from stdin")
-		return nil
-	}
-
-	fi, err := r.files.NextFile()
+func (req *Request) convertOptions(root *Command) error {
+	optDefs, err := root.GetOptions(req.Path)
 	if err != nil {
 		return err
 	}
 
-	var any bool
-	scan := bufio.NewScanner(fi)
-	for scan.Scan() {
-		any = true
-		err := f(scan.Text())
-		if err != nil {
-			return err
-		}
-	}
-	if !any {
-		return f("")
-	}
-
-	return nil
-}
-
-func getContext(base context.Context, req Request) (context.Context, error) {
-	var (
-		found bool
-		tout  string
-	)
-
-	if optVal := req.Option("timeout"); optVal != nil {
-		var err error
-		tout, found, err = optVal.String()
-		if err != nil {
-			return nil, fmt.Errorf("error parsing timeout option: %s", err)
-		}
-	}
-
-	var ctx context.Context
-	if found {
-		duration, err := time.ParseDuration(tout)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing timeout option: %s", err)
-		}
-
-		tctx, _ := context.WithTimeout(base, duration)
-		ctx = tctx
-	} else {
-		cctx, _ := context.WithCancel(base)
-		ctx = cctx
-	}
-	return ctx, nil
-}
-
-func (r *request) InvocContext() *Context {
-	return &r.ctx
-}
-
-func (r *request) SetInvocContext(ctx Context) {
-	r.ctx = ctx
-}
-
-func (r *request) Command() *Command {
-	return r.cmd
-}
-
-type converter func(string) (interface{}, error)
-
-var converters = map[reflect.Kind]converter{
-	cmdkit.Bool: func(v string) (interface{}, error) {
-		if v == "" {
-			return true, nil
-		}
-		return strconv.ParseBool(v)
-	},
-	cmdkit.Int: func(v string) (interface{}, error) {
-		val, err := strconv.ParseInt(v, 0, 32)
-		if err != nil {
-			return nil, err
-		}
-		return int(val), err
-	},
-	cmdkit.Uint: func(v string) (interface{}, error) {
-		val, err := strconv.ParseUint(v, 0, 32)
-		if err != nil {
-			return nil, err
-		}
-		return int(val), err
-	},
-	cmdkit.Float: func(v string) (interface{}, error) {
-		return strconv.ParseFloat(v, 64)
-	},
-}
-
-func (r *request) Values() map[string]interface{} {
-	return r.values
-}
-
-func (r *request) Stdin() io.Reader {
-	return r.stdin
-}
-
-func (r *request) ConvertOptions() error {
-	for k, v := range r.options {
-		opt, ok := r.optionDefs[k]
+	for k, v := range req.Options {
+		opt, ok := optDefs[k]
 		if !ok {
 			continue
 		}
 
 		kind := reflect.TypeOf(v).Kind()
 		if kind != opt.Type() {
-			if kind == cmdkit.String {
-				convert := converters[opt.Type()]
-				str, ok := v.(string)
-				if !ok {
-					return u.ErrCast()
-				}
-				val, err := convert(str)
+			if str, ok := v.(string); ok {
+				val, err := opt.Parse(str)
 				if err != nil {
-					value := fmt.Sprintf("value '%v'", v)
+					value := fmt.Sprintf("value %q", v)
 					if len(str) == 0 {
 						value = "empty value"
 					}
-					return fmt.Errorf("Could not convert %s to type '%s' (for option '-%s')",
-						value, opt.Type().String(), k)
+					return fmt.Errorf("Could not convert %q to type %q (for option %q)",
+						value, opt.Type().String(), "-"+k)
 				}
-				r.options[k] = val
+				req.Options[k] = val
 
 			} else {
-				return fmt.Errorf("Option '%s' should be type '%s', but got type '%s'",
+				return fmt.Errorf("Option %q should be type %q, but got type %q",
 					k, opt.Type().String(), kind.String())
 			}
-		} else {
-			r.options[k] = v
 		}
 
 		for _, name := range opt.Names() {
-			if _, ok := r.options[name]; name != k && ok {
-				return fmt.Errorf("Duplicate command options were provided ('%s' and '%s')",
+			if _, ok := req.Options[name]; name != k && ok {
+				return fmt.Errorf("Duplicate command options were provided (%q and %q)",
 					k, name)
 			}
 		}
@@ -381,73 +142,54 @@ func (r *request) ConvertOptions() error {
 	return nil
 }
 
-// NewEmptyRequest initializes an empty request
-func NewEmptyRequest() (Request, error) {
-	return NewRequest(nil, nil, nil, nil, nil, nil)
-}
-
-// NewRequest returns a request initialized with given arguments
-// An non-nil error will be returned if the provided option values are invalid
-func NewRequest(path []string, opts cmdkit.OptMap, args []string, file files.File, cmd *Command, optDefs map[string]cmdkit.Option) (Request, error) {
-	if opts == nil {
-		opts = make(cmdkit.OptMap)
-	}
-	if optDefs == nil {
-		optDefs = make(map[string]cmdkit.Option)
-	}
-
-	ctx := Context{}
-	values := make(map[string]interface{})
-	req := &request{
-		path:       path,
-		options:    opts,
-		arguments:  args,
-		files:      file,
-		cmd:        cmd,
-		ctx:        ctx,
-		optionDefs: optDefs,
-		values:     values,
-		stdin:      os.Stdin,
-	}
-	err := req.ConvertOptions()
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
 // GetEncoding returns the EncodingType set in a request, falling back to JSON
-func GetEncoding(req Request) EncodingType {
-	var (
-		encType = EncodingType(Undefined)
-		encStr  = string(Undefined)
-		ok      = false
-		opts    = req.Options()
-	)
-
-	// try EncShort
-	encIface := opts[cmdkit.EncShort]
-
-	// if that didn't work, try EncLong
+func GetEncoding(req *Request) EncodingType {
+	encIface := req.Options[EncLong]
 	if encIface == nil {
-		encIface = opts[cmdkit.EncLong]
+		return JSON
 	}
 
-	// try casting
-	if encIface != nil {
-		encStr, ok = encIface.(string)
+	switch enc := encIface.(type) {
+	case string:
+		return EncodingType(enc)
+	case EncodingType:
+		return enc
+	default:
+		return JSON
+	}
+}
+
+// fillDefault fills in default values if option has not been set
+func (req *Request) FillDefaults() error {
+	optDefMap, err := req.Root.GetOptions(req.Path)
+	if err != nil {
+		return err
 	}
 
-	// if casting worked, convert to EncodingType
-	if ok {
-		encType = EncodingType(encStr)
+	optDefs := map[cmdkit.Option]struct{}{}
+
+	for _, optDef := range optDefMap {
+		optDefs[optDef] = struct{}{}
 	}
 
-	// in case of error, use default
-	if !ok || encType == Undefined {
-		encType = JSON
+Outer:
+	for optDef := range optDefs {
+		dflt := optDef.Default()
+		if dflt == nil {
+			// option has no dflt, continue
+			continue
+		}
+
+		names := optDef.Names()
+		for _, name := range names {
+			if _, ok := req.Options[name]; ok {
+				// option has been set, continue with next option
+				continue Outer
+			}
+		}
+
+		req.Options[optDef.Name()] = dflt
 	}
 
-	return encType
+	return nil
 }

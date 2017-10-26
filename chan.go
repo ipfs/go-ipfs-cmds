@@ -8,7 +8,7 @@ import (
 	"github.com/ipfs/go-ipfs-cmdkit"
 )
 
-func NewChanResponsePair(req Request) (ResponseEmitter, Response) {
+func NewChanResponsePair(req *Request) (ResponseEmitter, Response) {
 	ch := make(chan interface{})
 	wait := make(chan struct{})
 	done := make(chan struct{})
@@ -31,7 +31,7 @@ func NewChanResponsePair(req Request) (ResponseEmitter, Response) {
 }
 
 type chanResponse struct {
-	req Request
+	req *Request
 
 	err    *cmdkit.Error
 	length uint64
@@ -42,7 +42,7 @@ type chanResponse struct {
 	done chan<- struct{}
 }
 
-func (r *chanResponse) Request() Request {
+func (r *chanResponse) Request() *Request {
 	if r == nil {
 		return nil
 	}
@@ -76,8 +76,8 @@ func (r *chanResponse) Next() (interface{}, error) {
 	}
 
 	var ctx context.Context
-	if rctx := r.req.Context(); rctx != nil {
-		ctx = rctx
+	if r.req.Context != nil {
+		ctx = r.req.Context
 	} else {
 		ctx = context.Background()
 	}
@@ -99,7 +99,7 @@ func (r *chanResponse) Next() (interface{}, error) {
 		}
 	case <-ctx.Done():
 		close(r.done)
-		return nil, r.req.Context().Err()
+		return nil, r.req.Context.Err()
 	}
 
 }
@@ -110,7 +110,7 @@ func (r *chanResponse) RawNext() (interface{}, error) {
 	}
 
 	var ctx context.Context
-	if rctx := r.req.Context(); rctx != nil {
+	if rctx := r.req.Context; rctx != nil {
 		ctx = rctx
 	} else {
 		ctx = context.Background()
@@ -125,7 +125,7 @@ func (r *chanResponse) RawNext() (interface{}, error) {
 		return nil, io.EOF
 	case <-ctx.Done():
 		close(r.done)
-		return nil, r.req.Context().Err()
+		return nil, r.req.Context.Err()
 	}
 
 }
