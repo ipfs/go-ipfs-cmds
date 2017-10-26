@@ -33,7 +33,9 @@ func TestMarshalling(t *testing.T) {
 	cmd := &Command{}
 	opts, _ := cmd.GetOptions(nil)
 
-	req, _ := NewRequest(nil, nil, nil, nil, nil, opts)
+	req, _ := NewRequest(nil, map[string]interface{}{
+			cmdkit.EncShort: JSON,
+		}, nil, nil, nil, opts)
 
 	buf := bytes.NewBuffer(nil)
 	wc := writecloser{Writer: buf, Closer: nopCloser{}}
@@ -43,8 +45,6 @@ func TestMarshalling(t *testing.T) {
 	if err != nil {
 		t.Error(err, "Should have passed")
 	}
-
-	req.SetOption(cmdkit.EncShort, JSON)
 
 	output := buf.String()
 	if removeWhitespace(output) != "{\"Foo\":\"beep\",\"Bar\":\"boop\",\"Baz\":1337}" {

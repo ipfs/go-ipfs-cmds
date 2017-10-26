@@ -34,7 +34,7 @@ func (rl *ReqLog) Add(req Request) *ReqLogEntry {
 		Active:    true,
 		Command:   strings.Join(req.Path(), "/"),
 		Options:   req.Options(),
-		Args:      req.StringArguments(),
+		Args:      req.Arguments(),
 		ID:        rl.nextID,
 	}
 
