@@ -1,9 +1,11 @@
 package cmds
 
 import (
-	"bufio"
 	"context"
+	"fmt"
 	"io"
+	"os"
+	"reflect"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-cmdkit/files"
@@ -22,39 +24,70 @@ type Request struct {
 	Files files.File
 }
 
-func VarArgs(req Request, f func(string) error) error {
-	if len(req.Arguments) >= len(req.Command.Arguments) {
-		for _, arg := range req.Arguments[len(req.Command.Arguments)-1:] {
-			err := f(arg)
-			if err != nil {
-				return err
-			}
-		}
 
-		return nil
+// NewRequest returns a request initialized with given arguments
+// An non-nil error will be returned if the provided option values are invalid
+func NewRequest(ctx context.Context, path []string, opts cmdkit.OptMap, args []string, file files.File, root *Command) (*Request, error) {
+	if opts == nil {
+		opts = make(cmdkit.OptMap)
 	}
 	
-	if req.Files == nil {
-		log.Warning("expected more arguments from stdin")
-		return nil
+	cmd, err := root.Get(path)
+	if err != nil {
+		return nil, err
 	}
 
-	fi, err := req.Files.NextFile()
+	req := &Request{
+		Path:       path,
+		Options:    opts,
+		Arguments:  args,
+		Files:      file,
+		Command:        cmd,
+		Context: ctx,
+		Body:      os.Stdin,
+	}
+
+	return req, req.ConvertOptions(root)
+}
+
+func (req *Request) ConvertOptions(root *Command) error {
+	optDefs, err := root.GetOptions(req.Path)
 	if err != nil {
 		return err
 	}
-
-	var any bool
-	scan := bufio.NewScanner(fi)
-	for scan.Scan() {
-		any = true
-		err := f(scan.Text())
-		if err != nil {
-			return err
+	
+	for k, v := range req.Options {
+		opt, ok := optDefs[k]
+		if !ok {
+			continue
 		}
-	}
-	if !any {
-		return f("")
+
+		kind := reflect.TypeOf(v).Kind()
+		if kind != opt.Type() {
+			if str, ok := v.(string); ok {
+				val, err := opt.Parse(str)
+				if err != nil {
+					value := fmt.Sprintf("value '%v'", v)
+					if len(str) == 0 {
+						value = "empty value"
+					}
+					return fmt.Errorf("Could not convert %s to type '%s' (for option '-%s')",
+						value, opt.Type().String(), k)
+				}
+				req.Options[k] = val
+
+			} else {
+				return fmt.Errorf("Option '%s' should be type '%s', but got type '%s'",
+					k, opt.Type().String(), kind.String())
+			}
+		}
+
+		for _, name := range opt.Names() {
+			if _, ok := req.Options[name]; name != k && ok {
+				return fmt.Errorf("Duplicate command options were provided ('%s' and '%s')",
+					k, name)
+			}
+		}
 	}
 
 	return nil
@@ -94,3 +127,4 @@ func GetEncoding(req *Request) EncodingType {
 
 	return encType
 }
+

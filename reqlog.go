@@ -28,7 +28,7 @@ type ReqLog struct {
 	keep     time.Duration
 }
 
-func (rl *ReqLog) Add(req Request) *ReqLogEntry {
+func (rl *ReqLog) Add(req *Request) *ReqLogEntry {
 	rle := &ReqLogEntry{
 		StartTime: time.Now(),
 		Active:    true,

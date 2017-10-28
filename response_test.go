@@ -33,15 +33,18 @@ func eqStringSlice(a, b []string) bool {
 func TestMarshalling(t *testing.T) {
 	cmd := &Command{}
 
-	req, _ := NewRequest(context.TODO(), nil, map[string]interface{}{
-			cmdkit.EncShort: JSON,
-		}, nil, cmd)
+	req, err := NewRequest(context.TODO(), nil, map[string]interface{}{
+		cmdkit.EncShort: JSON,
+	}, nil, nil, cmd)
+	if err != nil {
+		t.Error(err, "Should have passed")
+	}
 
 	buf := bytes.NewBuffer(nil)
 	wc := writecloser{Writer: buf, Closer: nopCloser{}}
 	re := NewWriterResponseEmitter(wc, req, Encoders[JSON])
 
-	err := re.Emit(TestOutput{"beep", "boop", 1337})
+	err = re.Emit(TestOutput{"beep", "boop", 1337})
 	if err != nil {
 		t.Error(err, "Should have passed")
 	}
@@ -73,7 +76,10 @@ func TestHandleError_Error(t *testing.T) {
 
 	cmd := &Command{}
 
-	req, _ := NewRequest(context.TODO(), nil, nil, nil, cmd)
+	req, err := NewRequest(context.TODO(), nil, nil, nil, nil, cmd)
+	if err != nil {
+		t.Error(err, "Should have passed")
+	}
 
 	re, res := NewChanResponsePair(req)
 	reFwd, resFwd := NewChanResponsePair(req)
@@ -120,7 +126,10 @@ func TestHandleError(t *testing.T) {
 
 	cmd := &Command{}
 
-	req, _ := NewRequest(context.TODO(), nil, nil, nil, cmd)
+	req, err := NewRequest(context.TODO(), nil, nil, nil, nil, cmd)
+	if err != nil {
+		t.Error(err, "Should have passed")
+	}
 
 	re, res := NewChanResponsePair(req)
 	reFwd, resFwd := NewChanResponsePair(req)
@@ -137,7 +146,6 @@ func TestHandleError(t *testing.T) {
 		}
 	}()
 
-	var err error
 	for HandleError(err, res, reFwd) {
 		var v interface{}
 		v, err = res.Next()

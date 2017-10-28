@@ -21,7 +21,6 @@ import (
 
 var log = logging.Logger("cmds/cli")
 
-
 // Parse parses the input commandline string (cmd, flags, and args).
 // returns the corresponding command Request object.
 func Parse(input []string, stdin *os.File, root *cmds.Command) (*cmds.Request, error) {
@@ -29,7 +28,7 @@ func Parse(input []string, stdin *os.File, root *cmds.Command) (*cmds.Request, e
 	if err != nil {
 		return nil, err
 	}
-	
+
 	req.Body = stdin
 
 	// This is an ugly hack to maintain our current CLI interface while fixing
@@ -42,11 +41,10 @@ func Parse(input []string, stdin *os.File, root *cmds.Command) (*cmds.Request, e
 		}
 	}
 
-	
 	if err = ParseArgs(req, root); err != nil {
 		return nil, err
 	}
-	
+
 	return req, req.Command.CheckArguments(req)
 }
 
@@ -65,9 +63,9 @@ func ParseArgs(req *cmds.Request, root *cmds.Command) error {
 	if runtime.GOOS == "windows" {
 		req.Body = nil
 	}
-	
+
 	var numRequired int
-	
+
 	argDefs := req.Command.Arguments
 
 	// count required argument definitions
@@ -76,7 +74,7 @@ func ParseArgs(req *cmds.Request, root *cmds.Command) error {
 			numRequired++
 		}
 	}
-	
+
 	inputs := req.Arguments
 	stdin, _ := req.Body.(*os.File)
 
@@ -170,28 +168,27 @@ func ParseArgs(req *cmds.Request, root *cmds.Command) error {
 			}
 		}
 	}
-	
+
 	req.Arguments = stringArgs
 	if len(fileArgs) > 0 {
 		file := files.NewSliceFile("", "", filesMapToSortedArr(fileArgs))
 		req.Files = file
 	}
-	
+
 	return nil
 }
 
 func parse(cmdline []string, root *cmds.Command) (req *cmds.Request, err error) {
-	var (	
+	var (
 		path = make([]string, 0, len(cmdline))
 		args = make([]string, 0, len(cmdline))
 		opts = cmdkit.OptMap{}
-		cmd = root
-		
-		i int
-		k string
-		v interface{}
+		cmd  = root
+
+		i   int
+		k   string
+		v   interface{}
 		kvs []kv
-		
 	)
 
 	// get root options
@@ -203,8 +200,8 @@ func parse(cmdline []string, root *cmds.Command) (req *cmds.Request, err error) 
 			err = er
 		}
 	}()
-	
-	L:
+
+L:
 	// don't range so we can seek
 	for i < len(cmdline) {
 		param := cmdline[i]
@@ -228,11 +225,11 @@ func parse(cmdline []string, root *cmds.Command) (req *cmds.Request, err error) 
 		case strings.HasPrefix(param, "-") && param != "-":
 			// short options
 			kvs, i = parseShortOpts(cmdline, i, optDefs)
-			
+
 			for _, kv := range kvs {
-				if _, exists := opts[kv.Key]; exists {	
+				if _, exists := opts[kv.Key]; exists {
 					panic(fmt.Errorf("multiple values for option %q", k))
-				}	
+				}
 
 				if can, ok := optDefs[kv.Key].CanonicalName(); ok {
 					kv.Key = can
@@ -266,21 +263,21 @@ func parse(cmdline []string, root *cmds.Command) (req *cmds.Request, err error) 
 				}
 			}
 		}
-		
+
 		i++
 	}
-	
+
 	req = &cmds.Request{
-		Context: context.TODO(),
-		Command: cmd,
-		Path: path,
+		Context:   context.TODO(),
+		Command:   cmd,
+		Path:      path,
 		Arguments: args,
-		Options: opts,
+		Options:   opts,
 	}
 	return req, nil
 }
 
-func splitkv(opt string) (k,v string, ok bool) {
+func splitkv(opt string) (k, v string, ok bool) {
 	split := strings.SplitN(opt, "=", 2)
 	if len(split) == 2 {
 		return split[0], split[1], true
@@ -289,76 +286,48 @@ func splitkv(opt string) (k,v string, ok bool) {
 	}
 }
 
-func parseBoolOpt(opt, value string) bool {
-	value = strings.ToLower(value)
-	switch value {
-	case "true":
-		return true
-	case "false":
-		return false
-	default:
-		panic(fmt.Errorf("Option '%s' takes true/false arguments, but was passed '%s'", opt, value))
-	}
-}
-
-func parseIntOpt(opt, value string) int {
-	i, err := strconv.Atoi(value)
-	if err != nil {
-		panic(fmt.Errorf("option %q takes numeric arguments, but was passed %q", opt, value))
-	}
-	
-	return i
-}
-
 func parseOpt(opt, value string, opts map[string]cmdkit.Option) interface{} {
 	optDef, ok := opts[opt]
 	if !ok {
 		panic(fmt.Errorf("unknown option %q", opt))
 	}
 
-	switch optDef.Type() {
-	case cmdkit.String:
-		return value
-	case cmdkit.Bool:
-		return parseBoolOpt(opt, value)
-	case cmdkit.Int:
-		return parseIntOpt(opt, value)
-	default:
-		panic(fmt.Errorf("type %T not implemented/supported", value))
+	v, err := optDef.Parse(value)
+	if err != nil {
+		panic(err)
 	}
 }
 
 type kv struct {
-	Key string
+	Key   string
 	Value interface{}
 }
 
 func parseShortOpts(cmdline []string, i int, optDefs map[string]cmdkit.Option) ([]kv, int) {
 	k, vStr, ok := splitkv(cmdline[i][1:])
 	var (
-		j int
+		j   int
 		kvs = make([]kv, 0, len(k))
 	)
-	
 
 	if ok {
 		// split at = successful
 		kvs = append(kvs, kv{
-			Key: k,
+			Key:   k,
 			Value: parseOpt(k, vStr, optDefs),
 		})
-		
+
 	} else {
 		for j < len(k) {
-			flag := k[j:j+1]
-			
+			flag := k[j : j+1]
+
 			if od, ok := optDefs[flag]; !ok {
 				panic(fmt.Errorf("unknown option %q", k))
 
 			} else if od.Type() == cmdkit.Bool {
 				// single char flags for bools
 				kvs = append(kvs, kv{
-					Key: flag,
+					Key:   flag,
 					Value: true,
 				})
 				j++
@@ -366,9 +335,9 @@ func parseShortOpts(cmdline []string, i int, optDefs map[string]cmdkit.Option) (
 			} else if j < len(k)-1 {
 				// single char flag for non-bools (use the rest of the flag as value)
 				rest := k[j+1:]
-				
+
 				kvs = append(kvs, kv{
-					Key: flag,
+					Key:   flag,
 					Value: parseOpt(flag, rest, optDefs),
 				})
 				break
@@ -377,7 +346,7 @@ func parseShortOpts(cmdline []string, i int, optDefs map[string]cmdkit.Option) (
 				// single char flag for non-bools (use the next word as value)
 				i++
 				kvs = append(kvs, kv{
-					Key: flag,
+					Key:   flag,
 					Value: parseOpt(flag, cmdline[i], optDefs),
 				})
 				break
@@ -390,7 +359,6 @@ func parseShortOpts(cmdline []string, i int, optDefs map[string]cmdkit.Option) (
 
 	return kvs, i
 }
-
 
 func parseLongOpt(cmdline []string, i int, optDefs map[string]cmdkit.Option) (string, interface{}, int) {
 	k, v, ok := splitkv(cmdline[i][2:])

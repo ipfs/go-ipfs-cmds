@@ -7,15 +7,8 @@ import (
 func TestReqLog(t *testing.T) {
 	l := &ReqLog{}
 
-	req1, err := NewEmptyRequest()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	req2, err := NewEmptyRequest()
-	if err != nil {
-		t.Fatal(err)
-	}
+	req1 := &Request{}
+	req2 := &Request{}
 
 	rle1 := l.Add(req1)
 	rle2 := l.Add(req2)
