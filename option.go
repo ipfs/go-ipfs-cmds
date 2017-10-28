@@ -29,8 +29,8 @@ const (
 )
 
 // options that are used by this package
-var OptionEncodingType = StringOption(EncLong, EncShort, "The encoding type the output should be encoded with (json, xml, or text)")
-var OptionRecursivePath = BoolOption(RecLong, RecShort, "Add directory paths recursively").Default(false)
+var OptionEncodingType = StringOption(EncLong, EncShort, "The encoding type the output should be encoded with (json, xml, or text)").WithCanonicalName(EncLong)
+var OptionRecursivePath = BoolOption(RecLong, RecShort, "Add directory paths recursively").WithDefault(false).WithCanonicalName(RecLong)
 var OptionStreamChannels = BoolOption(ChanOpt, "Stream channel output")
 var OptionTimeout = StringOption(TimeoutOpt, "set a global timeout on the command")
 
@@ -44,6 +44,9 @@ type Option interface {
 
 	WithDefault(interface{}) Option // sets the default value of the option
 	Default() interface{}
+
+	WithCanonicalName(string) Option // sets a canonical name for the option
+	CanonicalName() (string, bool)
 }
 
 type option struct {
@@ -51,6 +54,10 @@ type option struct {
 	kind        reflect.Kind
 	description string
 	defaultVal  interface{}
+
+	// canonical name
+	cname    string
+	cnameSet bool
 }
 
 func (o *option) Names() []string {
@@ -103,6 +110,28 @@ func (o *option) WithDefault(v interface{}) Option {
 
 func (o *option) Default() interface{} {
 	return o.defaultVal
+}
+
+func (o *option) WithCanonicalName(cname string) Option {
+	o.cname = cname
+	o.cnameSet = true
+
+	var contained bool
+	for _, name := range o.names {
+		if name == cname {
+			contained = true
+		}
+	}
+
+	if !contained {
+		o.names = append(o.names, cname)
+	}
+
+	return o
+}
+
+func (o *option) CanonicalName() (string, bool) {
+	return o.cname, o.cnameSet
 }
 
 // TODO handle description separately. this will take care of the panic case in
