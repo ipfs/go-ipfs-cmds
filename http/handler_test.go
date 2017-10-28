@@ -7,10 +7,6 @@ import (
 	"testing"
 
 	cmds "github.com/ipfs/go-ipfs-cmds"
-	oldcmds "github.com/ipfs/go-ipfs/commands"
-
-	ipfscmd "github.com/ipfs/go-ipfs/core/commands"
-	coremock "github.com/ipfs/go-ipfs/core/mock"
 )
 
 func assertHeaders(t *testing.T, resHeaders http.Header, reqHeaders map[string]string) {
@@ -45,33 +41,6 @@ type testCase struct {
 	ResHeaders   map[string]string
 }
 
-var defaultOrigins = []string{
-	"http://localhost",
-	"http://127.0.0.1",
-	"https://localhost",
-	"https://127.0.0.1",
-}
-
-func getTestServer(t *testing.T, origins []string) *httptest.Server {
-	cmdsCtx, err := coremock.MockCmdsCtx()
-	if err != nil {
-		t.Error("failure to initialize mock cmds ctx", err)
-		return nil
-	}
-
-	cmdRoot := &cmds.Command{
-		OldSubcommands: map[string]*oldcmds.Command{
-			"version": ipfscmd.VersionCmd,
-		},
-	}
-
-	if len(origins) == 0 {
-		origins = defaultOrigins
-	}
-
-	handler := NewHandler(cmds.NewContext(cmdsCtx), cmdRoot, originCfg(origins))
-	return httptest.NewServer(handler)
-}
 
 func (tc *testCase) test(t *testing.T) {
 	// defaults

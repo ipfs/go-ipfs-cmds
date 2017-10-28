@@ -6,9 +6,9 @@ import (
 	"github.com/ipfs/go-ipfs-cmds/examples/adder"
 
 	cmdkit "github.com/ipfs/go-ipfs-cmdkit"
-	cmds "gx/ipfs/QmdgLyCJYMFwNv5Qx3vMiTrrtAdWGTaL5G7xYwkB6CCgja/go-ipfs-cmds"
-	cli "gx/ipfs/QmdgLyCJYMFwNv5Qx3vMiTrrtAdWGTaL5G7xYwkB6CCgja/go-ipfs-cmds/cli"
-	http "gx/ipfs/QmdgLyCJYMFwNv5Qx3vMiTrrtAdWGTaL5G7xYwkB6CCgja/go-ipfs-cmds/http"
+	cmds "github.com/ipfs/go-ipfs-cmds"
+	cli "github.com/ipfs/go-ipfs-cmds/cli"
+	http "github.com/ipfs/go-ipfs-cmds/http"
 )
 
 func main() {

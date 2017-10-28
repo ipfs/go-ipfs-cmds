@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
@@ -64,10 +63,9 @@ func ParseArgs(req *cmds.Request, root *cmds.Command) error {
 		req.Body = nil
 	}
 
-	var numRequired int
-
 	argDefs := req.Command.Arguments
 
+	var numRequired int
 	// count required argument definitions
 	for _, argDef := range argDefs {
 		if argDef.Required {
@@ -76,7 +74,10 @@ func ParseArgs(req *cmds.Request, root *cmds.Command) error {
 	}
 
 	inputs := req.Arguments
-	stdin, _ := req.Body.(*os.File)
+	stdin, ok := req.Body.(*os.File)
+	if !ok {
+		fmt.Printf("Warning: Body is not *os.File but %T\n", req.Body)
+	}
 
 	// count number of values provided by user.
 	// if there is at least one ArgDef, we can safely trigger the inputs loop
@@ -296,6 +297,7 @@ func parseOpt(opt, value string, opts map[string]cmdkit.Option) interface{} {
 	if err != nil {
 		panic(err)
 	}
+	return v
 }
 
 type kv struct {
