@@ -38,11 +38,12 @@ type OptMap map[string]interface{}
 
 // Option is used to specify a field that will be provided by a consumer
 type Option interface {
-	Names() []string            // a list of unique names matched with user-provided flags
-	Type() reflect.Kind         // value must be this type
-	Description() string        // a short string that describes this option
-	Default(interface{}) Option // sets the default value of the option
-	DefaultVal() interface{}
+	Names() []string     // a list of unique names matched with user-provided flags
+	Type() reflect.Kind  // value must be this type
+	Description() string // a short string that describes this option
+
+	WithDefault(interface{}) Option // sets the default value of the option
+	Default() interface{}
 }
 
 type option struct {
@@ -95,12 +96,12 @@ func NewOption(kind reflect.Kind, names ...string) Option {
 	}
 }
 
-func (o *option) Default(v interface{}) Option {
+func (o *option) WithDefault(v interface{}) Option {
 	o.defaultVal = v
 	return o
 }
 
-func (o *option) DefaultVal() interface{} {
+func (o *option) Default() interface{} {
 	return o.defaultVal
 }
 
