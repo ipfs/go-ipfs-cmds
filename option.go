@@ -3,6 +3,7 @@ package cmdkit
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"gx/ipfs/QmWbjfz3u6HkAdPh34dgPchGbQjob6LXLhAeCGii2TX69n/go-ipfs-util"
@@ -47,6 +48,8 @@ type Option interface {
 
 	WithCanonicalName(string) Option // sets a canonical name for the option
 	CanonicalName() (string, bool)
+
+	Parse(str string) (interface{}, error)
 }
 
 type option struct {
@@ -84,6 +87,48 @@ func (o *option) Description() string {
 		}
 	}
 	return o.description
+}
+
+type converter func(string) (interface{}, error)
+
+var converters = map[reflect.Kind]converter{
+	Bool: func(v string) (interface{}, error) {
+		if v == "" {
+			return true, nil
+		}
+		v = strings.ToLower(v)
+
+		return strconv.ParseBool(v)
+	},
+	Int: func(v string) (interface{}, error) {
+		val, err := strconv.ParseInt(v, 0, 32)
+		if err != nil {
+			return nil, err
+		}
+		return int(val), err
+	},
+	Uint: func(v string) (interface{}, error) {
+		val, err := strconv.ParseUint(v, 0, 32)
+		if err != nil {
+			return nil, err
+		}
+		return int(val), err
+	},
+	Float: func(v string) (interface{}, error) {
+		return strconv.ParseFloat(v, 64)
+	},
+	String: func(v string) (interface{}, error) {
+		return v, nil
+	},
+}
+
+func (o *option) Parse(v string) (interface{}, error) {
+	conv, ok := converters[o.Type()]
+	if !ok {
+		return nil, fmt.Errorf("option %q takes %s arguments, but was passed %q", o, o.Type, v)
+	}
+
+	return conv(v)
 }
 
 // constructor helper functions
