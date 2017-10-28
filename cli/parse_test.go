@@ -216,7 +216,7 @@ func TestArgumentParsing(t *testing.T) {
 	}
 
 	testFail := func(cmd words, fi *os.File, msg string) {
-		_,  err := Parse(cmd, nil, rootCmd)
+		_, err := Parse(cmd, nil, rootCmd)
 		if err == nil {
 			t.Errorf("Should have failed: %v", msg)
 		}

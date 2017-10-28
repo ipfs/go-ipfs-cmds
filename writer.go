@@ -10,7 +10,7 @@ import (
 	"github.com/ipfs/go-ipfs-cmdkit"
 )
 
-func NewWriterResponseEmitter(w io.WriteCloser, req Request, enc func(Request) func(io.Writer) Encoder) *WriterResponseEmitter {
+func NewWriterResponseEmitter(w io.WriteCloser, req *Request, enc func(*Request) func(io.Writer) Encoder) *WriterResponseEmitter {
 	re := &WriterResponseEmitter{
 		w:   w,
 		c:   w,
@@ -105,7 +105,7 @@ type WriterResponseEmitter struct {
 	w   io.Writer
 	c   io.Closer
 	enc Encoder
-	req Request
+	req *Request
 
 	length *uint64
 	err    *cmdkit.Error

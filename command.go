@@ -151,6 +151,10 @@ func (c *Command) Get(path []string) (*Command, error) {
 
 // GetOptions returns the options in the given path of commands
 func (c *Command) GetOptions(path []string) (map[string]cmdkit.Option, error) {
+	if c == nil {
+		return nil, nil
+	}
+
 	options := make([]cmdkit.Option, 0, len(c.Options))
 
 	cmds, err := c.Resolve(path)
