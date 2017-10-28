@@ -24,7 +24,7 @@ func NewWriterResponseEmitter(w io.WriteCloser, req Request, enc func(Request) f
 	return re
 }
 
-func NewReaderResponse(r io.Reader, encType EncodingType, req Request) Response {
+func NewReaderResponse(r io.Reader, encType EncodingType, req *Request) Response {
 	emitted := make(chan struct{})
 
 	return &readerResponse{
@@ -41,7 +41,7 @@ type readerResponse struct {
 	encType EncodingType
 	dec     Decoder
 
-	req Request
+	req *Request
 
 	length uint64
 	err    *cmdkit.Error
@@ -50,7 +50,7 @@ type readerResponse struct {
 	once    sync.Once
 }
 
-func (r *readerResponse) Request() Request {
+func (r *readerResponse) Request() *Request {
 	return r.req
 }
 
@@ -69,7 +69,7 @@ func (r *readerResponse) Length() uint64 {
 func (r *readerResponse) RawNext() (interface{}, error) {
 	a := &Any{}
 	a.Add(cmdkit.Error{})
-	a.Add(r.req.Command().Type)
+	a.Add(r.req.Command.Type)
 
 	err := r.dec.Decode(a)
 	if err != nil {
@@ -85,7 +85,7 @@ func (r *readerResponse) RawNext() (interface{}, error) {
 func (r *readerResponse) Next() (interface{}, error) {
 	a := &Any{}
 	a.Add(cmdkit.Error{})
-	a.Add(r.req.Command().Type)
+	a.Add(r.req.Command.Type)
 
 	err := r.dec.Decode(a)
 	if err != nil {

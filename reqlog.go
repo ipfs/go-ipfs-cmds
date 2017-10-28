@@ -32,9 +32,9 @@ func (rl *ReqLog) Add(req Request) *ReqLogEntry {
 	rle := &ReqLogEntry{
 		StartTime: time.Now(),
 		Active:    true,
-		Command:   strings.Join(req.Path(), "/"),
-		Options:   req.Options(),
-		Args:      req.Arguments(),
+		Command:   strings.Join(req.Path, "/"),
+		Options:   req.Options,
+		Args:      req.Arguments,
 		ID:        rl.nextID,
 	}
 

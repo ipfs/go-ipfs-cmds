@@ -2,6 +2,7 @@ package cmds
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -31,11 +32,10 @@ func eqStringSlice(a, b []string) bool {
 
 func TestMarshalling(t *testing.T) {
 	cmd := &Command{}
-	opts, _ := cmd.GetOptions(nil)
 
-	req, _ := NewRequest(nil, map[string]interface{}{
+	req, _ := NewRequest(context.TODO(), nil, map[string]interface{}{
 			cmdkit.EncShort: JSON,
-		}, nil, nil, nil, opts)
+		}, nil, cmd)
 
 	buf := bytes.NewBuffer(nil)
 	wc := writecloser{Writer: buf, Closer: nopCloser{}}
@@ -72,9 +72,8 @@ func TestHandleError_Error(t *testing.T) {
 	)
 
 	cmd := &Command{}
-	opts, _ := cmd.GetOptions(nil)
 
-	req, _ := NewRequest(nil, nil, nil, nil, nil, opts)
+	req, _ := NewRequest(context.TODO(), nil, nil, nil, cmd)
 
 	re, res := NewChanResponsePair(req)
 	reFwd, resFwd := NewChanResponsePair(req)
@@ -120,9 +119,8 @@ func TestHandleError(t *testing.T) {
 	)
 
 	cmd := &Command{}
-	opts, _ := cmd.GetOptions(nil)
 
-	req, _ := NewRequest(nil, nil, nil, nil, nil, opts)
+	req, _ := NewRequest(context.TODO(), nil, nil, nil, cmd)
 
 	re, res := NewChanResponsePair(req)
 	reFwd, resFwd := NewChanResponsePair(req)

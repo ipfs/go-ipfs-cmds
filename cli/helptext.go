@@ -235,7 +235,7 @@ func generateSynopsis(cmd *cmds.Command, path string) string {
 			if len(n) > 1 {
 				pre = "--"
 			}
-			if opt.Type() == cmdkit.Bool && opt.DefaultVal() == true {
+			if opt.Type() == cmdkit.Bool && opt.Default() == true {
 				pre = "--"
 				sopt = fmt.Sprintf("%s%s=false", pre, n)
 				break
@@ -358,19 +358,23 @@ func subcommandText(cmd *cmds.Command, rootName string, path []string) []string 
 	for name := range cmd.Subcommands {
 		sortedNames = append(sortedNames, name)
 	}
+	/*
 	for name := range cmd.OldSubcommands {
 		sortedNames = append(sortedNames, name)
 	}
+	*/
 	sort.Strings(sortedNames)
 
-	subcmds := make([]*cmds.Command, len(cmd.Subcommands)+len(cmd.OldSubcommands))
-	lines := make([]string, len(cmd.Subcommands)+len(cmd.OldSubcommands))
+	subcmds := make([]*cmds.Command, len(cmd.Subcommands)) //+len(cmd.OldSubcommands))
+	lines := make([]string, len(cmd.Subcommands)) //+len(cmd.OldSubcommands))
 
 	for i, name := range sortedNames {
 		sub := cmd.Subcommands[name]
+		/*
 		if sub == nil {
 			sub = cmds.NewCommand(cmd.OldSubcommands[name])
 		}
+		*/
 		usage := usageText(sub)
 		if len(usage) > 0 {
 			usage = " " + usage
