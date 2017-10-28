@@ -25,17 +25,17 @@ var log = logging.Logger("cmds")
 
 // Function is the type of function that Commands use.
 // It reads from the Request, and writes results to the ResponseEmitter.
-type Function func(Request, ResponseEmitter)
+type Function func(*Request, ResponseEmitter)
 
 // PostRunMap is the map used in Command.PostRun.
-type PostRunMap map[EncodingType]func(Request, ResponseEmitter) ResponseEmitter
+type PostRunMap map[EncodingType]func(*Request, ResponseEmitter) ResponseEmitter
 
 // Command is a runnable command, with input arguments and options (flags).
 // It can also have Subcommands, to group units of work into sets.
 type Command struct {
 	Options   []cmdkit.Option
 	Arguments []cmdkit.Argument
-	PreRun    func(req Request) error
+	PreRun    func(req *Request) error
 
 	// Run is the function that processes the request to generate a response.
 	// Note that when executing the command over the HTTP API you can only read
@@ -55,8 +55,8 @@ type Command struct {
 	// the Run Function.
 	//
 	// ie. If command Run returns &Block{}, then Command.Type == &Block{}
-	Type           interface{}
-	Subcommands    map[string]*Command
+	Type        interface{}
+	Subcommands map[string]*Command
 	//OldSubcommands map[string]*oldcmds.Command
 }
 
@@ -68,7 +68,7 @@ var ErrNoFormatter = ClientError("This command cannot be formatted to plain text
 var ErrIncorrectType = errors.New("The command returned a value with a different type than expected")
 
 // Call invokes the command for the given Request
-func (c *Command) Call(req Request, re ResponseEmitter) (err error) {
+func (c *Command) Call(req *Request, re ResponseEmitter) (err error) {
 	// we need the named return parameter so we can change the value from defer()
 	defer func() {
 		if err == nil {
@@ -87,11 +87,6 @@ func (c *Command) Call(req Request, re ResponseEmitter) (err error) {
 	}
 
 	err = cmd.CheckArguments(req)
-	if err != nil {
-		return err
-	}
-
-	err = req.(*request).ConvertOptions()
 	if err != nil {
 		return err
 	}
@@ -182,8 +177,8 @@ func (c *Command) GetOptions(path []string) (map[string]cmdkit.Option, error) {
 	return optionsMap, nil
 }
 
-func (c *Command) CheckArguments(req Request) error {
-	args := req.(*request).arguments
+func (c *Command) CheckArguments(req *Request) error {
+	args := req.Arguments
 
 	// count required argument definitions
 	numRequired := 0
@@ -244,10 +239,10 @@ func (c *Command) Subcommand(id string) *Command {
 	}
 
 	/*
-	oldcmd := c.OldSubcommands[id]
-	if oldcmd != nil {
-		return NewCommand(oldcmd)
-	}
+		oldcmd := c.OldSubcommands[id]
+		if oldcmd != nil {
+			return NewCommand(oldcmd)
+		}
 	*/
 
 	return nil

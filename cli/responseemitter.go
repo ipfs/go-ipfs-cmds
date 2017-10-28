@@ -17,12 +17,12 @@ type ErrSet struct {
 	error
 }
 
-func NewResponseEmitter(stdout, stderr io.Writer, enc func(cmds.Request) func(io.Writer) cmds.Encoder, req cmds.Request) (cmds.ResponseEmitter, <-chan int) {
+func NewResponseEmitter(stdout, stderr io.Writer, enc func(*cmds.Request) func(io.Writer) cmds.Encoder, req *cmds.Request) (cmds.ResponseEmitter, <-chan int) {
 	ch := make(chan int)
 	encType := cmds.GetEncoding(req)
 
 	if enc == nil {
-		enc = func(cmds.Request) func(io.Writer) cmds.Encoder {
+		enc = func(*cmds.Request) func(io.Writer) cmds.Encoder {
 			return func(io.Writer) cmds.Encoder {
 				return nil
 			}

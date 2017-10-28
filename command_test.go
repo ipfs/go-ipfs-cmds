@@ -37,7 +37,7 @@ type writecloser struct {
 
 // TestOptionValidation tests whether option type validation works
 func TestOptionValidation(t *testing.T) {
-	cmd := Command{
+	cmd := &Command{
 		Options: []cmdkit.Option{
 			cmdkit.IntOption("b", "beep", "enables beeper"),
 			cmdkit.StringOption("B", "boop", "password for booper"),
@@ -45,78 +45,74 @@ func TestOptionValidation(t *testing.T) {
 		Run: noop,
 	}
 
-	opts, _ := cmd.GetOptions(nil)
-
 	re := newBufferResponseEmitter()
-	req, _ := NewRequest(nil, map[string]interface{}{
+	req, err := NewRequest(context.TODO(), nil, map[string]interface{}{
 			"beep": true,
-		}, nil, nil, nil, opts)
-	err := cmd.Call(req, re)
+		}, nil, cmd)
 	if err == nil {
 		t.Error("Should have failed (incorrect type)")
 	}
 
 	re = newBufferResponseEmitter()
-	req, _ = NewRequest(nil, map[string]interface{}{
+	req, _ = NewRequest(context.TODO(), nil, map[string]interface{}{
 			"beep": 5,
-		}, nil, nil, nil, opts)
+		}, nil, cmd)
 	err = cmd.Call(req, re)
 	if err != nil {
 		t.Error(err, "Should have passed")
 	}
 
 	re = newBufferResponseEmitter()
-	req, _ = NewRequest(nil, map[string]interface{}{
+	req, _ = NewRequest(context.TODO(), nil, map[string]interface{}{
 			"beep": 5,
 			"boop": "test",
-		}, nil, nil, nil, opts)
+		}, nil, cmd)
 	err = cmd.Call(req, re)
 	if err != nil {
 		t.Error("Should have passed")
 	}
 
 	re = newBufferResponseEmitter()
-	req, _ = NewRequest(nil, map[string]interface{}{
+	req, _ = NewRequest(context.TODO(), nil, map[string]interface{}{
 			"b": 5,
 			"B": "test",
-		}, nil, nil, nil, opts)
+		}, nil, cmd)
 	err = cmd.Call(req, re)
 	if err != nil {
 		t.Error("Should have passed")
 	}
 
 	re = newBufferResponseEmitter()
-	req, _ = NewRequest(nil, map[string]interface{}{
+	req, _ = NewRequest(context.TODO(), nil, map[string]interface{}{
 			"foo": 5,
-		}, nil, nil, nil, opts)
+		}, nil, cmd)
 	err = cmd.Call(req, re)
 	if err != nil {
 		t.Error("Should have passed")
 	}
 
 	re = newBufferResponseEmitter()
-	req, _ = NewRequest(nil, map[string]interface{}{
+	req, _ = NewRequest(context.TODO(), nil, map[string]interface{}{
 			cmdkit.EncShort: "json",
-		}, nil, nil, nil, opts)
+		}, nil, cmd)
 	err = cmd.Call(req, re)
 	if err != nil {
 		t.Error("Should have passed")
 	}
 
 	re = newBufferResponseEmitter()
-	req, _ = NewRequest(nil, map[string]interface{}{
+	req, _ = NewRequest(context.TODO(), nil, map[string]interface{}{
 			"b": "100",
-		}, nil, nil, nil, opts)
+		}, nil, cmd)
 	err = cmd.Call(req, re)
 	if err != nil {
 		t.Error("Should have passed")
 	}
 
 	re = newBufferResponseEmitter()
-	req, _ = NewRequest(nil, map[string]interface{}{
+	req, err = NewRequest(context.TODO(), nil, map[string]interface{}{
 			"b": ":)",
-		}, nil, nil, nil, opts)
-	err = cmd.Call(req, re)
+		}, nil, cmd)
 	if err == nil {
 		t.Error("Should have failed (string value not convertible to int)")
 	}
@@ -315,11 +311,9 @@ func TestPostRun(t *testing.T) {
 			},
 		}
 
-		cmdOpts, _ := cmd.GetOptions(nil)
-
-		req, err := NewRequest(nil, map[string]interface{}{
+		req, err := NewRequest(context.TODO(), nil, map[string]interface{}{
 			cmdkit.EncShort:CLI,
-		}, nil, nil, nil, cmdOpts)
+		}, nil, cmd)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -393,7 +387,7 @@ func TestCancel(t *testing.T) {
 	wait := make(chan struct{})
 	ctx, cancel := context.WithCancel(context.Background())
 
-	req, err := NewRequest(ctx, nil, nil, nil, nil, nil, nil)
+	req, err := NewRequest(ctx, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

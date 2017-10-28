@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -8,266 +9,76 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-cmdkit/files"
 	"github.com/ipfs/go-ipfs-cmds"
 
-	u "github.com/ipfs/go-ipfs-util"
 	logging "github.com/ipfs/go-log"
 )
 
 var log = logging.Logger("cmds/cli")
 
+
 // Parse parses the input commandline string (cmd, flags, and args).
 // returns the corresponding command Request object.
-func Parse(input []string, stdin *os.File, root *cmds.Command) (cmds.Request, *cmds.Command, []string, error) {
-	path, opts, stringVals, cmd, err := parseOpts(input, root)
+func Parse(input []string, stdin *os.File, root *cmds.Command) (*cmds.Request, error) {
+	req, err := parse(input, root)
 	if err != nil {
-		return nil, nil, path, err
+		return nil, err
 	}
-
-	optDefs, err := root.GetOptions(path)
-	if err != nil {
-		return nil, cmd, path, err
-	}
-
-	req, err := cmds.NewRequest(path, opts, nil, nil, cmd, optDefs)
-	if err != nil {
-		return nil, cmd, path, err
-	}
+	
+	req.Body = stdin
 
 	// This is an ugly hack to maintain our current CLI interface while fixing
 	// other stdin usage bugs. Let this serve as a warning, be careful about the
 	// choices you make, they will haunt you forever.
-	if len(path) == 2 && path[0] == "bootstrap" {
-		if (path[1] == "add" && opts["default"] == true) ||
-			(path[1] == "rm" && opts["all"] == true) {
+	if len(req.Path) == 2 && req.Path[0] == "bootstrap" {
+		if (req.Path[1] == "add" && req.Options["default"] == true) ||
+			(req.Path[1] == "rm" && req.Options["all"] == true) {
 			stdin = nil
 		}
 	}
 
-	stringArgs, fileArgs, err := ParseArgs(req, stringVals, stdin, cmd.Arguments, root)
-	if err != nil {
-		return req, cmd, path, err
+	
+	if err = ParseArgs(req, root); err != nil {
+		return nil, err
 	}
-	req.SetArguments(stringArgs)
-
-	if len(fileArgs) > 0 {
-		file := files.NewSliceFile("", "", fileArgs)
-		req.SetFiles(file)
-	}
-
-	return req, cmd, path, cmd.CheckArguments(req)
+	
+	return req, req.Command.CheckArguments(req)
 }
 
-func ParseArgs(req cmds.Request, inputs []string, stdin *os.File, argDefs []cmdkit.Argument, root *cmds.Command) ([]string, []files.File, error) {
-	var err error
-
-	// if -r is provided, and it is associated with the package builtin
-	// recursive path option, allow recursive file paths
-	recursiveOpt := req.Option(cmdkit.RecShort)
-	recursive := false
-	if recursiveOpt != nil && recursiveOpt.Definition() == cmdkit.OptionRecursivePath {
-		recursive, _, err = recursiveOpt.Bool()
-		if err != nil {
-			return nil, nil, u.ErrCast()
-		}
-	}
-
-	// if '--hidden' is provided, enumerate hidden paths
-	hiddenOpt := req.Option("hidden")
-	hidden := false
-	if hiddenOpt != nil {
-		hidden, _, err = hiddenOpt.Bool()
-		if err != nil {
-			return nil, nil, u.ErrCast()
-		}
-	}
-	return parseArgs(inputs, stdin, argDefs, recursive, hidden, root)
+func isHidden(req *cmds.Request) bool {
+	h, ok := req.Options["hidden"].(bool)
+	return h && ok
 }
 
-// Parse a command line made up of sub-commands, short arguments, long arguments and positional arguments
-func parseOpts(args []string, root *cmds.Command) (
-	path []string,
-	opts map[string]interface{},
-	stringVals []string,
-	cmd *cmds.Command,
-	err error,
-) {
-	path = make([]string, 0, len(args))
-	stringVals = make([]string, 0, len(args))
-	optDefs := map[string]cmdkit.Option{}
-	opts = map[string]interface{}{}
-	cmd = root
-
-	// parseFlag checks that a flag is valid and saves it into opts
-	// Returns true if the optional second argument is used
-	parseFlag := func(name string, arg *string, mustUse bool) (bool, error) {
-		if _, ok := opts[name]; ok {
-			return false, fmt.Errorf("Duplicate values for option '%s'", name)
-		}
-
-		optDef, found := optDefs[name]
-		if !found {
-			err = fmt.Errorf("Unrecognized option '%s'", name)
-			return false, err
-		}
-		// mustUse implies that you must use the argument given after the '='
-		// eg. -r=true means you must take true into consideration
-		//		mustUse == true in the above case
-		// eg. ipfs -r <file> means disregard <file> since there is no '='
-		//		mustUse == false in the above situation
-		//arg == nil implies the flag was specified without an argument
-		if optDef.Type() == cmdkit.Bool {
-			if arg == nil || !mustUse {
-				opts[name] = true
-				return false, nil
-			}
-			argVal := strings.ToLower(*arg)
-			switch argVal {
-			case "true":
-				opts[name] = true
-				return true, nil
-			case "false":
-				opts[name] = false
-				return true, nil
-			default:
-				return true, fmt.Errorf("Option '%s' takes true/false arguments, but was passed '%s'", name, argVal)
-			}
-		} else {
-			if arg == nil {
-				return true, fmt.Errorf("Missing argument for option '%s'", name)
-			}
-			opts[name] = *arg
-			return true, nil
-		}
-	}
-
-	optDefs, err = root.GetOptions(path)
-	if err != nil {
-		return
-	}
-
-	consumed := false
-	for i, arg := range args {
-		switch {
-		case consumed:
-			// arg was already consumed by the preceding flag
-			consumed = false
-			continue
-
-		case arg == "--":
-			// treat all remaining arguments as positional arguments
-			stringVals = append(stringVals, args[i+1:]...)
-			return
-
-		case strings.HasPrefix(arg, "--"):
-			// arg is a long flag, with an optional argument specified
-			// using `=' or in args[i+1]
-			var slurped bool
-			var next *string
-			split := strings.SplitN(arg, "=", 2)
-			if len(split) == 2 {
-				slurped = false
-				arg = split[0]
-				next = &split[1]
-			} else {
-				slurped = true
-				if i+1 < len(args) {
-					next = &args[i+1]
-				} else {
-					next = nil
-				}
-			}
-			consumed, err = parseFlag(arg[2:], next, len(split) == 2)
-			if err != nil {
-				return
-			}
-			if !slurped {
-				consumed = false
-			}
-
-		case strings.HasPrefix(arg, "-") && arg != "-":
-			// args is one or more flags in short form, followed by an optional argument
-			// all flags except the last one have type bool
-			for arg = arg[1:]; len(arg) != 0; arg = arg[1:] {
-				var rest *string
-				var slurped bool
-				mustUse := false
-				if len(arg) > 1 {
-					slurped = false
-					str := arg[1:]
-					if len(str) > 0 && str[0] == '=' {
-						str = str[1:]
-						mustUse = true
-					}
-					rest = &str
-				} else {
-					slurped = true
-					if i+1 < len(args) {
-						rest = &args[i+1]
-					} else {
-						rest = nil
-					}
-				}
-				var end bool
-				end, err = parseFlag(arg[:1], rest, mustUse)
-				if err != nil {
-					return
-				}
-				if end {
-					consumed = slurped
-					break
-				}
-			}
-
-		default:
-			// arg is a sub-command or a positional argument
-			sub := cmd.Subcommand(arg)
-			if sub != nil {
-				cmd = sub
-				path = append(path, arg)
-				optDefs, err = root.GetOptions(path)
-				if err != nil {
-					return
-				}
-
-				// If we've come across an external binary call, pass all the remaining
-				// arguments on to it
-				if cmd.External {
-					stringVals = append(stringVals, args[i+1:]...)
-					return
-				}
-			} else {
-				stringVals = append(stringVals, arg)
-				if len(path) == 0 {
-					// found a typo or early argument
-					err = printSuggestions(stringVals, root)
-					return
-				}
-			}
-		}
-	}
-	return
+func isRecursive(req *cmds.Request) bool {
+	rec, ok := req.Options[cmdkit.RecShort].(bool)
+	return rec && ok
 }
 
-const msgStdinInfo = "ipfs: Reading from %s; send Ctrl-d to stop."
-
-func parseArgs(inputs []string, stdin *os.File, argDefs []cmdkit.Argument, recursive, hidden bool, root *cmds.Command) ([]string, []files.File, error) {
+func ParseArgs(req *cmds.Request, root *cmds.Command) error {
 	// ignore stdin on Windows
 	if runtime.GOOS == "windows" {
-		stdin = nil
+		req.Body = nil
 	}
+	
+	var numRequired int
+	
+	argDefs := req.Command.Arguments
 
 	// count required argument definitions
-	numRequired := 0
 	for _, argDef := range argDefs {
 		if argDef.Required {
 			numRequired++
 		}
 	}
+	
+	inputs := req.Arguments
+	stdin, _ := req.Body.(*os.File)
 
 	// count number of values provided by user.
 	// if there is at least one ArgDef, we can safely trigger the inputs loop
@@ -281,8 +92,7 @@ func parseArgs(inputs []string, stdin *os.File, argDefs []cmdkit.Argument, recur
 	// and the last arg definition is not variadic (or there are no definitions), return an error
 	notVariadic := len(argDefs) == 0 || !argDefs[len(argDefs)-1].Variadic
 	if notVariadic && len(inputs) > len(argDefs) {
-		err := printSuggestions(inputs, root)
-		return nil, nil, err
+		return printSuggestions(inputs, root)
 	}
 
 	stringArgs := make([]string, 0, numInputs)
@@ -322,15 +132,15 @@ func parseArgs(inputs []string, stdin *os.File, argDefs []cmdkit.Argument, recur
 				if fpath == "-" {
 					r, err := maybeWrapStdin(stdin, msgStdinInfo)
 					if err != nil {
-						return nil, nil, err
+						return err
 					}
 
 					fpath = stdin.Name()
 					file = files.NewReaderFile("", fpath, r, nil)
 				} else {
-					nf, err := appendFile(fpath, argDef, recursive, hidden)
+					nf, err := appendFile(fpath, argDef, isRecursive(req), isHidden(req))
 					if err != nil {
-						return nil, nil, err
+						return err
 					}
 
 					file = nf
@@ -341,7 +151,7 @@ func parseArgs(inputs []string, stdin *os.File, argDefs []cmdkit.Argument, recur
 				argDef.Required && !fillingVariadic {
 				r, err := maybeWrapStdin(stdin, msgStdinInfo)
 				if err != nil {
-					return nil, nil, err
+					return err
 				}
 
 				fpath := stdin.Name()
@@ -356,13 +166,249 @@ func parseArgs(inputs []string, stdin *os.File, argDefs []cmdkit.Argument, recur
 	if len(argDefs) > argDefIndex {
 		for _, argDef := range argDefs[argDefIndex:] {
 			if argDef.Required {
-				return nil, nil, fmt.Errorf("Argument '%s' is required", argDef.Name)
+				return fmt.Errorf("argument %q is required", argDef.Name)
+			}
+		}
+	}
+	
+	req.Arguments = stringArgs
+	if len(fileArgs) > 0 {
+		file := files.NewSliceFile("", "", filesMapToSortedArr(fileArgs))
+		req.Files = file
+	}
+	
+	return nil
+}
+
+func parse(cmdline []string, root *cmds.Command) (req *cmds.Request, err error) {
+	var (	
+		path = make([]string, 0, len(cmdline))
+		args = make([]string, 0, len(cmdline))
+		opts = cmdkit.OptMap{}
+		cmd = root
+		
+		i int
+		k string
+		v interface{}
+		kvs []kv
+		
+	)
+
+	// get root options
+	optDefs, err := root.GetOptions([]string{})
+
+	defer func() {
+		e := recover()
+		if er, ok := e.(error); ok {
+			err = er
+		}
+	}()
+	
+	L:
+	// don't range so we can seek
+	for i < len(cmdline) {
+		param := cmdline[i]
+		switch {
+		case param == "--":
+			// use the rest as positional arguments
+			args = append(args, cmdline[i+1:]...)
+			break L
+		case strings.HasPrefix(param, "--"):
+			// long option
+			k, v, i = parseLongOpt(cmdline, i, optDefs)
+			if _, exists := opts[k]; exists {
+				panic(fmt.Errorf("multiple values for option %q", k))
+			}
+
+			if can, ok := optDefs[k].CanonicalName(); ok {
+				k = can
+			}
+
+			opts[k] = v
+		case strings.HasPrefix(param, "-") && param != "-":
+			// short options
+			kvs, i = parseShortOpts(cmdline, i, optDefs)
+			
+			for _, kv := range kvs {
+				if _, exists := opts[kv.Key]; exists {	
+					panic(fmt.Errorf("multiple values for option %q", k))
+				}	
+
+				if can, ok := optDefs[kv.Key].CanonicalName(); ok {
+					kv.Key = can
+				}
+
+				opts[kv.Key] = kv.Value
+			}
+		default:
+			arg := cmdline[i]
+			// arg is a sub-command or a positional argument
+			sub := cmd.Subcommand(arg)
+			if sub != nil {
+				cmd = sub
+				path = append(path, arg)
+				optDefs, err = root.GetOptions(path)
+				if err != nil {
+					panic(err)
+				}
+
+				// If we've come across an external binary call, pass all the remaining
+				// arguments on to it
+				if cmd.External {
+					args = append(args, cmdline[i+1:]...)
+					break L
+				}
+			} else {
+				args = append(args, arg)
+				if len(path) == 0 {
+					// found a typo or early argument
+					panic(printSuggestions(args, root))
+				}
+			}
+		}
+		
+		i++
+	}
+	
+	req = &cmds.Request{
+		Context: context.TODO(),
+		Command: cmd,
+		Path: path,
+		Arguments: args,
+		Options: opts,
+	}
+	return req, nil
+}
+
+func splitkv(opt string) (k,v string, ok bool) {
+	split := strings.SplitN(opt, "=", 2)
+	if len(split) == 2 {
+		return split[0], split[1], true
+	} else {
+		return opt, "", false
+	}
+}
+
+func parseBoolOpt(opt, value string) bool {
+	value = strings.ToLower(value)
+	switch value {
+	case "true":
+		return true
+	case "false":
+		return false
+	default:
+		panic(fmt.Errorf("Option '%s' takes true/false arguments, but was passed '%s'", opt, value))
+	}
+}
+
+func parseIntOpt(opt, value string) int {
+	i, err := strconv.Atoi(value)
+	if err != nil {
+		panic(fmt.Errorf("option %q takes numeric arguments, but was passed %q", opt, value))
+	}
+	
+	return i
+}
+
+func parseOpt(opt, value string, opts map[string]cmdkit.Option) interface{} {
+	optDef, ok := opts[opt]
+	if !ok {
+		panic(fmt.Errorf("unknown option %q", opt))
+	}
+
+	switch optDef.Type() {
+	case cmdkit.String:
+		return value
+	case cmdkit.Bool:
+		return parseBoolOpt(opt, value)
+	case cmdkit.Int:
+		return parseIntOpt(opt, value)
+	default:
+		panic(fmt.Errorf("type %T not implemented/supported", value))
+	}
+}
+
+type kv struct {
+	Key string
+	Value interface{}
+}
+
+func parseShortOpts(cmdline []string, i int, optDefs map[string]cmdkit.Option) ([]kv, int) {
+	k, vStr, ok := splitkv(cmdline[i][1:])
+	var (
+		j int
+		kvs = make([]kv, 0, len(k))
+	)
+	
+
+	if ok {
+		// split at = successful
+		kvs = append(kvs, kv{
+			Key: k,
+			Value: parseOpt(k, vStr, optDefs),
+		})
+		
+	} else {
+		for j < len(k) {
+			flag := k[j:j+1]
+			
+			if od, ok := optDefs[flag]; !ok {
+				panic(fmt.Errorf("unknown option %q", k))
+
+			} else if od.Type() == cmdkit.Bool {
+				// single char flags for bools
+				kvs = append(kvs, kv{
+					Key: flag,
+					Value: true,
+				})
+				j++
+
+			} else if j < len(k)-1 {
+				// single char flag for non-bools (use the rest of the flag as value)
+				rest := k[j+1:]
+				
+				kvs = append(kvs, kv{
+					Key: flag,
+					Value: parseOpt(flag, rest, optDefs),
+				})
+				break
+
+			} else if i < len(cmdline)-1 {
+				// single char flag for non-bools (use the next word as value)
+				i++
+				kvs = append(kvs, kv{
+					Key: flag,
+					Value: parseOpt(flag, cmdline[i], optDefs),
+				})
+				break
+
+			} else {
+				panic(fmt.Errorf("missing argument for option %q", k))
 			}
 		}
 	}
 
-	return stringArgs, filesMapToSortedArr(fileArgs), nil
+	return kvs, i
 }
+
+
+func parseLongOpt(cmdline []string, i int, optDefs map[string]cmdkit.Option) (string, interface{}, int) {
+	k, v, ok := splitkv(cmdline[i][2:])
+	if !ok {
+		if optDefs[k].Type() == cmdkit.Bool {
+			return k, true, i
+		} else if i < len(cmdline)-1 {
+			i++
+			v = cmdline[i]
+		} else {
+			panic(fmt.Errorf("missing argument for option %q", k))
+		}
+	}
+
+	return k, parseOpt(k, v, optDefs), i
+}
+
+const msgStdinInfo = "ipfs: Reading from %s; send Ctrl-d to stop."
 
 func filesMapToSortedArr(fs map[string]files.File) []files.File {
 	var names []string

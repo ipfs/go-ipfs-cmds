@@ -79,19 +79,16 @@ func TestOptionParsing(t *testing.T) {
 	}
 
 	testHelper := func(args string, expectedOpts kvs, expectedWords words, expectErr bool) {
-		var opts map[string]interface{}
-		var input []string
-
-		_, opts, input, _, err := parseOpts(strings.Split(args, " "), cmd)
+		req, err := parse(strings.Split(args, " "), cmd)
 		if expectErr {
 			if err == nil {
 				t.Errorf("Command line '%v' parsing should have failed", args)
 			}
 		} else if err != nil {
 			t.Errorf("Command line '%v' failed to parse: %v", args, err)
-		} else if !sameWords(input, expectedWords) || !sameKVs(opts, expectedOpts) {
+		} else if !sameWords(req.Arguments, expectedWords) || !sameKVs(kvs(req.Options), expectedOpts) {
 			t.Errorf("Command line '%v':\n  parsed as  %v %v\n  instead of %v %v",
-				args, opts, input, expectedOpts, expectedWords)
+				args, req.Options, req.Arguments, expectedOpts, expectedWords)
 		}
 	}
 
@@ -209,17 +206,17 @@ func TestArgumentParsing(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		req, _, _, err := Parse(cmd, f, rootCmd)
+		req, err := Parse(cmd, f, rootCmd)
 		if err != nil {
 			t.Errorf("Command '%v' should have passed parsing: %v", cmd, err)
 		}
-		if !sameWords(req.Arguments(), res) {
-			t.Errorf("Arguments parsed from '%v' are '%v' instead of '%v'", cmd, req.Arguments(), res)
+		if !sameWords(req.Arguments, res) {
+			t.Errorf("Arguments parsed from '%v' are '%v' instead of '%v'", cmd, req.Arguments, res)
 		}
 	}
 
 	testFail := func(cmd words, fi *os.File, msg string) {
-		_, _, _, err := Parse(cmd, nil, rootCmd)
+		_,  err := Parse(cmd, nil, rootCmd)
 		if err == nil {
 			t.Errorf("Should have failed: %v", msg)
 		}
