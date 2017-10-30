@@ -47,16 +47,16 @@ func TestOptionValidation(t *testing.T) {
 
 	re := newBufferResponseEmitter()
 	req, err := NewRequest(context.TODO(), nil, map[string]interface{}{
-			"beep": true,
-		}, nil, nil, cmd)
+		"beep": true,
+	}, nil, nil, cmd)
 	if err == nil {
 		t.Error("Should have failed (incorrect type)")
 	}
 
 	re = newBufferResponseEmitter()
 	req, err = NewRequest(context.TODO(), nil, map[string]interface{}{
-			"beep": 5,
-		}, nil, nil, cmd)
+		"beep": 5,
+	}, nil, nil, cmd)
 	if err != nil {
 		t.Error(err, "Should have passed")
 	}
@@ -67,9 +67,9 @@ func TestOptionValidation(t *testing.T) {
 
 	re = newBufferResponseEmitter()
 	req, err = NewRequest(context.TODO(), nil, map[string]interface{}{
-			"beep": 5,
-			"boop": "test",
-		}, nil, nil, cmd)
+		"beep": 5,
+		"boop": "test",
+	}, nil, nil, cmd)
 	if err != nil {
 		t.Error("Should have passed")
 	}
@@ -81,22 +81,9 @@ func TestOptionValidation(t *testing.T) {
 
 	re = newBufferResponseEmitter()
 	req, err = NewRequest(context.TODO(), nil, map[string]interface{}{
-			"b": 5,
-			"B": "test",
-		}, nil, nil, cmd)
-	if err != nil {
-		t.Error("Should have passed")
-	}
-	
-	err = cmd.Call(req, re)
-	if err != nil {
-		t.Error("Should have passed")
-	}
-
-	re = newBufferResponseEmitter()
-	req, err = NewRequest(context.TODO(), nil, map[string]interface{}{
-			"foo": 5,
-		}, nil, nil, cmd)
+		"b": 5,
+		"B": "test",
+	}, nil, nil, cmd)
 	if err != nil {
 		t.Error("Should have passed")
 	}
@@ -108,8 +95,8 @@ func TestOptionValidation(t *testing.T) {
 
 	re = newBufferResponseEmitter()
 	req, err = NewRequest(context.TODO(), nil, map[string]interface{}{
-			cmdkit.EncShort: "json",
-		}, nil, nil, cmd)
+		"foo": 5,
+	}, nil, nil, cmd)
 	if err != nil {
 		t.Error("Should have passed")
 	}
@@ -121,12 +108,12 @@ func TestOptionValidation(t *testing.T) {
 
 	re = newBufferResponseEmitter()
 	req, err = NewRequest(context.TODO(), nil, map[string]interface{}{
-			"b": "100",
-		}, nil, nil, cmd)
+		cmdkit.EncShort: "json",
+	}, nil, nil, cmd)
 	if err != nil {
 		t.Error("Should have passed")
 	}
-	
+
 	err = cmd.Call(req, re)
 	if err != nil {
 		t.Error("Should have passed")
@@ -134,25 +121,38 @@ func TestOptionValidation(t *testing.T) {
 
 	re = newBufferResponseEmitter()
 	req, err = NewRequest(context.TODO(), nil, map[string]interface{}{
-			"b": ":)",
-		}, nil, nil, cmd)
-	if err == nil {
-		t.Error("Should have failed (string value not convertible to int)")
-	}
-/*
-	err = req.SetOptions(map[string]interface{}{
-		"b": 100,
-	})
+		"b": "100",
+	}, nil, nil, cmd)
 	if err != nil {
 		t.Error("Should have passed")
 	}
 
-	err = req.SetOptions(map[string]interface{}{
+	err = cmd.Call(req, re)
+	if err != nil {
+		t.Error("Should have passed")
+	}
+
+	re = newBufferResponseEmitter()
+	req, err = NewRequest(context.TODO(), nil, map[string]interface{}{
 		"b": ":)",
-	})
+	}, nil, nil, cmd)
 	if err == nil {
 		t.Error("Should have failed (string value not convertible to int)")
 	}
+	/*
+		err = req.SetOptions(map[string]interface{}{
+			"b": 100,
+		})
+		if err != nil {
+			t.Error("Should have passed")
+		}
+
+		err = req.SetOptions(map[string]interface{}{
+			"b": ":)",
+		})
+		if err == nil {
+			t.Error("Should have failed (string value not convertible to int)")
+		}
 	*/
 }
 
@@ -335,7 +335,7 @@ func TestPostRun(t *testing.T) {
 		}
 
 		req, err := NewRequest(context.TODO(), nil, map[string]interface{}{
-			cmdkit.EncShort:CLI,
+			cmdkit.EncShort: CLI,
 		}, nil, nil, cmd)
 		if err != nil {
 			t.Fatal(err)

@@ -15,15 +15,14 @@ import (
 type Request struct {
 	Context context.Context
 	Command *Command
-	
-	Path []string
+
+	Path      []string
 	Arguments []string
-	Options cmdkit.OptMap
-	
-	Body io.Reader
+	Options   cmdkit.OptMap
+
+	Body  io.Reader
 	Files files.File
 }
-
 
 // NewRequest returns a request initialized with given arguments
 // An non-nil error will be returned if the provided option values are invalid
@@ -31,19 +30,19 @@ func NewRequest(ctx context.Context, path []string, opts cmdkit.OptMap, args []s
 	if opts == nil {
 		opts = make(cmdkit.OptMap)
 	}
-	
+
 	cmd, err := root.Get(path)
 	if err != nil {
 		return nil, err
 	}
 
 	req := &Request{
-		Path:       path,
-		Options:    opts,
-		Arguments:  args,
-		Files:      file,
-		Command:        cmd,
-		Context: ctx,
+		Path:      path,
+		Options:   opts,
+		Arguments: args,
+		Files:     file,
+		Command:   cmd,
+		Context:   ctx,
 		Body:      os.Stdin,
 	}
 
@@ -55,7 +54,7 @@ func (req *Request) ConvertOptions(root *Command) error {
 	if err != nil {
 		return err
 	}
-	
+
 	for k, v := range req.Options {
 		opt, ok := optDefs[k]
 		if !ok {
@@ -127,4 +126,3 @@ func GetEncoding(req *Request) EncodingType {
 
 	return encType
 }
-
