@@ -6,6 +6,7 @@ import (
 	"github.com/ipfs/go-ipfs/core"
 	"github.com/ipfs/go-ipfs/repo/config"
 )
+
 type Environment struct {
 	Online     bool
 	ConfigRoot string

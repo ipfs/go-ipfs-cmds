@@ -41,7 +41,6 @@ type testCase struct {
 	ResHeaders   map[string]string
 }
 
-
 func (tc *testCase) test(t *testing.T) {
 	// defaults
 	method := tc.Method

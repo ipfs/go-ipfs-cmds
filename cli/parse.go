@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -76,6 +77,7 @@ func ParseArgs(req *cmds.Request, root *cmds.Command) error {
 	inputs := req.Arguments
 	stdin, ok := req.Body.(*os.File)
 	if !ok {
+		// TODO(keks): remove this one
 		fmt.Printf("Warning: Body is not *os.File but %T\n", req.Body)
 	}
 
@@ -174,6 +176,27 @@ func ParseArgs(req *cmds.Request, root *cmds.Command) error {
 	if len(fileArgs) > 0 {
 		file := files.NewSliceFile("", "", filesMapToSortedArr(fileArgs))
 		req.Files = file
+	}
+
+	if len(req.Arguments) >= len(req.Command.Arguments) {
+		// no need to read more arguments from stdin
+		return nil
+	}
+
+	if req.Files == nil {
+		// TODO: or return an error instead? copied like this from VarArgs()
+		log.Warning("expected more arguments from stdin")
+		return nil
+	}
+
+	fi, err := req.Files.NextFile()
+	if err != nil {
+		return err
+	}
+
+	scan := bufio.NewScanner(fi)
+	for scan.Scan() {
+		req.Arguments = append(req.Arguments, scan.Text())
 	}
 
 	return nil
