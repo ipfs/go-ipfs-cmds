@@ -46,10 +46,10 @@ func NewRequest(ctx context.Context, path []string, opts cmdkit.OptMap, args []s
 		Body:      os.Stdin,
 	}
 
-	return req, req.ConvertOptions(root)
+	return req, req.convertOptions(root)
 }
 
-func (req *Request) ConvertOptions(root *Command) error {
+func (req *Request) convertOptions(root *Command) error {
 	optDefs, err := root.GetOptions(req.Path)
 	if err != nil {
 		return err
