@@ -67,7 +67,7 @@ func (r *readerResponse) Length() uint64 {
 }
 
 func (r *readerResponse) RawNext() (interface{}, error) {
-	m := &MaybeError{Value: r.req.Command().Type}
+	m := &MaybeError{Value: r.req.Command.Type}
 	err := r.dec.Decode(m)
 	if err != nil {
 		return nil, err

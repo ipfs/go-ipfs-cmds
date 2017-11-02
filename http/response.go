@@ -3,9 +3,7 @@ package http
 import (
 	"errors"
 	"io"
-	"io/ioutil"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
@@ -25,7 +23,7 @@ type Response struct {
 	err    *cmdkit.Error
 
 	res *http.Response
-	req cmds.Request
+	req *cmds.Request
 
 	rr  *responseReader
 	dec cmds.Decoder
@@ -33,7 +31,7 @@ type Response struct {
 	initErr *cmdkit.Error
 }
 
-func (res *Response) Request() cmds.Request {
+func (res *Response) Request() *cmds.Request {
 	return res.req
 }
 
@@ -67,7 +65,7 @@ func (res *Response) RawNext() (interface{}, error) {
 		}
 	}
 
-	m := &cmds.MaybeError{Value: res.req.Command().Type}
+	m := &cmds.MaybeError{Value: res.req.Command.Type}
 	err := res.dec.Decode(m)
 
 	// last error was sent as value, now we get the same error from the headers. ignore and EOF!
@@ -97,66 +95,6 @@ func (res *Response) Next() (interface{}, error) {
 	default:
 		return v, nil
 	}
-}
-
-// getResponse decodes a http.Response to create a cmds.Response
-func getResponse(httpRes *http.Response, req cmds.Request) (cmds.Response, error) {
-	var err error
-	res := &Response{
-		res: httpRes,
-		req: req,
-		rr:  &responseReader{httpRes},
-	}
-
-	lengthHeader := httpRes.Header.Get(extraContentLengthHeader)
-	if len(lengthHeader) > 0 {
-		length, err := strconv.ParseUint(lengthHeader, 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		res.length = length
-	}
-
-	contentType := httpRes.Header.Get(contentTypeHeader)
-	contentType = strings.Split(contentType, ";")[0]
-
-	encType, found := MIMEEncodings[contentType]
-	if found {
-		makeDec, ok := cmds.Decoders[encType]
-		if ok {
-			res.dec = makeDec(res.rr)
-		}
-	}
-
-	// If we ran into an error
-	if httpRes.StatusCode >= http.StatusBadRequest {
-		e := &cmdkit.Error{}
-
-		switch {
-		case httpRes.StatusCode == http.StatusNotFound:
-			// handle 404s
-			e.Message = "Command not found."
-			e.Code = cmdkit.ErrClient
-		case contentType == plainText:
-			// handle non-marshalled errors
-			mes, err := ioutil.ReadAll(res.rr)
-			if err != nil {
-				return nil, err
-			}
-			e.Message = string(mes)
-			e.Code = cmdkit.ErrNormal
-		default:
-			// handle marshalled errors
-			err = res.dec.Decode(&e)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		res.initErr = e
-	}
-
-	return res, nil
 }
 
 // responseReader reads from the response body, and checks for an error

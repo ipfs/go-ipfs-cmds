@@ -1,9 +1,9 @@
 package cmds
 
 import (
+	"bufio"
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"reflect"
 
@@ -20,7 +20,7 @@ type Request struct {
 	Arguments []string
 	Options   cmdkit.OptMap
 
-	Body  io.Reader
+	Body  *os.File
 	Files files.File
 }
 
@@ -49,6 +49,24 @@ func NewRequest(ctx context.Context, path []string, opts cmdkit.OptMap, args []s
 	return req, req.convertOptions(root)
 }
 
+// BodyArgs returns a scanner that returns arguments passed in the body as tokens.
+func (req *Request) BodyArgs() (*bufio.Scanner, error) {
+	if len(req.Arguments) >= len(req.Command.Arguments) {
+		return nil, fmt.Errorf("all arguments covered by positional arguments")
+	}
+
+	if req.Files == nil {
+		return nil, fmt.Errorf("expected more arguments from stdin")
+	}
+
+	fi, err := req.Files.NextFile()
+	if err != nil {
+		return nil, err
+	}
+
+	return bufio.NewScanner(fi), nil
+}
+
 func (req *Request) convertOptions(root *Command) error {
 	optDefs, err := root.GetOptions(req.Path)
 	if err != nil {
@@ -66,24 +84,24 @@ func (req *Request) convertOptions(root *Command) error {
 			if str, ok := v.(string); ok {
 				val, err := opt.Parse(str)
 				if err != nil {
-					value := fmt.Sprintf("value '%v'", v)
+					value := fmt.Sprintf("value %q", v)
 					if len(str) == 0 {
 						value = "empty value"
 					}
-					return fmt.Errorf("Could not convert %s to type '%s' (for option '-%s')",
-						value, opt.Type().String(), k)
+					return fmt.Errorf("Could not convert %q to type %q (for option %q)",
+						value, opt.Type().String(), "-"+k)
 				}
 				req.Options[k] = val
 
 			} else {
-				return fmt.Errorf("Option '%s' should be type '%s', but got type '%s'",
+				return fmt.Errorf("Option %q should be type %q, but got type %q",
 					k, opt.Type().String(), kind.String())
 			}
 		}
 
 		for _, name := range opt.Names() {
 			if _, ok := req.Options[name]; name != k && ok {
-				return fmt.Errorf("Duplicate command options were provided ('%s' and '%s')",
+				return fmt.Errorf("Duplicate command options were provided (%q and %q)",
 					k, name)
 			}
 		}

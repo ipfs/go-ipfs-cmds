@@ -25,7 +25,7 @@ var log = logging.Logger("cmds")
 
 // Function is the type of function that Commands use.
 // It reads from the Request, and writes results to the ResponseEmitter.
-type Function func(*Request, ResponseEmitter)
+type Function func(*Request, ResponseEmitter, interface{})
 
 // PostRunMap is the map used in Command.PostRun.
 type PostRunMap map[EncodingType]func(*Request, ResponseEmitter) ResponseEmitter
@@ -68,7 +68,7 @@ var ErrNoFormatter = ClientError("This command cannot be formatted to plain text
 var ErrIncorrectType = errors.New("The command returned a value with a different type than expected")
 
 // Call invokes the command for the given Request
-func (c *Command) Call(req *Request, re ResponseEmitter) (err error) {
+func (c *Command) Call(req *Request, re ResponseEmitter, env interface{}) (err error) {
 	// we need the named return parameter so we can change the value from defer()
 	defer func() {
 		if err == nil {
@@ -77,7 +77,7 @@ func (c *Command) Call(req *Request, re ResponseEmitter) (err error) {
 	}()
 
 	var cmd *Command
-	cmd, err = c.Get(req.Path())
+	cmd, err = c.Get(req.Path)
 	if err != nil {
 		return err
 	}
@@ -115,7 +115,7 @@ func (c *Command) Call(req *Request, re ResponseEmitter) (err error) {
 			}
 		*/
 	}()
-	cmd.Run(req, re)
+	cmd.Run(req, re, env)
 
 	return err
 }
@@ -131,7 +131,7 @@ func (c *Command) Resolve(pth []string) ([]*Command, error) {
 
 		if cmd == nil {
 			pathS := path.Join(pth[:i])
-			return nil, fmt.Errorf("Undefined command: '%s'", pathS)
+			return nil, fmt.Errorf("undefined command: %q", pathS)
 		}
 
 		cmds[i+1] = cmd
@@ -171,7 +171,7 @@ func (c *Command) GetOptions(path []string) (map[string]cmdkit.Option, error) {
 	for _, opt := range options {
 		for _, name := range opt.Names() {
 			if _, found := optionsMap[name]; found {
-				return nil, fmt.Errorf("Option name '%s' used multiple times", name)
+				return nil, fmt.Errorf("option name %q used multiple times", name)
 			}
 
 			optionsMap[name] = opt
@@ -279,7 +279,7 @@ func checkArgValue(v string, found bool, def cmdkit.Argument) error {
 	}
 
 	if !found && def.Required {
-		return fmt.Errorf("Argument '%s' is required", def.Name)
+		return fmt.Errorf("argument %q is required", def.Name)
 	}
 
 	return nil

@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -29,8 +28,6 @@ func Parse(input []string, stdin *os.File, root *cmds.Command) (*cmds.Request, e
 		return nil, err
 	}
 
-	req.Body = stdin
-
 	// This is an ugly hack to maintain our current CLI interface while fixing
 	// other stdin usage bugs. Let this serve as a warning, be careful about the
 	// choices you make, they will haunt you forever.
@@ -41,7 +38,7 @@ func Parse(input []string, stdin *os.File, root *cmds.Command) (*cmds.Request, e
 		}
 	}
 
-	if err = ParseArgs(req, root); err != nil {
+	if err = parseArgs(req, root, stdin); err != nil {
 		return nil, err
 	}
 
@@ -56,150 +53,6 @@ func isHidden(req *cmds.Request) bool {
 func isRecursive(req *cmds.Request) bool {
 	rec, ok := req.Options[cmdkit.RecShort].(bool)
 	return rec && ok
-}
-
-func ParseArgs(req *cmds.Request, root *cmds.Command) error {
-	// ignore stdin on Windows
-	if runtime.GOOS == "windows" {
-		req.Body = nil
-	}
-
-	argDefs := req.Command.Arguments
-
-	var numRequired int
-	// count required argument definitions
-	for _, argDef := range argDefs {
-		if argDef.Required {
-			numRequired++
-		}
-	}
-
-	inputs := req.Arguments
-	stdin, ok := req.Body.(*os.File)
-	if !ok {
-		// TODO(keks): remove this one
-		fmt.Printf("Warning: Body is not *os.File but %T\n", req.Body)
-	}
-
-	// count number of values provided by user.
-	// if there is at least one ArgDef, we can safely trigger the inputs loop
-	// below to parse stdin.
-	numInputs := len(inputs)
-	if len(argDefs) > 0 && argDefs[len(argDefs)-1].SupportsStdin && stdin != nil {
-		numInputs += 1
-	}
-
-	// if we have more arg values provided than argument definitions,
-	// and the last arg definition is not variadic (or there are no definitions), return an error
-	notVariadic := len(argDefs) == 0 || !argDefs[len(argDefs)-1].Variadic
-	if notVariadic && len(inputs) > len(argDefs) {
-		return printSuggestions(inputs, root)
-	}
-
-	stringArgs := make([]string, 0, numInputs)
-
-	fileArgs := make(map[string]files.File)
-	argDefIndex := 0 // the index of the current argument definition
-
-	for i := 0; i < numInputs; i++ {
-		argDef := getArgDef(argDefIndex, argDefs)
-
-		// skip optional argument definitions if there aren't sufficient remaining inputs
-		for numInputs-i <= numRequired && !argDef.Required {
-			argDefIndex++
-			argDef = getArgDef(argDefIndex, argDefs)
-		}
-		if argDef.Required {
-			numRequired--
-		}
-
-		fillingVariadic := argDefIndex+1 > len(argDefs)
-		switch argDef.Type {
-		case cmdkit.ArgString:
-			if len(inputs) > 0 {
-				stringArgs, inputs = append(stringArgs, inputs[0]), inputs[1:]
-			} else if stdin != nil && argDef.SupportsStdin && !fillingVariadic {
-				if r, err := maybeWrapStdin(stdin, msgStdinInfo); err == nil {
-					fileArgs[stdin.Name()] = files.NewReaderFile("stdin", "", r, nil)
-					stdin = nil
-				}
-			}
-		case cmdkit.ArgFile:
-			if len(inputs) > 0 {
-				// treat stringArg values as file paths
-				fpath := inputs[0]
-				inputs = inputs[1:]
-				var file files.File
-				if fpath == "-" {
-					r, err := maybeWrapStdin(stdin, msgStdinInfo)
-					if err != nil {
-						return err
-					}
-
-					fpath = stdin.Name()
-					file = files.NewReaderFile("", fpath, r, nil)
-				} else {
-					nf, err := appendFile(fpath, argDef, isRecursive(req), isHidden(req))
-					if err != nil {
-						return err
-					}
-
-					file = nf
-				}
-
-				fileArgs[fpath] = file
-			} else if stdin != nil && argDef.SupportsStdin &&
-				argDef.Required && !fillingVariadic {
-				r, err := maybeWrapStdin(stdin, msgStdinInfo)
-				if err != nil {
-					return err
-				}
-
-				fpath := stdin.Name()
-				fileArgs[fpath] = files.NewReaderFile("", fpath, r, nil)
-			}
-		}
-
-		argDefIndex++
-	}
-
-	// check to make sure we didn't miss any required arguments
-	if len(argDefs) > argDefIndex {
-		for _, argDef := range argDefs[argDefIndex:] {
-			if argDef.Required {
-				return fmt.Errorf("argument %q is required", argDef.Name)
-			}
-		}
-	}
-
-	req.Arguments = stringArgs
-	if len(fileArgs) > 0 {
-		file := files.NewSliceFile("", "", filesMapToSortedArr(fileArgs))
-		req.Files = file
-	}
-
-	if len(req.Arguments) >= len(req.Command.Arguments) {
-		// no need to read more arguments from stdin
-		return nil
-	}
-
-	if req.Files == nil {
-		// TODO: or return an error instead? copied like this from VarArgs()
-		log.Warning("expected more arguments from stdin")
-		return nil
-	}
-
-	fi, err := req.Files.NextFile()
-	if err != nil {
-		return err
-	}
-
-	scan := bufio.NewScanner(fi)
-	for scan.Scan() {
-		req.Arguments = append(req.Arguments, scan.Text())
-	}
-
-	return nil
 }
 
 func parse(cmdline []string, root *cmds.Command) (req *cmds.Request, err error) {
@@ -299,6 +152,137 @@ L:
 		Options:   opts,
 	}
 	return req, nil
+}
+
+func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
+	// ignore stdin on Windows
+	if runtime.GOOS == "windows" {
+		stdin = nil
+	}
+
+	argDefs := req.Command.Arguments
+
+	// count required argument definitions
+	var numRequired int
+	for _, argDef := range argDefs {
+		if argDef.Required {
+			numRequired++
+		}
+	}
+
+	inputs := req.Arguments
+
+	// count number of values provided by user.
+	// if there is at least one ArgDef, we can safely trigger the inputs loop
+	// below to parse stdin.
+	numInputs := len(inputs)
+
+	if len(argDefs) > 0 && argDefs[len(argDefs)-1].SupportsStdin && stdin != nil {
+		numInputs += 1
+	}
+
+	// if we have more arg values provided than argument definitions,
+	// and the last arg definition is not variadic (or there are no definitions), return an error
+	notVariadic := len(argDefs) == 0 || !argDefs[len(argDefs)-1].Variadic
+	if notVariadic && len(inputs) > len(argDefs) {
+		return printSuggestions(inputs, root)
+	}
+
+	stringArgs := make([]string, 0, numInputs)
+	fileArgs := make(map[string]files.File)
+
+	// the index of the current argument definition
+	iArgDef := 0
+
+	// remaining number of required arguments
+	remRequired := numRequired
+
+	for iInput := 0; iInput < numInputs; iInput++ {
+		// remaining number of passed arguments
+		remInputs := numInputs - iInput
+
+		argDef := getArgDef(iArgDef, argDefs)
+
+		// skip optional argument definitions if there aren't sufficient remaining inputs
+		for remInputs <= remRequired && !argDef.Required {
+			iArgDef++
+			argDef = getArgDef(iArgDef, argDefs)
+		}
+		if argDef.Required {
+			remRequired--
+		}
+
+		fillingVariadic := iArgDef+1 > len(argDefs)
+		switch argDef.Type {
+		case cmdkit.ArgString:
+			if len(inputs) > 0 {
+				stringArgs, inputs = append(stringArgs, inputs[0]), inputs[1:]
+			} else if stdin != nil && argDef.SupportsStdin && !fillingVariadic {
+				if r, err := maybeWrapStdin(stdin, msgStdinInfo); err == nil {
+					fileArgs[stdin.Name()] = files.NewReaderFile("stdin", "", r, nil)
+					stdin = nil
+				}
+			}
+		case cmdkit.ArgFile:
+			if len(inputs) > 0 {
+				// treat stringArg values as file paths
+				fpath := inputs[0]
+				inputs = inputs[1:]
+				var file files.File
+				if fpath == "-" {
+					r, err := maybeWrapStdin(stdin, msgStdinInfo)
+					if err != nil {
+						return err
+					}
+
+					fpath = stdin.Name()
+					file = files.NewReaderFile("", fpath, r, nil)
+				} else {
+					nf, err := appendFile(fpath, argDef, isRecursive(req), isHidden(req))
+					if err != nil {
+						return err
+					}
+
+					file = nf
+				}
+
+				fileArgs[fpath] = file
+			} else if stdin != nil && argDef.SupportsStdin &&
+				argDef.Required && !fillingVariadic {
+				r, err := maybeWrapStdin(stdin, msgStdinInfo)
+				if err != nil {
+					return err
+				}
+
+				fpath := stdin.Name()
+				fileArgs[fpath] = files.NewReaderFile("", fpath, r, nil)
+			}
+		}
+
+		iArgDef++
+	}
+
+	if iArgDef == len(argDefs)-1 && stdin != nil &&
+		req.Command.Arguments[iArgDef].SupportsStdin {
+		// handle this one at runtime, pretend it's there
+		iArgDef++
+	}
+
+	// check to make sure we didn't miss any required arguments
+	if len(argDefs) > iArgDef {
+		for _, argDef := range argDefs[iArgDef:] {
+			if argDef.Required {
+				return fmt.Errorf("argument %q is required", argDef.Name)
+			}
+		}
+	}
+
+	req.Arguments = stringArgs
+	if len(fileArgs) > 0 {
+		req.Files = files.NewSliceFile("", "", filesMapToSortedArr(fileArgs))
+	}
+
+	return nil
 }
 
 func splitkv(opt string) (k, v string, ok bool) {

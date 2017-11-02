@@ -24,7 +24,7 @@ func newBufferResponseEmitter() ResponseEmitter {
 }
 
 // noop does nothing and can be used as a noop Run function
-func noop(req *Request, re ResponseEmitter) {
+func noop(req *Request, re ResponseEmitter, env interface{}) {
 	return
 }
 
@@ -60,7 +60,7 @@ func TestOptionValidation(t *testing.T) {
 	if err != nil {
 		t.Error(err, "Should have passed")
 	}
-	err = cmd.Call(req, re)
+	err = cmd.Call(req, re, nil)
 	if err != nil {
 		t.Error(err, "Should have passed")
 	}
@@ -74,7 +74,7 @@ func TestOptionValidation(t *testing.T) {
 		t.Error("Should have passed")
 	}
 
-	err = cmd.Call(req, re)
+	err = cmd.Call(req, re, nil)
 	if err != nil {
 		t.Error("Should have passed")
 	}
@@ -88,7 +88,7 @@ func TestOptionValidation(t *testing.T) {
 		t.Error("Should have passed")
 	}
 
-	err = cmd.Call(req, re)
+	err = cmd.Call(req, re, nil)
 	if err != nil {
 		t.Error("Should have passed")
 	}
@@ -101,7 +101,7 @@ func TestOptionValidation(t *testing.T) {
 		t.Error("Should have passed")
 	}
 
-	err = cmd.Call(req, re)
+	err = cmd.Call(req, re, nil)
 	if err != nil {
 		t.Error("Should have passed")
 	}
@@ -114,7 +114,7 @@ func TestOptionValidation(t *testing.T) {
 		t.Error("Should have passed")
 	}
 
-	err = cmd.Call(req, re)
+	err = cmd.Call(req, re, nil)
 	if err != nil {
 		t.Error("Should have passed")
 	}
@@ -127,7 +127,7 @@ func TestOptionValidation(t *testing.T) {
 		t.Error("Should have passed")
 	}
 
-	err = cmd.Call(req, re)
+	err = cmd.Call(req, re, nil)
 	if err != nil {
 		t.Error("Should have passed")
 	}
@@ -315,7 +315,7 @@ func TestPostRun(t *testing.T) {
 
 	for _, tc := range testcases {
 		cmd := &Command{
-			Run: func(req *Request, re ResponseEmitter) {
+			Run: func(req *Request, re ResponseEmitter, env interface{}) {
 				re.SetLength(tc.length)
 
 				for _, v := range tc.emit {
@@ -363,7 +363,7 @@ func TestPostRun(t *testing.T) {
 		re, res := NewChanResponsePair(req)
 		re = cmd.PostRun[encType](req, re)
 
-		err = cmd.Call(req, re)
+		err = cmd.Call(req, re, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

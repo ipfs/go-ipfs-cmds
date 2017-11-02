@@ -25,7 +25,7 @@ var OptionSkipMap = map[string]bool{
 
 // Client is the commands HTTP client interface.
 type Client interface {
-	Send(req cmds.Request) (cmds.Response, error)
+	Send(req *cmds.Request) (cmds.Response, error)
 }
 
 type client struct {
@@ -40,25 +40,20 @@ func NewClient(address string) Client {
 	}
 }
 
-func (c *client) Send(req cmds.Request) (cmds.Response, error) {
-	if req.Context() == nil {
+func (c *client) Send(req *cmds.Request) (cmds.Response, error) {
+	if req.Context == nil {
 		log.Warningf("no context set in request")
-		if err := req.SetRootContext(context.TODO()); err != nil {
-			return nil, err
-		}
+		req.Context = context.TODO()
 	}
 
 	// save user-provided encoding
-	previousUserProvidedEncoding, found, err := req.Option(cmdkit.EncShort).String()
-	if err != nil {
-		return nil, err
-	}
+	previousUserProvidedEncoding, found := req.Options[cmdkit.EncShort].(string)
 
 	// override with json to send to server
-	req.SetOption(cmdkit.EncShort, cmds.JSON)
+	req.Options[cmdkit.EncShort] = cmds.JSON
 
 	// stream channel output
-	req.SetOption(cmdkit.ChanOpt, "true")
+	req.Options[cmdkit.ChanOpt] = true
 
 	query, err := getQuery(req)
 	if err != nil {
@@ -68,12 +63,12 @@ func (c *client) Send(req cmds.Request) (cmds.Response, error) {
 	var fileReader *MultiFileReader
 	var reader io.Reader
 
-	if req.Files() != nil {
-		fileReader = NewMultiFileReader(req.Files(), true)
+	if req.Files != nil {
+		fileReader = NewMultiFileReader(req.Files, true)
 		reader = fileReader
 	}
 
-	path := strings.Join(req.Path(), "/")
+	path := strings.Join(req.Path, "/")
 	url := fmt.Sprintf(ApiUrlFormat, c.serverAddress, ApiPath, path, query)
 
 	httpReq, err := http.NewRequest("POST", url, reader)
@@ -89,7 +84,7 @@ func (c *client) Send(req cmds.Request) (cmds.Response, error) {
 	}
 	httpReq.Header.Set(uaHeader, config.ApiVersion)
 
-	httpReq.Cancel = req.Context().Done()
+	httpReq.Cancel = req.Context.Done()
 	httpReq.Close = true
 
 	httpRes, err := c.httpClient.Do(httpReq)
@@ -98,7 +93,7 @@ func (c *client) Send(req cmds.Request) (cmds.Response, error) {
 	}
 
 	// using the overridden JSON encoding in request
-	res, err := getResponse(httpRes, req)
+	res, err := parseResponse(httpRes, req)
 	if err != nil {
 		return nil, err
 	}
@@ -107,15 +102,16 @@ func (c *client) Send(req cmds.Request) (cmds.Response, error) {
 		// reset to user provided encoding after sending request
 		// NB: if user has provided an encoding but it is the empty string,
 		// still leave it as JSON.
-		req.SetOption(cmdkit.EncShort, previousUserProvidedEncoding)
+		req.Options[cmdkit.EncShort] = previousUserProvidedEncoding
 	}
 
 	return res, nil
 }
 
-func getQuery(req cmds.Request) (string, error) {
+func getQuery(req *cmds.Request) (string, error) {
 	query := url.Values{}
-	for k, v := range req.Options() {
+
+	for k, v := range req.Options {
 		if OptionSkipMap[k] {
 			continue
 		}
@@ -123,8 +119,8 @@ func getQuery(req cmds.Request) (string, error) {
 		query.Set(k, str)
 	}
 
-	args := req.StringArguments()
-	argDefs := req.Command().Arguments
+	args := req.Arguments
+	argDefs := req.Command.Arguments
 
 	argDefIndex := 0
 

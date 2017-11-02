@@ -1,11 +1,15 @@
 package http
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"mime"
 	"net/http"
 	"strings"
+
+	"io/ioutil"
+	"strconv"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-cmdkit/files"
@@ -13,8 +17,8 @@ import (
 	path "github.com/ipfs/go-ipfs/path"
 )
 
-// Parse parses the data in a http.Request and returns a command Request object
-func Parse(r *http.Request, root *cmds.Command) (cmds.Request, error) {
+// parseRequest parses the data in a http.Request and returns a command Request object
+func parseRequest(ctx context.Context, r *http.Request, root *cmds.Command) (*cmds.Request, error) {
 	if !strings.HasPrefix(r.URL.Path, ApiPath) {
 		return nil, errors.New("Unexpected path prefix")
 	}
@@ -99,11 +103,6 @@ func Parse(r *http.Request, root *cmds.Command) (cmds.Request, error) {
 		}
 	}
 
-	optDefs, err := root.GetOptions(pth)
-	if err != nil {
-		return nil, err
-	}
-
 	// create cmds.File from multipart/form-data contents
 	contentType := r.Header.Get(contentTypeHeader)
 	mediatype, _, _ := mime.ParseMediaType(contentType)
@@ -126,7 +125,7 @@ func Parse(r *http.Request, root *cmds.Command) (cmds.Request, error) {
 		return nil, fmt.Errorf("File argument '%s' is required", requiredFile)
 	}
 
-	req, err := cmds.NewRequest(pth, opts, args, f, cmd, optDefs)
+	req, err := cmds.NewRequest(ctx, pth, opts, args, f, root)
 	if err != nil {
 		return nil, err
 	}
@@ -160,4 +159,64 @@ func parseOptions(r *http.Request) (map[string]interface{}, []string) {
 	}
 
 	return opts, args
+}
+
+// parseResponse decodes a http.Response to create a cmds.Response
+func parseResponse(httpRes *http.Response, req *cmds.Request) (cmds.Response, error) {
+	var err error
+	res := &Response{
+		res: httpRes,
+		req: req,
+		rr:  &responseReader{httpRes},
+	}
+
+	lengthHeader := httpRes.Header.Get(extraContentLengthHeader)
+	if len(lengthHeader) > 0 {
+		length, err := strconv.ParseUint(lengthHeader, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		res.length = length
+	}
+
+	contentType := httpRes.Header.Get(contentTypeHeader)
+	contentType = strings.Split(contentType, ";")[0]
+
+	encType, found := MIMEEncodings[contentType]
+	if found {
+		makeDec, ok := cmds.Decoders[encType]
+		if ok {
+			res.dec = makeDec(res.rr)
+		}
+	}
+
+	// If we ran into an error
+	if httpRes.StatusCode >= http.StatusBadRequest {
+		e := &cmdkit.Error{}
+
+		switch {
+		case httpRes.StatusCode == http.StatusNotFound:
+			// handle 404s
+			e.Message = "Command not found."
+			e.Code = cmdkit.ErrClient
+		case contentType == plainText:
+			// handle non-marshalled errors
+			mes, err := ioutil.ReadAll(res.rr)
+			if err != nil {
+				return nil, err
+			}
+			e.Message = string(mes)
+			e.Code = cmdkit.ErrNormal
+		default:
+			// handle marshalled errors
+			err = res.dec.Decode(&e)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		res.initErr = e
+	}
+
+	return res, nil
 }
