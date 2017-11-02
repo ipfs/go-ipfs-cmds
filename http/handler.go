@@ -22,9 +22,9 @@ var log = logging.Logger("cmds/http")
 
 // the internal handler for the API
 type internalHandler struct {
-	ctx  cmds.Context
 	root *cmds.Command
 	cfg  *ServerConfig
+	env interface{}
 }
 
 // The Handler struct is funny because we want to wrap our internal handler
@@ -74,11 +74,11 @@ type ServerConfig struct {
 	// Headers is an optional map of headers that is written out.
 	Headers map[string][]string
 
-	// cORSOpts is a set of options for CORS headers.
-	cORSOpts *cors.Options
+	// corsOpts is a set of options for CORS headers.
+	corsOpts *cors.Options
 
-	// cORSOptsRWMutex is a RWMutex for read/write CORSOpts
-	cORSOptsRWMutex sync.RWMutex
+	// corsOptsRWMutex is a RWMutex for read/write CORSOpts
+	corsOptsRWMutex sync.RWMutex
 }
 
 func skipAPIHeader(h string) bool {
@@ -94,28 +94,33 @@ func skipAPIHeader(h string) bool {
 	}
 }
 
-func NewHandler(ctx cmds.Context, root *cmds.Command, cfg *ServerConfig) http.Handler {
+func NewHandler(env interface{}, root *cmds.Command, cfg *ServerConfig) http.Handler {
 	if cfg == nil {
 		panic("must provide a valid ServerConfig")
 	}
 
-	// setup request logger
-	ctx.ReqLog = new(cmds.ReqLog)
-
 	// Wrap the internal handler with CORS handling-middleware.
 	// Create a handler for the API.
 	internal := internalHandler{
-		ctx:  ctx,
+		env: env,
 		root: root,
 		cfg:  cfg,
 	}
-	c := cors.New(*cfg.cORSOpts)
+	c := cors.New(*cfg.corsOpts)
 	return &Handler{internal, c.Handler(internal)}
 }
 
 func (i Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Call the CORS handler which wraps the internal handler.
 	i.corsHandler.ServeHTTP(w, r)
+}
+
+type requestAdder interface{
+	AddRequest(*cmds.Request) func()
+}
+
+type contexter interface{
+	Context() context.Context
 }
 
 func (i internalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -128,26 +133,21 @@ func (i internalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			log.Errorf("stack trace:\n%s", debug.Stack())
 		}
 	}()
-
-	// get the node's context to pass into the commands.
-	node, err := i.ctx.GetNode()
-	if err != nil {
-		s := fmt.Sprintf("cmds/http: couldn't GetNode(): %s", err)
-		http.Error(w, s, http.StatusInternalServerError)
-		return
-	}
-
-	ctx, cancel := context.WithCancel(node.Context())
-	defer cancel()
-	if cn, ok := w.(http.CloseNotifier); ok {
-		clientGone := cn.CloseNotify()
-		go func() {
-			select {
-			case <-clientGone:
-			case <-ctx.Done():
-			}
-			cancel()
-		}()
+	
+	var ctx context.Context
+	if ctxer, ok := i.env.(contexter); ok {
+		ctx, cancel := context.WithCancel(ctxer.Context())
+		defer cancel()
+		if cn, ok := w.(http.CloseNotifier); ok {
+			clientGone := cn.CloseNotify()
+			go func() {
+				select {
+				case <-clientGone:
+				case <-ctx.Done():
+				}
+				cancel()
+			}()
+		}
 	}
 
 	if !allowOrigin(r, i.cfg) || !allowReferer(r, i.cfg) {
@@ -157,7 +157,7 @@ func (i internalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, err := Parse(r, i.root)
+	req, err := parseRequest(ctx, r, i.root)
 	if err != nil {
 		if err == ErrNotFound {
 			w.WriteHeader(http.StatusNotFound)
@@ -168,17 +168,13 @@ func (i internalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reqLogEnt := i.ctx.ReqLog.Add(req)
-	defer i.ctx.ReqLog.Finish(reqLogEnt)
-
-	//ps: take note of the name clash - commands.Context != context.Context
-	req.SetInvocContext(i.ctx)
-
-	err = req.SetRootContext(ctx)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	
+	if reqAdder, ok := i.env.(requestAdder); ok {
+		done := reqAdder.AddRequest(req)
+		defer done()
 	}
+
+	req.Context = ctx
 
 	// set user's headers first.
 	for k, v := range i.cfg.Headers {
@@ -190,7 +186,7 @@ func (i internalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	re := NewResponseEmitter(w, r.Method, req)
 
 	// call the command
-	err = i.root.Call(req, re)
+	err = i.root.Call(req, re, i.env)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -207,49 +203,49 @@ func sanitizedErrStr(err error) string {
 
 func NewServerConfig() *ServerConfig {
 	cfg := new(ServerConfig)
-	cfg.cORSOpts = new(cors.Options)
+	cfg.corsOpts = new(cors.Options)
 	return cfg
 }
 
 func (cfg ServerConfig) AllowedOrigins() []string {
-	cfg.cORSOptsRWMutex.RLock()
-	defer cfg.cORSOptsRWMutex.RUnlock()
-	return cfg.cORSOpts.AllowedOrigins
+	cfg.corsOptsRWMutex.RLock()
+	defer cfg.corsOptsRWMutex.RUnlock()
+	return cfg.corsOpts.AllowedOrigins
 }
 
 func (cfg *ServerConfig) SetAllowedOrigins(origins ...string) {
-	cfg.cORSOptsRWMutex.Lock()
-	defer cfg.cORSOptsRWMutex.Unlock()
+	cfg.corsOptsRWMutex.Lock()
+	defer cfg.corsOptsRWMutex.Unlock()
 	o := make([]string, len(origins))
 	copy(o, origins)
-	cfg.cORSOpts.AllowedOrigins = o
+	cfg.corsOpts.AllowedOrigins = o
 }
 
 func (cfg *ServerConfig) AppendAllowedOrigins(origins ...string) {
-	cfg.cORSOptsRWMutex.Lock()
-	defer cfg.cORSOptsRWMutex.Unlock()
-	cfg.cORSOpts.AllowedOrigins = append(cfg.cORSOpts.AllowedOrigins, origins...)
+	cfg.corsOptsRWMutex.Lock()
+	defer cfg.corsOptsRWMutex.Unlock()
+	cfg.corsOpts.AllowedOrigins = append(cfg.corsOpts.AllowedOrigins, origins...)
 }
 
 func (cfg ServerConfig) AllowedMethods() []string {
-	cfg.cORSOptsRWMutex.RLock()
-	defer cfg.cORSOptsRWMutex.RUnlock()
-	return []string(cfg.cORSOpts.AllowedMethods)
+	cfg.corsOptsRWMutex.RLock()
+	defer cfg.corsOptsRWMutex.RUnlock()
+	return []string(cfg.corsOpts.AllowedMethods)
 }
 
 func (cfg *ServerConfig) SetAllowedMethods(methods ...string) {
-	cfg.cORSOptsRWMutex.Lock()
-	defer cfg.cORSOptsRWMutex.Unlock()
-	if cfg.cORSOpts == nil {
-		cfg.cORSOpts = new(cors.Options)
+	cfg.corsOptsRWMutex.Lock()
+	defer cfg.corsOptsRWMutex.Unlock()
+	if cfg.corsOpts == nil {
+		cfg.corsOpts = new(cors.Options)
 	}
-	cfg.cORSOpts.AllowedMethods = methods
+	cfg.corsOpts.AllowedMethods = methods
 }
 
 func (cfg *ServerConfig) SetAllowCredentials(flag bool) {
-	cfg.cORSOptsRWMutex.Lock()
-	defer cfg.cORSOptsRWMutex.Unlock()
-	cfg.cORSOpts.AllowCredentials = flag
+	cfg.corsOptsRWMutex.Lock()
+	defer cfg.corsOptsRWMutex.Unlock()
+	cfg.corsOpts.AllowCredentials = flag
 }
 
 // allowOrigin just stops the request if the origin is not allowed.

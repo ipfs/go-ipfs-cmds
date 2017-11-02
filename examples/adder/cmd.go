@@ -29,10 +29,10 @@ var RootCmd = &cmds.Command{
 			Arguments: []cmdkit.Argument{
 				cmdkit.StringArg("summands", true, true, "values that are supposed to be summed"),
 			},
-			Run: func(req cmds.Request, re cmds.ResponseEmitter) {
+			Run: func(req *cmds.Request, re cmds.ResponseEmitter, env interface{}) {
 				sum := 0
 
-				for i, str := range req.Arguments() {
+				for i, str := range req.Arguments {
 					num, err := strconv.Atoi(str)
 					if err != nil {
 						re.SetError(err, cmdkit.ErrNormal)
@@ -40,7 +40,7 @@ var RootCmd = &cmds.Command{
 					}
 
 					sum += num
-					re.Emit(fmt.Sprintf("intermediate result: %d; %d left", sum, len(req.Arguments())-i-1))
+					re.Emit(fmt.Sprintf("intermediate result: %d; %d left", sum, len(req.Arguments)-i-1))
 				}
 
 				re.Emit(fmt.Sprintf("total: %d", sum))
@@ -51,10 +51,10 @@ var RootCmd = &cmds.Command{
 			Arguments: []cmdkit.Argument{
 				cmdkit.StringArg("summands", true, true, "values that are supposed to be summed"),
 			},
-			Run: func(req cmds.Request, re cmds.ResponseEmitter) {
+			Run: func(req *cmds.Request, re cmds.ResponseEmitter, env interface{}) {
 				sum := 0
 
-				for i, str := range req.Arguments() {
+				for i, str := range req.Arguments {
 					num, err := strconv.Atoi(str)
 					if err != nil {
 						re.SetError(err, cmdkit.ErrNormal)
@@ -64,7 +64,7 @@ var RootCmd = &cmds.Command{
 					sum += num
 					re.Emit(&AddStatus{
 						Current: sum,
-						Left:    len(req.Arguments()) - i - 1,
+						Left:    len(req.Arguments) - i - 1,
 					})
 					time.Sleep(200 * time.Millisecond)
 				}
@@ -72,7 +72,7 @@ var RootCmd = &cmds.Command{
 			Type: &AddStatus{},
 			Encoders: cmds.EncoderMap{
 				// This defines how to encode these values as text. Other possible encodings are XML and JSON.
-				cmds.Text: cmds.MakeEncoder(func(req cmds.Request, w io.Writer, v interface{}) error {
+				cmds.Text: cmds.MakeEncoder(func(req *cmds.Request, w io.Writer, v interface{}) error {
 					s, ok := v.(*AddStatus)
 					if !ok {
 						return fmt.Errorf("cast error, got type %T", v)
@@ -94,10 +94,10 @@ var RootCmd = &cmds.Command{
 				cmdkit.StringArg("summands", true, true, "values that are supposed to be summed"),
 			},
 			// this is the same as for encoderAdd
-			Run: func(req cmds.Request, re cmds.ResponseEmitter) {
+			Run: func(req *cmds.Request, re cmds.ResponseEmitter, env interface{}) {
 				sum := 0
 
-				for i, str := range req.Arguments() {
+				for i, str := range req.Arguments {
 					num, err := strconv.Atoi(str)
 					if err != nil {
 						re.SetError(err, cmdkit.ErrNormal)
@@ -107,14 +107,14 @@ var RootCmd = &cmds.Command{
 					sum += num
 					re.Emit(&AddStatus{
 						Current: sum,
-						Left:    len(req.Arguments()) - i - 1,
+						Left:    len(req.Arguments) - i - 1,
 					})
 					time.Sleep(200 * time.Millisecond)
 				}
 			},
 			Type: &AddStatus{},
 			PostRun: cmds.PostRunMap{
-				cmds.CLI: func(req cmds.Request, re cmds.ResponseEmitter) cmds.ResponseEmitter {
+				cmds.CLI: func(req *cmds.Request, re cmds.ResponseEmitter) cmds.ResponseEmitter {
 					reNext, res := cmds.NewChanResponsePair(req)
 
 					go func() {
@@ -159,10 +159,10 @@ var RootCmd = &cmds.Command{
 				cmdkit.StringArg("summands", true, true, "values that are supposed to be summed"),
 			},
 			// this is the same as for encoderAdd
-			Run: func(req cmds.Request, re cmds.ResponseEmitter) {
+			Run: func(req *cmds.Request, re cmds.ResponseEmitter, env interface{}) {
 				sum := 0
 
-				for i, str := range req.Arguments() {
+				for i, str := range req.Arguments {
 					num, err := strconv.Atoi(str)
 					if err != nil {
 						re.SetError(err, cmdkit.ErrNormal)
@@ -172,14 +172,14 @@ var RootCmd = &cmds.Command{
 					sum += num
 					re.Emit(&AddStatus{
 						Current: sum,
-						Left:    len(req.Arguments()) - i - 1,
+						Left:    len(req.Arguments) - i - 1,
 					})
 					time.Sleep(200 * time.Millisecond)
 				}
 			},
 			Type: &AddStatus{},
 			PostRun: cmds.PostRunMap{
-				cmds.CLI: func(req cmds.Request, re cmds.ResponseEmitter) cmds.ResponseEmitter {
+				cmds.CLI: func(req *cmds.Request, re cmds.ResponseEmitter) cmds.ResponseEmitter {
 					reNext, res := cmds.NewChanResponsePair(req)
 					clire := re.(cli.ResponseEmitter)
 

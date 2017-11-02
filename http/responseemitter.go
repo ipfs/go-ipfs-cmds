@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strconv"
 	"sync"
 
@@ -19,7 +18,7 @@ var (
 )
 
 // NewResponeEmitter returns a new ResponseEmitter.
-func NewResponseEmitter(w http.ResponseWriter, method string, req cmds.Request) ResponseEmitter {
+func NewResponseEmitter(w http.ResponseWriter, method string, req *cmds.Request) ResponseEmitter {
 	encType := cmds.GetEncoding(req)
 
 	var enc cmds.Encoder
@@ -48,7 +47,7 @@ type responseEmitter struct {
 
 	enc     cmds.Encoder
 	encType cmds.EncodingType
-	req     cmds.Request
+	req     *cmds.Request
 
 	length uint64
 	err    *cmdkit.Error

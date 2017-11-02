@@ -1,10 +1,10 @@
 package cli
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -136,9 +136,6 @@ func TestOptionParsing(t *testing.T) {
 }
 
 func TestArgumentParsing(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("stdin handling doesnt yet work on windows")
-	}
 	rootCmd := &cmds.Command{
 		Subcommands: map[string]*cmds.Command{
 			"noarg": {},
@@ -173,28 +170,6 @@ func TestArgumentParsing(t *testing.T) {
 				Arguments: []cmdkit.Argument{
 					cmdkit.StringArg("a", false, false, "some arg"),
 					cmdkit.StringArg("b", true, false, "another arg"),
-				},
-			},
-			"stdinenabled": {
-				Arguments: []cmdkit.Argument{
-					cmdkit.StringArg("a", true, true, "some arg").EnableStdin(),
-				},
-			},
-			"stdinenabled2args": &cmds.Command{
-				Arguments: []cmdkit.Argument{
-					cmdkit.StringArg("a", true, false, "some arg"),
-					cmdkit.StringArg("b", true, true, "another arg").EnableStdin(),
-				},
-			},
-			"stdinenablednotvariadic": &cmds.Command{
-				Arguments: []cmdkit.Argument{
-					cmdkit.StringArg("a", true, false, "some arg").EnableStdin(),
-				},
-			},
-			"stdinenablednotvariadic2args": &cmds.Command{
-				Arguments: []cmdkit.Argument{
-					cmdkit.StringArg("a", true, false, "some arg"),
-					cmdkit.StringArg("b", true, false, "another arg").EnableStdin(),
 				},
 			},
 		},
@@ -251,6 +226,56 @@ func TestArgumentParsing(t *testing.T) {
 	testFail([]string{"reversedoptional"}, nil, "didn't provide any args, 1 required")
 	testFail([]string{"reversedoptional", "value1", "value2", "value3"}, nil, "provided too many args, only takes 1")
 
+
+}
+
+func errEq(err1, err2 error) bool {
+	if err1 == nil && err2 == nil {
+		return true
+	}
+	
+	if err1 == nil || err2 == nil{
+		return false
+	}
+	
+	return err1.Error() == err2.Error()
+}
+
+func TestBodyArgs(t *testing.T) {
+	rootCmd := &cmds.Command{
+		Subcommands: map[string]*cmds.Command{
+			"noarg": {},
+			"stdinenabled": {
+				Arguments: []cmdkit.Argument{
+					cmdkit.StringArg("a", true, true, "some arg").EnableStdin(),
+				},
+			},
+			"stdinenabled2args": &cmds.Command{
+				Arguments: []cmdkit.Argument{
+					cmdkit.StringArg("a", true, false, "some arg"),
+					cmdkit.StringArg("b", true, true, "another arg").EnableStdin(),
+				},
+			},
+			"stdinenablednotvariadic": &cmds.Command{
+				Arguments: []cmdkit.Argument{
+					cmdkit.StringArg("a", true, false, "some arg").EnableStdin(),
+				},
+			},
+			"stdinenablednotvariadic2args": &cmds.Command{
+				Arguments: []cmdkit.Argument{
+					cmdkit.StringArg("a", true, false, "some arg"),
+					cmdkit.StringArg("b", true, false, "another arg").EnableStdin(),
+				},
+			},
+			"optionalsecond": {
+				Arguments: []cmdkit.Argument{
+					cmdkit.StringArg("a", true, false, "some arg"),
+					cmdkit.StringArg("b", false, false, "another arg"),
+				},
+			},
+		},
+	}
+
 	// Use a temp file to simulate stdin
 	fileToSimulateStdin := func(t *testing.T, content string) *os.File {
 		fstdin, err := ioutil.TempFile("", "")
@@ -265,45 +290,160 @@ func TestArgumentParsing(t *testing.T) {
 		return fstdin
 	}
 
-	test([]string{"stdinenabled", "value1", "value2"}, nil, []string{"value1", "value2"})
+	fstdin1 := fileToSimulateStdin(t, "stdin1")
+	fstdin12 := fileToSimulateStdin(t, "stdin1\nstdin2")
+	fstdin123 := fileToSimulateStdin(t, "stdin1\nstdin2\nstdin3")
 
-	fstdin := fileToSimulateStdin(t, "stdin1")
-	test([]string{"stdinenabled"}, fstdin, []string{"stdin1"})
-	test([]string{"stdinenabled", "value1"}, fstdin, []string{"value1"})
-	test([]string{"stdinenabled", "value1", "value2"}, fstdin, []string{"value1", "value2"})
+	var tcs = []struct{
+		cmd words
+		 f *os.File
+		 posArgs, varArgs words
+		 parseErr, bodyArgsErr error
+	}{
+		{
+			cmd: words{"stdinenabled", "value1", "value2"}, f: nil,
+			posArgs: words{"value1", "value2"}, varArgs: nil,
+			parseErr: nil, bodyArgsErr: fmt.Errorf("all arguments covered by positional arguments"),
+		},
+		{
+			cmd: words{"stdinenabled"}, f: fstdin1,
+			posArgs: words{}, varArgs: words{"stdin1"},
+			parseErr: nil, bodyArgsErr: nil,
+		},
+		{
+			cmd: words{"stdinenabled", "value1"}, f: fstdin1,
+			posArgs: words{"value1"}, varArgs: words{},
+			parseErr: nil, bodyArgsErr: fmt.Errorf("all arguments covered by positional arguments"),
+		},
+		{
+			cmd: words{"stdinenabled", "value1", "value2"}, f: fstdin1,
+			posArgs: words{"value1", "value2"}, varArgs: words{},
+			parseErr: nil, bodyArgsErr: fmt.Errorf("all arguments covered by positional arguments"),
+		},
+		{
+			cmd: words{"stdinenabled"}, f: fstdin12,
+			posArgs: words{}, varArgs: words{"stdin1", "stdin2"},
+			parseErr: nil, bodyArgsErr: nil,
+		},
+		{
+			cmd: words{"stdinenabled"}, f: fstdin123,
+			posArgs: words{}, varArgs: words{"stdin1", "stdin2", "stdin3"},
+			parseErr: nil, bodyArgsErr: nil,
+		},
+		{
+			cmd: words{"stdinenabled2args", "value1", "value2"}, f: nil,
+			posArgs: words{"value1", "value2"}, varArgs: words{},
+			parseErr: nil, bodyArgsErr: fmt.Errorf("all arguments covered by positional arguments"),
+		},
+		{
+			cmd: words{"stdinenabled2args", "value1"}, f: fstdin1,
+			posArgs: words{"value1"}, varArgs: words{"stdin1"},
+			parseErr: nil, bodyArgsErr: nil,
+		},
+		{
+			cmd: words{"stdinenabled2args", "value1", "value2"}, f: fstdin1,
+			posArgs: words{"value1", "value2"}, varArgs: words{},
+			parseErr: nil, bodyArgsErr: fmt.Errorf("all arguments covered by positional arguments"),
+		},
+		{
+			cmd: words{"stdinenabled2args", "value1", "value2", "value3"}, f: fstdin1,
+			posArgs: words{"value1", "value2", "value3"}, varArgs: words{},
+			parseErr: nil, bodyArgsErr: fmt.Errorf("all arguments covered by positional arguments"),
+		},
+		{
+			cmd: words{"stdinenabled2args", "value1"}, f: fstdin12,
+			posArgs: words{"value1"}, varArgs: words{"stdin1", "stdin2"},
+			parseErr: nil, bodyArgsErr: nil,
+		},
+		{
+			cmd: words{"stdinenablednotvariadic", "value1"}, f: nil,
+			posArgs: words{"value1"}, varArgs: words{},
+			parseErr: nil, bodyArgsErr: fmt.Errorf("all arguments covered by positional arguments"),
+		},
+		{
+			cmd: words{"stdinenablednotvariadic"}, f: fstdin1,
+			posArgs: words{}, varArgs: words{"stdin1"},
+			parseErr: nil,  bodyArgsErr:nil,
+		},
+		{
+			cmd: words{"stdinenablednotvariadic", "value1"}, f: fstdin1,
+			posArgs: words{"value1"}, varArgs: words{"value1"},
+			parseErr: nil, bodyArgsErr: fmt.Errorf("all arguments covered by positional arguments"),
+		},
+		{
+			cmd: words{"stdinenablednotvariadic2args", "value1", "value2"}, f: nil,
+			posArgs: words{"value1", "value2"}, varArgs: words{},
+			parseErr: nil, bodyArgsErr: fmt.Errorf("all arguments covered by positional arguments"),
+		},
+		{
+			cmd: words{"stdinenablednotvariadic2args", "value1"}, f: fstdin1,
+			posArgs: words{"value1"}, varArgs: words{"stdin1"},
+			parseErr: nil,  bodyArgsErr:nil,
+		},
+		{
+			cmd: words{"stdinenablednotvariadic2args", "value1", "value2"}, f: fstdin1,
+			posArgs: words{"value1", "value2"}, varArgs: words{},
+			parseErr: nil, bodyArgsErr: fmt.Errorf("all arguments covered by positional arguments"),
+		},
+		{
+			cmd: words{"stdinenablednotvariadic2args"}, f: fstdin1,
+			posArgs: words{}, varArgs: words{},
+			parseErr: fmt.Errorf(`argument %q is required`, "a"), bodyArgsErr: nil,
+		},
+		{
+			cmd: words{"stdinenablednotvariadic2args", "value1"}, f: nil,
+			posArgs: words{"value1"}, varArgs: words{},
+			parseErr: fmt.Errorf(`argument %q is required`, "b"), bodyArgsErr: nil,
+		},
+		{
+			cmd: words{"noarg"}, f: fstdin1,
+			posArgs: words{}, varArgs: words{},
+			parseErr: nil, bodyArgsErr: fmt.Errorf("all arguments covered by positional arguments"),
+		},
+		{
+			cmd: words{"optionalsecond", "value1", "value2"}, f: fstdin1,
+			posArgs: words{"value1", "value2"}, varArgs: words{},
+			parseErr: nil, bodyArgsErr: fmt.Errorf("all arguments covered by positional arguments"),
+		},
+	}
 
-	fstdin = fileToSimulateStdin(t, "stdin1\nstdin2")
-	test([]string{"stdinenabled"}, fstdin, []string{"stdin1", "stdin2"})
+	for _, tc := range tcs {
+		if tc.f != nil {
+			if _, err := tc.f.Seek(0, os.SEEK_SET); err != nil {
+				t.Fatal(err)
+			}
+		}
 
-	fstdin = fileToSimulateStdin(t, "stdin1\nstdin2\nstdin3")
-	test([]string{"stdinenabled"}, fstdin, []string{"stdin1", "stdin2", "stdin3"})
+		req, err := Parse(tc.cmd, tc.f, rootCmd)
+		if !errEq(err, tc.parseErr) {
+			t.Fatalf("parsing request for cmd %q: expected error %q, got %q", tc.cmd, tc.parseErr, err)
+		}
+		if err != nil {
+			continue
+		}
+		
+		if !sameWords(req.Arguments, tc.posArgs) {
+			t.Errorf("Arguments parsed from %v are %v instead of %v", tc.cmd, req.Arguments, tc.posArgs)
+		}
 
-	test([]string{"stdinenabled2args", "value1", "value2"}, nil, []string{"value1", "value2"})
-
-	fstdin = fileToSimulateStdin(t, "stdin1")
-	test([]string{"stdinenabled2args", "value1"}, fstdin, []string{"value1", "stdin1"})
-	test([]string{"stdinenabled2args", "value1", "value2"}, fstdin, []string{"value1", "value2"})
-	test([]string{"stdinenabled2args", "value1", "value2", "value3"}, fstdin, []string{"value1", "value2", "value3"})
-
-	fstdin = fileToSimulateStdin(t, "stdin1\nstdin2")
-	test([]string{"stdinenabled2args", "value1"}, fstdin, []string{"value1", "stdin1", "stdin2"})
-
-	test([]string{"stdinenablednotvariadic", "value1"}, nil, []string{"value1"})
-
-	fstdin = fileToSimulateStdin(t, "stdin1")
-	test([]string{"stdinenablednotvariadic"}, fstdin, []string{"stdin1"})
-	test([]string{"stdinenablednotvariadic", "value1"}, fstdin, []string{"value1"})
-
-	test([]string{"stdinenablednotvariadic2args", "value1", "value2"}, nil, []string{"value1", "value2"})
-
-	fstdin = fileToSimulateStdin(t, "stdin1")
-	test([]string{"stdinenablednotvariadic2args", "value1"}, fstdin, []string{"value1", "stdin1"})
-	test([]string{"stdinenablednotvariadic2args", "value1", "value2"}, fstdin, []string{"value1", "value2"})
-	testFail([]string{"stdinenablednotvariadic2args"}, fstdin, "cant use stdin for non stdin arg")
-
-	fstdin = fileToSimulateStdin(t, "stdin1")
-	test([]string{"noarg"}, fstdin, []string{})
-
-	fstdin = fileToSimulateStdin(t, "stdin1")
-	test([]string{"optionalsecond", "value1", "value2"}, fstdin, []string{"value1", "value2"})
-}
+		s, err := req.BodyArgs()
+		if !errEq(err, tc.bodyArgsErr) {
+			t.Fatalf("calling BodyArgs() for cmd %q: expected error %q, got %q", tc.cmd, tc.bodyArgsErr, err)
+		}
+		if err != nil {
+			continue
+		}
+		
+		if s == nil {
+			t.Fatal("scanner is nil, abort")
+		}
+		
+		var bodyArgs words
+		for s.Scan() {
+			bodyArgs = append(bodyArgs, s.Text())
+		}
+		
+		if !sameWords(bodyArgs, tc.varArgs) {
+			t.Errorf("BodyArgs parsed from %v are %v instead of %v", tc.cmd, bodyArgs, tc.varArgs)
+		}
+	}}
