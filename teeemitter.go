@@ -1,7 +1,7 @@
 package cmds
 
 import (
-	"github.com/ipfs/go-ipfs-cmdkit"
+	"gx/ipfs/QmbhbBpwubAKvZUMrAQDVQznoJX9Y7NSwJZEmNZYhLgvdL/go-ipfs-cmdkit"
 )
 
 // NewTeeEmitter creates a new ResponseEmitter.

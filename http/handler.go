@@ -11,11 +11,11 @@ import (
 
 	context "context"
 	"github.com/ipfs/go-ipfs/repo/config"
-	cors "github.com/rs/cors"
+	cors "gx/ipfs/QmPG2kW5t27LuHgHnvhUwbHCNHAt2eUcb4gPHqofrESUdB/cors"
 
 	cmds "github.com/ipfs/go-ipfs-cmds"
 
-	logging "github.com/ipfs/go-log"
+	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
 )
 
 var log = logging.Logger("cmds/http")
@@ -24,7 +24,7 @@ var log = logging.Logger("cmds/http")
 type internalHandler struct {
 	root *cmds.Command
 	cfg  *ServerConfig
-	env interface{}
+	env  interface{}
 }
 
 // The Handler struct is funny because we want to wrap our internal handler
@@ -102,7 +102,7 @@ func NewHandler(env interface{}, root *cmds.Command, cfg *ServerConfig) http.Han
 	// Wrap the internal handler with CORS handling-middleware.
 	// Create a handler for the API.
 	internal := internalHandler{
-		env: env,
+		env:  env,
 		root: root,
 		cfg:  cfg,
 	}
@@ -115,11 +115,11 @@ func (i Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	i.corsHandler.ServeHTTP(w, r)
 }
 
-type requestAdder interface{
+type requestAdder interface {
 	AddRequest(*cmds.Request) func()
 }
 
-type contexter interface{
+type contexter interface {
 	Context() context.Context
 }
 
@@ -133,7 +133,7 @@ func (i internalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			log.Errorf("stack trace:\n%s", debug.Stack())
 		}
 	}()
-	
+
 	var ctx context.Context
 	if ctxer, ok := i.env.(contexter); ok {
 		ctx, cancel := context.WithCancel(ctxer.Context())
@@ -168,7 +168,6 @@ func (i internalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	
 	if reqAdder, ok := i.env.(requestAdder); ok {
 		done := reqAdder.AddRequest(req)
 		defer done()

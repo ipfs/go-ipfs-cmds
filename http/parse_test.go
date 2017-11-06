@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	cmds "github.com/ipfs/go-ipfs-cmds"
-	cmdkit "github.com/ipfs/go-ipfs-cmdkit"
+	cmdkit "gx/ipfs/QmbhbBpwubAKvZUMrAQDVQznoJX9Y7NSwJZEmNZYhLgvdL/go-ipfs-cmdkit"
 )
 
 type parseReqTestCase struct {
@@ -18,7 +18,7 @@ type parseReqTestCase struct {
 	body io.Reader
 
 	cmdsReq *cmds.Request
-	err error
+	err     error
 }
 
 func (tc parseReqTestCase) test(t *testing.T) {
@@ -29,9 +29,9 @@ func (tc parseReqTestCase) test(t *testing.T) {
 			vs.Add(k, opt)
 		}
 	}
-	
+
 	// we're just parsing the request, so the host part of the url doens't really matter
-	httpReq, err := http.NewRequest("GET", "http://127.0.0.1:5001" + tc.path, tc.body)
+	httpReq, err := http.NewRequest("GET", "http://127.0.0.1:5001"+tc.path, tc.body)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,15 +49,15 @@ func (tc parseReqTestCase) test(t *testing.T) {
 		t.Errorf("expected req.Command to be %v, but got %v", tc.cmdsReq.Command, req.Command)
 	}
 
-	 if !reflect.DeepEqual(req.Path, tc.cmdsReq.Path) {
+	if !reflect.DeepEqual(req.Path, tc.cmdsReq.Path) {
 		t.Errorf("expected req.Path to be %v, but got %v", tc.cmdsReq.Path, req.Path)
 	}
 
-	 if !reflect.DeepEqual(req.Arguments, tc.cmdsReq.Arguments) {
+	if !reflect.DeepEqual(req.Arguments, tc.cmdsReq.Arguments) {
 		t.Errorf("expected req.Arguments to be %v, but got %v", tc.cmdsReq.Arguments, req.Arguments)
 	}
 
-	 if !reflect.DeepEqual(req.Options, tc.cmdsReq.Options) {
+	if !reflect.DeepEqual(req.Options, tc.cmdsReq.Options) {
 		t.Errorf("expected req.Options to be %v, but got %v", tc.cmdsReq.Options, req.Options)
 	}
 }
@@ -70,17 +70,17 @@ func TestParseRequest(t *testing.T) {
 				"all": []string{"true"},
 			},
 			cmdsReq: &cmds.Request{
-				Command: cmdRoot.Subcommands["version"],
-				Path: []string{"version"},
+				Command:   cmdRoot.Subcommands["version"],
+				Path:      []string{"version"},
 				Arguments: []string{},
 				Options: cmdkit.OptMap{
-					"all": true,
+					"all":           true,
 					cmdkit.EncShort: cmds.JSON,
 				},
 			},
 		},
 	}
-	
+
 	for _, tc := range tcs {
 		tc.test(t)
 	}
@@ -89,17 +89,17 @@ func TestParseRequest(t *testing.T) {
 type parseRespTestCase struct {
 	status int
 	header http.Header
-	body io.ReadCloser
+	body   io.ReadCloser
 
 	values []interface{}
-	err error
+	err    error
 }
 
 func (tc parseRespTestCase) test(t *testing.T) {
 	httpResp := &http.Response{
 		StatusCode: tc.status,
-		Header: tc.header,
-		Body: tc.body,
+		Header:     tc.header,
+		Body:       tc.body,
 	}
 
 	resp, err := parseResponse(httpResp, &cmds.Request{Command: cmdRoot.Subcommands["version"]})
@@ -109,7 +109,7 @@ func (tc parseRespTestCase) test(t *testing.T) {
 	if err != nil {
 		return
 	}
-	
+
 	t.Log(resp.(*Response).dec)
 
 	for _, v := range tc.values {
@@ -121,7 +121,7 @@ func (tc parseRespTestCase) test(t *testing.T) {
 			t.Fatalf("expected %v(%T) but got %v(%T)", v, v, val, val)
 		}
 	}
-	
+
 	_, err = resp.RawNext()
 	if err != io.EOF {
 		t.Fatalf("expected EOF but got %v", err)
@@ -132,7 +132,7 @@ type fakeCloser struct {
 	io.Reader
 }
 
-func (c fakeCloser) Close() error {return nil}
+func (c fakeCloser) Close() error { return nil }
 
 func mkbuf(str string) io.ReadCloser {
 	buf := bytes.NewBuffer(nil)
@@ -146,21 +146,20 @@ func TestParseResponse(t *testing.T) {
 			status: 200,
 			header: http.Header{
 				contentTypeHeader: []string{"application/json"},
-				channelHeader: []string{"1"},
+				channelHeader:     []string{"1"},
 			},
 			body: mkbuf(`{"Version":"0.1.2", "Commit":"c0mm17", "Repo":"4"}`),
 			values: []interface{}{
 				&VersionOutput{
 					Version: "0.1.2",
-					Commit: "c0mm17",
-					Repo: "4",
+					Commit:  "c0mm17",
+					Repo:    "4",
 				},
 			},
 		},
 	}
-	
+
 	for _, tc := range tcs {
 		tc.test(t)
 	}
 }
-

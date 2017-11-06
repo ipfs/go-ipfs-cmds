@@ -4,11 +4,10 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"os"
 	"reflect"
 
-	"github.com/ipfs/go-ipfs-cmdkit"
-	"github.com/ipfs/go-ipfs-cmdkit/files"
+	"gx/ipfs/QmbhbBpwubAKvZUMrAQDVQznoJX9Y7NSwJZEmNZYhLgvdL/go-ipfs-cmdkit"
+	"gx/ipfs/QmbhbBpwubAKvZUMrAQDVQznoJX9Y7NSwJZEmNZYhLgvdL/go-ipfs-cmdkit/files"
 )
 
 // Request represents a call to a command from a consumer
@@ -20,7 +19,6 @@ type Request struct {
 	Arguments []string
 	Options   cmdkit.OptMap
 
-	Body *os.File
 	Files files.File
 }
 
@@ -43,7 +41,6 @@ func NewRequest(ctx context.Context, path []string, opts cmdkit.OptMap, args []s
 		Files:     file,
 		Command:   cmd,
 		Context:   ctx,
-		Body:      os.Stdin,
 	}
 
 	return req, req.convertOptions(root)
@@ -89,7 +86,7 @@ func (req *Request) convertOptions(root *Command) error {
 						value = "empty value"
 					}
 					return fmt.Errorf("Could not convert %q to type %q (for option %q)",
-						value, opt.Type().String(), "-" + k)
+						value, opt.Type().String(), "-"+k)
 				}
 				req.Options[k] = val
 

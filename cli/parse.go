@@ -11,11 +11,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ipfs/go-ipfs-cmdkit"
-	"github.com/ipfs/go-ipfs-cmdkit/files"
 	"github.com/ipfs/go-ipfs-cmds"
+	"gx/ipfs/QmbhbBpwubAKvZUMrAQDVQznoJX9Y7NSwJZEmNZYhLgvdL/go-ipfs-cmdkit"
+	"gx/ipfs/QmbhbBpwubAKvZUMrAQDVQznoJX9Y7NSwJZEmNZYhLgvdL/go-ipfs-cmdkit/files"
 
-	logging "github.com/ipfs/go-log"
+	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
 )
 
 var log = logging.Logger("cmds/cli")
@@ -181,7 +181,6 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 		numInputs += 1
 	}
 
-
 	// if we have more arg values provided than argument definitions,
 	// and the last arg definition is not variadic (or there are no definitions), return an error
 	notVariadic := len(argDefs) == 0 || !argDefs[len(argDefs)-1].Variadic
@@ -200,7 +199,7 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 
 	for iInput := 0; iInput < numInputs; iInput++ {
 		// remaining number of passed arguments
-		remInputs := numInputs-iInput
+		remInputs := numInputs - iInput
 
 		argDef := getArgDef(iArgDef, argDefs)
 
@@ -262,7 +261,7 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 
 		iArgDef++
 	}
-	
+
 	if iArgDef == len(argDefs)-1 && stdin != nil &&
 		req.Command.Arguments[iArgDef].SupportsStdin {
 		// handle this one at runtime, pretend it's there

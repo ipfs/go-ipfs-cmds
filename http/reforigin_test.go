@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"net/url"
 	"testing"
-	
+
 	cmds "github.com/ipfs/go-ipfs-cmds"
-	cmdkit "github.com/ipfs/go-ipfs-cmdkit"
+	cmdkit "gx/ipfs/QmbhbBpwubAKvZUMrAQDVQznoJX9Y7NSwJZEmNZYhLgvdL/go-ipfs-cmdkit"
 )
 
 func assertHeaders(t *testing.T, resHeaders http.Header, reqHeaders map[string]string) {
@@ -325,18 +325,18 @@ func TestAllowedMethod(t *testing.T) {
 	}
 }
 
-func TestEncoding (t *testing.T) {
+func TestEncoding(t *testing.T) {
 	gtc := func(enc, contentType string) httpTestCase {
 		code := http.StatusOK
 		hdrs := map[string]string{
-			contentTypeHeader:        contentType,
+			contentTypeHeader: contentType,
 		}
-		
+
 		path := fmt.Sprintf("/api/v0/version?%v=%v", cmdkit.EncShort, enc)
-		
+
 		return httpTestCase{
 			Method:       "GET",
-			Path:	path,
+			Path:         path,
 			Origin:       "http://localhost",
 			AllowOrigins: []string{"*"},
 			ReqHeaders: map[string]string{

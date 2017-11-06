@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-cmds"
+	"gx/ipfs/QmbhbBpwubAKvZUMrAQDVQznoJX9Y7NSwJZEmNZYhLgvdL/go-ipfs-cmdkit"
 )
 
 type kvs map[string]interface{}
@@ -226,18 +226,17 @@ func TestArgumentParsing(t *testing.T) {
 	testFail([]string{"reversedoptional"}, nil, "didn't provide any args, 1 required")
 	testFail([]string{"reversedoptional", "value1", "value2", "value3"}, nil, "provided too many args, only takes 1")
 
-
 }
 
 func errEq(err1, err2 error) bool {
 	if err1 == nil && err2 == nil {
 		return true
 	}
-	
-	if err1 == nil || err2 == nil{
+
+	if err1 == nil || err2 == nil {
 		return false
 	}
-	
+
 	return err1.Error() == err2.Error()
 }
 
@@ -294,11 +293,11 @@ func TestBodyArgs(t *testing.T) {
 	fstdin12 := fileToSimulateStdin(t, "stdin1\nstdin2")
 	fstdin123 := fileToSimulateStdin(t, "stdin1\nstdin2\nstdin3")
 
-	var tcs = []struct{
-		cmd words
-		 f *os.File
-		 posArgs, varArgs words
-		 parseErr, bodyArgsErr error
+	var tcs = []struct {
+		cmd                   words
+		f                     *os.File
+		posArgs, varArgs      words
+		parseErr, bodyArgsErr error
 	}{
 		{
 			cmd: words{"stdinenabled", "value1", "value2"}, f: nil,
@@ -363,7 +362,7 @@ func TestBodyArgs(t *testing.T) {
 		{
 			cmd: words{"stdinenablednotvariadic"}, f: fstdin1,
 			posArgs: words{}, varArgs: words{"stdin1"},
-			parseErr: nil,  bodyArgsErr:nil,
+			parseErr: nil, bodyArgsErr: nil,
 		},
 		{
 			cmd: words{"stdinenablednotvariadic", "value1"}, f: fstdin1,
@@ -378,7 +377,7 @@ func TestBodyArgs(t *testing.T) {
 		{
 			cmd: words{"stdinenablednotvariadic2args", "value1"}, f: fstdin1,
 			posArgs: words{"value1"}, varArgs: words{"stdin1"},
-			parseErr: nil,  bodyArgsErr:nil,
+			parseErr: nil, bodyArgsErr: nil,
 		},
 		{
 			cmd: words{"stdinenablednotvariadic2args", "value1", "value2"}, f: fstdin1,
@@ -421,7 +420,7 @@ func TestBodyArgs(t *testing.T) {
 		if err != nil {
 			continue
 		}
-		
+
 		if !sameWords(req.Arguments, tc.posArgs) {
 			t.Errorf("Arguments parsed from %v are %v instead of %v", tc.cmd, req.Arguments, tc.posArgs)
 		}
@@ -433,17 +432,18 @@ func TestBodyArgs(t *testing.T) {
 		if err != nil {
 			continue
 		}
-		
+
 		if s == nil {
 			t.Fatal("scanner is nil, abort")
 		}
-		
+
 		var bodyArgs words
 		for s.Scan() {
 			bodyArgs = append(bodyArgs, s.Text())
 		}
-		
+
 		if !sameWords(bodyArgs, tc.varArgs) {
 			t.Errorf("BodyArgs parsed from %v are %v instead of %v", tc.cmd, bodyArgs, tc.varArgs)
 		}
-	}}
+	}
+}

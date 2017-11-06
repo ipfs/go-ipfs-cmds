@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	cmds "github.com/ipfs/go-ipfs-cmds"
-	cmdkit "github.com/ipfs/go-ipfs-cmdkit"
+	cmdkit "gx/ipfs/QmbhbBpwubAKvZUMrAQDVQznoJX9Y7NSwJZEmNZYhLgvdL/go-ipfs-cmdkit"
 )
 
 type VersionOutput struct {
@@ -18,7 +18,6 @@ type VersionOutput struct {
 	System  string
 	Golang  string
 }
-
 
 type testEnv struct {
 	version, commit, repoVersion string
@@ -38,6 +37,7 @@ func getRepoVersion(env interface{}) (string, bool) {
 	tEnv, ok := env.(testEnv)
 	return tEnv.repoVersion, ok
 }
+
 var (
 	cmdRoot = &cmds.Command{
 		Subcommands: map[string]*cmds.Command{
@@ -58,17 +58,17 @@ var (
 					if !ok {
 						re.SetError("couldn't get version", cmdkit.ErrNormal)
 					}
-					
+
 					repoVersion, ok := getRepoVersion(env)
 					if !ok {
 						re.SetError("couldn't get repo version", cmdkit.ErrNormal)
 					}
-					
+
 					commit, ok := getCommit(env)
 					if !ok {
 						re.SetError("couldn't get commit info", cmdkit.ErrNormal)
 					}
-					
+
 					re.Emit(&VersionOutput{
 						Version: version,
 						Commit:  commit,
@@ -80,22 +80,22 @@ var (
 				Encoders: cmds.EncoderMap{
 					cmds.Text: cmds.MakeEncoder(func(req *cmds.Request, w io.Writer, value interface{}) error {
 						v := value.(*VersionOutput)
-						
+
 						if repo, ok := req.Options["repo"].(bool); ok && repo {
 							_, err := fmt.Fprintf(w, "%v\n", v.Repo)
 							return err
 						}
-						
+
 						var commitTxt string
 						if commit, ok := req.Options["commit"].(bool); ok && commit {
 							commitTxt = "-" + v.Commit
 						}
-						
+
 						if number, ok := req.Options["number"].(bool); ok && number {
 							_, err := fmt.Fprintf(w, "%v%v\n", v.Version, commitTxt)
 							return err
 						}
-						
+
 						if all, ok := req.Options["all"].(bool); ok && all {
 							_, err := fmt.Fprintf(w, "go-ipfs version: %s-%s\n"+
 								"Repo version: %s\nSystem version: %s\nGolang version: %s\n",
@@ -103,7 +103,7 @@ var (
 
 							return err
 						}
-						
+
 						_, err := fmt.Fprintf(w, "ipfs version %s%s\n", v.Version, commitTxt)
 						return err
 					}),
@@ -117,10 +117,10 @@ func getTestServer(t *testing.T, origins []string) *httptest.Server {
 	if len(origins) == 0 {
 		origins = defaultOrigins
 	}
-	
+
 	env := testEnv{
-		version: "0.1.2",
-		commit: "c0mm17", // yes, I know there's no 'm' in hex.
+		version:     "0.1.2",
+		commit:      "c0mm17", // yes, I know there's no 'm' in hex.
 		repoVersion: "4",
 	}
 
@@ -131,10 +131,10 @@ func errEq(err1, err2 error) bool {
 	if err1 == nil && err2 == nil {
 		return true
 	}
-	
+
 	if err1 == nil || err2 == nil {
 		return false
 	}
-	
+
 	return err1.Error() == err2.Error()
 }
