@@ -332,7 +332,7 @@ func TestEncoding(t *testing.T) {
 			contentTypeHeader: contentType,
 		}
 
-		path := fmt.Sprintf("/api/v0/version?%v=%v", cmdkit.EncLong, enc)
+		path := fmt.Sprintf("/api/v0/version?%v=%v", cmdkit.EncShort, enc)
 
 		return httpTestCase{
 			Method:       "GET",

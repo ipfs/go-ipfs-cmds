@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"os"
 	"reflect"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
@@ -20,7 +19,6 @@ type Request struct {
 	Arguments []string
 	Options   cmdkit.OptMap
 
-	Body  *os.File
 	Files files.File
 }
 
@@ -43,7 +41,6 @@ func NewRequest(ctx context.Context, path []string, opts cmdkit.OptMap, args []s
 		Files:     file,
 		Command:   cmd,
 		Context:   ctx,
-		Body:      os.Stdin,
 	}
 
 	return req, req.convertOptions(root)

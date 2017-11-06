@@ -14,7 +14,7 @@ import (
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 
-	//oldcmds "github.com/ipfs/go-ipfs/commands"
+	// oldcmds "github.com/ipfs/go-ipfs/commands"
 	"github.com/ipfs/go-ipfs/path"
 	logging "github.com/ipfs/go-log"
 )
@@ -57,7 +57,7 @@ type Command struct {
 	// ie. If command Run returns &Block{}, then Command.Type == &Block{}
 	Type        interface{}
 	Subcommands map[string]*Command
-	//OldSubcommands map[string]*oldcmds.Command
+	// OldSubcommands map[string]*oldcmds.Command
 }
 
 // ErrNotCallable signals a command that cannot be called.
