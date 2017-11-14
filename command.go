@@ -12,11 +12,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/ipfs/go-ipfs-cmdkit"
+	"gx/ipfs/QmUyfy4QSr3NXym4etEiRyxBLqqAeKHJuRdi8AACxg63fZ/go-ipfs-cmdkit"
 
 	// oldcmds "github.com/ipfs/go-ipfs/commands"
 	"github.com/ipfs/go-ipfs/path"
-	logging "github.com/ipfs/go-log"
+	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
 )
 
 const DefaultOutputEncoding = JSON
@@ -35,7 +35,7 @@ type PostRunMap map[EncodingType]func(*Request, ResponseEmitter) ResponseEmitter
 type Command struct {
 	Options   []cmdkit.Option
 	Arguments []cmdkit.Argument
-	PreRun    func(req *Request) error
+	PreRun    func(req *Request, env interface{}) error
 
 	// Run is the function that processes the request to generate a response.
 	// Note that when executing the command over the HTTP API you can only read
@@ -57,7 +57,9 @@ type Command struct {
 	// ie. If command Run returns &Block{}, then Command.Type == &Block{}
 	Type        interface{}
 	Subcommands map[string]*Command
-	// OldSubcommands map[string]*oldcmds.Command
+
+	// path is the current commands path. It is populated by calls to Subcommand().
+	path []string
 }
 
 // ErrNotCallable signals a command that cannot be called.
@@ -161,7 +163,6 @@ func (c *Command) GetOptions(path []string) (map[string]cmdkit.Option, error) {
 	if err != nil {
 		return nil, err
 	}
-	cmds = append(cmds, globalCommand)
 
 	for _, cmd := range cmds {
 		options = append(options, cmd.Options...)
@@ -237,23 +238,27 @@ func (c *Command) CheckArguments(req *Request) error {
 
 // Subcommand returns the subcommand with the given id
 func (c *Command) Subcommand(id string) *Command {
-	cmd := c.Subcommands[id]
-	if cmd != nil {
-		return cmd
+	// copy command, then add parent command options to the copy
+	// so we have access to all option definitions
+	cmdPtr := c.Subcommands[id]
+	if cmdPtr != nil {
+		cmd := *cmdPtr
+		cmd.Options = append(cmd.Options, c.Options...)
+		cmd.path = append(c.path, id)
+		return &cmd
 	}
-
-	/*
-		oldcmd := c.OldSubcommands[id]
-		if oldcmd != nil {
-			return NewCommand(oldcmd)
-		}
-	*/
 
 	return nil
 }
 
+// Path returns the path of this command.
+func (c *Command) Path() []string {
+	return c.path
+}
+
 type CommandVisitor func(*Command)
 
+// TODO should this also use the revamped Subcommand function so path and options are fully populated?
 // Walks tree of all subcommands (including this one)
 func (c *Command) Walk(visitor CommandVisitor) {
 	visitor(c)
@@ -287,16 +292,4 @@ func checkArgValue(v string, found bool, def cmdkit.Argument) error {
 
 func ClientError(msg string) error {
 	return &cmdkit.Error{Code: cmdkit.ErrClient, Message: msg}
-}
-
-// global options, added to every command
-var globalOptions = []cmdkit.Option{
-	cmdkit.OptionEncodingType,
-	cmdkit.OptionStreamChannels,
-	cmdkit.OptionTimeout,
-}
-
-// the above array of Options, wrapped in a Command
-var globalCommand = &Command{
-	Options: globalOptions,
 }

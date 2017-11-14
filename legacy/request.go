@@ -6,11 +6,10 @@ import (
 	"io"
 	"os"
 	"reflect"
-	"runtime/debug"
 
-	"github.com/ipfs/go-ipfs-cmdkit"
-	"github.com/ipfs/go-ipfs-cmdkit/files"
 	"github.com/ipfs/go-ipfs-cmds"
+	"gx/ipfs/QmUyfy4QSr3NXym4etEiRyxBLqqAeKHJuRdi8AACxg63fZ/go-ipfs-cmdkit"
+	"gx/ipfs/QmUyfy4QSr3NXym4etEiRyxBLqqAeKHJuRdi8AACxg63fZ/go-ipfs-cmdkit/files"
 
 	oldcmds "github.com/ipfs/go-ipfs/commands"
 )
@@ -45,7 +44,7 @@ func (r *requestWrapper) InvocContext() *oldcmds.Context {
 // SetInvocContext sets the invocation context. First the context is converted
 // to a Context using NewContext().
 func (r *requestWrapper) SetInvocContext(ctx oldcmds.Context) {
-	log.Warningf("stub called\n%s", debug.Stack())
+	r.ctx = &ctx
 }
 
 // Command is an empty stub.

@@ -12,9 +12,9 @@ import (
 
 	"github.com/ipfs/go-ipfs-cmds"
 	"github.com/ipfs/go-ipfs/repo/config"
-	logging "github.com/ipfs/go-log"
-	"github.com/libp2p/go-libp2p-loggables"
-	"github.com/rs/cors"
+	"gx/ipfs/QmPG2kW5t27LuHgHnvhUwbHCNHAt2eUcb4gPHqofrESUdB/cors"
+	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
+	"gx/ipfs/QmT4PgCNdv73hnFAqzHqwW44q7M9PWpykSswHDxndquZbc/go-libp2p-loggables"
 )
 
 var log = logging.Logger("cmds/http")

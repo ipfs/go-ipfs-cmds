@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/go-ipfs-cmdkit"
+	"gx/ipfs/QmUyfy4QSr3NXym4etEiRyxBLqqAeKHJuRdi8AACxg63fZ/go-ipfs-cmdkit"
 )
 
 // nopClose implements io.Close and does nothing
@@ -174,22 +174,31 @@ func TestRegistration(t *testing.T) {
 		},
 	}
 
-	cmdC := &Command{
-		Options: []cmdkit.Option{
-			cmdkit.StringOption("encoding", "data encoding type"),
-		},
-		Run: noop,
-	}
-
 	path := []string{"a"}
 	_, err := cmdB.GetOptions(path)
 	if err == nil {
 		t.Error("Should have failed (option name collision)")
 	}
+}
 
-	_, err = cmdC.GetOptions(nil)
-	if err == nil {
-		t.Error("Should have failed (option name collision with global options)")
+func TestOptionInheritance(t *testing.T) {
+	cmd := &Command{
+		Options: []cmdkit.Option{
+			cmdkit.StringOption("foo", "f", "respect foo"),
+		},
+		Subcommands: map[string]*Command{
+			"sub": &Command{},
+		},
+	}
+
+	sub := cmd.Subcommand("sub")
+	if len(sub.Options) != 1 {
+		t.Error("expected one option, get %d", len(sub.Options))
+	}
+
+	names := sub.Options[0].Names()
+	if len(names) != 2 || names[0] != "foo" || names[1] != "f" {
+		t.Error("expected Option foo/f, got %v", sub.Options[0])
 	}
 }
 
@@ -217,7 +226,21 @@ func TestResolving(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if len(cmds) != 4 || cmds[0] != cmd || cmds[1] != cmdA || cmds[2] != cmdB || cmds[3] != cmdC {
+	// we can't test for equality because Resolve returns copies of the commands,
+	// extended by the parent options
+	if len(cmds) != 4 ||
+		len(cmds[0].Subcommands) != 1 ||
+		len(cmds[1].Subcommands) != 2 ||
+		len(cmds[2].Subcommands) != 1 ||
+		cmds[3].Subcommands != nil {
+		t.Error("Returned command path is different than expected", cmds)
+	}
+
+	_, ok0 := cmds[0].Subcommands["a"]
+	_, ok1 := cmds[1].Subcommands["b"]
+	_, ok2 := cmds[1].Subcommands["B"]
+	_, ok3 := cmds[2].Subcommands["c"]
+	if !(ok0 && ok1 && ok2 && ok3) {
 		t.Error("Returned command path is different than expected", cmds)
 	}
 }

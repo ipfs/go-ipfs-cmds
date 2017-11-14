@@ -8,8 +8,8 @@ import (
 	"reflect"
 	"testing"
 
-	cmdkit "github.com/ipfs/go-ipfs-cmdkit"
 	cmds "github.com/ipfs/go-ipfs-cmds"
+	cmdkit "gx/ipfs/QmUyfy4QSr3NXym4etEiRyxBLqqAeKHJuRdi8AACxg63fZ/go-ipfs-cmdkit"
 )
 
 type parseReqTestCase struct {
@@ -46,7 +46,7 @@ func (tc parseReqTestCase) test(t *testing.T) {
 	}
 
 	if req.Command != tc.cmdsReq.Command {
-		t.Errorf("expected req.Command to be %v, but got %v", tc.cmdsReq.Command, req.Command)
+		t.Errorf("expected req.Command to be\n%v\n but got\n%v", tc.cmdsReq.Command, req.Command)
 	}
 
 	if !reflect.DeepEqual(req.Path, tc.cmdsReq.Path) {

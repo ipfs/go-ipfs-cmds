@@ -11,11 +11,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ipfs/go-ipfs-cmdkit"
-	"github.com/ipfs/go-ipfs-cmdkit/files"
 	"github.com/ipfs/go-ipfs-cmds"
+	"gx/ipfs/QmUyfy4QSr3NXym4etEiRyxBLqqAeKHJuRdi8AACxg63fZ/go-ipfs-cmdkit"
+	"gx/ipfs/QmUyfy4QSr3NXym4etEiRyxBLqqAeKHJuRdi8AACxg63fZ/go-ipfs-cmdkit/files"
 
-	logging "github.com/ipfs/go-log"
+	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
 )
 
 var log = logging.Logger("cmds/cli")
@@ -25,7 +25,7 @@ var log = logging.Logger("cmds/cli")
 func Parse(input []string, stdin *os.File, root *cmds.Command) (*cmds.Request, error) {
 	req, err := parse(input, root)
 	if err != nil {
-		return nil, err
+		return req, err
 	}
 
 	// This is an ugly hack to maintain our current CLI interface while fixing
@@ -39,7 +39,7 @@ func Parse(input []string, stdin *os.File, root *cmds.Command) (*cmds.Request, e
 	}
 
 	if err = parseArgs(req, root, stdin); err != nil {
-		return nil, err
+		return req, err
 	}
 
 	return req, req.Command.CheckArguments(req)
@@ -53,6 +53,46 @@ func isHidden(req *cmds.Request) bool {
 func isRecursive(req *cmds.Request) bool {
 	rec, ok := req.Options[cmdkit.RecShort].(bool)
 	return rec && ok
+}
+
+// fillDefault fills in default values if option has not been set
+func fillDefaults(root *cmds.Command, path []string, opts map[string]interface{}) error {
+	optDefMap, err := root.GetOptions(path)
+	if err != nil {
+		return err
+	}
+
+	optDefs := map[cmdkit.Option]struct{}{}
+
+	for _, optDef := range optDefMap {
+		optDefs[optDef] = struct{}{}
+	}
+
+Outer:
+	for optDef := range optDefs {
+		dflt := optDef.Default()
+		if dflt == nil {
+			// option has no dflt, continue
+			continue
+		}
+
+		names := optDef.Names()
+		for _, name := range names {
+			if _, ok := opts[name]; ok {
+				// option has been set, continue with next option
+				continue Outer
+			}
+		}
+
+		name, ok := optDef.CanonicalName()
+		if !ok {
+			name = names[0]
+		}
+
+		opts[name] = dflt
+	}
+
+	return nil
 }
 
 func parse(cmdline []string, root *cmds.Command) (req *cmds.Request, err error) {
@@ -144,6 +184,8 @@ L:
 		i++
 	}
 
+	err = fillDefaults(root, path, opts)
+
 	req = &cmds.Request{
 		Context:   context.TODO(),
 		Command:   cmd,
@@ -151,7 +193,7 @@ L:
 		Arguments: args,
 		Options:   opts,
 	}
-	return req, nil
+	return req, err
 }
 
 func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
