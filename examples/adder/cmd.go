@@ -9,7 +9,7 @@ import (
 
 	"github.com/ipfs/go-ipfs-cmds"
 	"github.com/ipfs/go-ipfs-cmds/cli"
-	"gx/ipfs/QmbhbBpwubAKvZUMrAQDVQznoJX9Y7NSwJZEmNZYhLgvdL/go-ipfs-cmdkit"
+	"gx/ipfs/QmfNNaAwKLJkvGRnj254wMXJD36SnWU522dWbUxzzXCiTP/go-ipfs-cmdkit"
 )
 
 // AddStatus describes the progress of the add operation

@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"sync"
 
-	"gx/ipfs/QmbhbBpwubAKvZUMrAQDVQznoJX9Y7NSwJZEmNZYhLgvdL/go-ipfs-cmdkit"
+	"gx/ipfs/QmfNNaAwKLJkvGRnj254wMXJD36SnWU522dWbUxzzXCiTP/go-ipfs-cmdkit"
 )
 
 func NewWriterResponseEmitter(w io.WriteCloser, req *Request, enc func(*Request) func(io.Writer) Encoder) *WriterResponseEmitter {

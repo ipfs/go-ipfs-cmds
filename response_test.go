@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"gx/ipfs/QmbhbBpwubAKvZUMrAQDVQznoJX9Y7NSwJZEmNZYhLgvdL/go-ipfs-cmdkit"
+	"gx/ipfs/QmfNNaAwKLJkvGRnj254wMXJD36SnWU522dWbUxzzXCiTP/go-ipfs-cmdkit"
 )
 
 type TestOutput struct {

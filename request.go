@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"gx/ipfs/QmbhbBpwubAKvZUMrAQDVQznoJX9Y7NSwJZEmNZYhLgvdL/go-ipfs-cmdkit"
-	"gx/ipfs/QmbhbBpwubAKvZUMrAQDVQznoJX9Y7NSwJZEmNZYhLgvdL/go-ipfs-cmdkit/files"
+	"gx/ipfs/QmfNNaAwKLJkvGRnj254wMXJD36SnWU522dWbUxzzXCiTP/go-ipfs-cmdkit"
+	"gx/ipfs/QmfNNaAwKLJkvGRnj254wMXJD36SnWU522dWbUxzzXCiTP/go-ipfs-cmdkit/files"
 )
 
 // Request represents a call to a command from a consumer
@@ -62,6 +62,46 @@ func (req *Request) BodyArgs() (*bufio.Scanner, error) {
 	}
 
 	return bufio.NewScanner(fi), nil
+}
+
+func (req *Request) SetOption(name string, value interface{}) {
+	var (
+		optDef cmdkit.Option
+		iName int
+	)
+	
+	L:
+	for _, optDef = range req.Command.Options {
+		for j, optName := range optDef.Names() {
+			if optName == name {
+				iName=j
+				break L
+			}
+		}
+	}
+	
+	// unknown option, simply set the value and return
+	// TODO we might error out here instead
+	if optDef == nil {
+		req.Options[name] = value
+		return
+	}
+
+	names := optDef.Names()
+
+	// unknown option, simply set the value and return
+	// TODO we might error out here instead
+	if len(names) < iName+1 || names[iName] != name {
+		req.Options[name] = value
+		return
+	}
+	
+	if cname, ok := optDef.CanonicalName(); ok {
+		name = cname
+	}
+	
+	req.Options[name] = value
+	return
 }
 
 func (req *Request) convertOptions(root *Command) error {

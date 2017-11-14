@@ -8,7 +8,7 @@ import (
 	cmds "github.com/ipfs/go-ipfs-cmds"
 	cli "github.com/ipfs/go-ipfs-cmds/cli"
 	http "github.com/ipfs/go-ipfs-cmds/http"
-	cmdkit "gx/ipfs/QmbhbBpwubAKvZUMrAQDVQznoJX9Y7NSwJZEmNZYhLgvdL/go-ipfs-cmdkit"
+	cmdkit "gx/ipfs/QmfNNaAwKLJkvGRnj254wMXJD36SnWU522dWbUxzzXCiTP/go-ipfs-cmdkit"
 )
 
 func main() {

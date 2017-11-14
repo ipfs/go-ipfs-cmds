@@ -6,11 +6,10 @@ import (
 	"io"
 	"os"
 	"reflect"
-	"runtime/debug"
 
-	"gx/ipfs/QmbhbBpwubAKvZUMrAQDVQznoJX9Y7NSwJZEmNZYhLgvdL/go-ipfs-cmdkit"
-	"gx/ipfs/QmbhbBpwubAKvZUMrAQDVQznoJX9Y7NSwJZEmNZYhLgvdL/go-ipfs-cmdkit/files"
 	"github.com/ipfs/go-ipfs-cmds"
+	"gx/ipfs/QmfNNaAwKLJkvGRnj254wMXJD36SnWU522dWbUxzzXCiTP/go-ipfs-cmdkit"
+	"gx/ipfs/QmfNNaAwKLJkvGRnj254wMXJD36SnWU522dWbUxzzXCiTP/go-ipfs-cmdkit/files"
 
 	oldcmds "github.com/ipfs/go-ipfs/commands"
 )
@@ -19,16 +18,16 @@ func FromOldRequest(r oldcmds.Request) *cmds.Request {
 	req := &cmds.Request{
 		Context: r.Context(),
 		Command: NewCommand(r.Command()),
-		
-		Path: r.Path(),
+
+		Path:      r.Path(),
 		Arguments: r.StringArguments(),
-		Options: r.Options(),
-		
+		Options:   r.Options(),
+
 		Files: r.Files(),
 	}
-	
+
 	return req
-}		
+}
 
 // requestWrapper implements a oldcmds.Request from an Request
 type requestWrapper struct {
@@ -45,7 +44,7 @@ func (r *requestWrapper) InvocContext() *oldcmds.Context {
 // SetInvocContext sets the invocation context. First the context is converted
 // to a Context using NewContext().
 func (r *requestWrapper) SetInvocContext(ctx oldcmds.Context) {
-	log.Warningf("stub called\n%s", debug.Stack())
+	r.ctx = &ctx
 }
 
 // Command is an empty stub.
@@ -69,7 +68,7 @@ func (r *requestWrapper) Files() files.File {
 
 func (r *requestWrapper) Option(name string) *cmdkit.OptionValue {
 	var option cmdkit.Option
-	
+
 	for _, def := range r.Request.Command.Options {
 		for _, optName := range def.Names() {
 			if name == optName {
@@ -110,7 +109,7 @@ func (r *requestWrapper) SetFiles(f files.File) {
 }
 
 func (r *requestWrapper) SetOption(name string, v interface{}) {
-	r.Request.Options[name]=v
+	r.Request.Options[name] = v
 }
 
 func (r *requestWrapper) SetOptions(om cmdkit.OptMap) error {
@@ -145,21 +144,22 @@ func (r *requestWrapper) VarArgs(f func(string) error) error {
 		}
 		return nil
 	}
-	
+
 	s, err := r.Request.BodyArgs()
 	if err != nil {
 		return err
 	}
-	
+
 	for s.Scan() {
 		err = f(s.Text())
 		if err != nil {
 			return err
 		}
 	}
-	
+
 	return nil
 }
+
 // copied from go-ipfs-cmds/request.go
 func convertOptions(req *cmds.Request) error {
 	optDefSlice := req.Command.Options

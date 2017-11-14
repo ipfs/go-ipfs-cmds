@@ -11,50 +11,6 @@ import (
 
 var log = logging.Logger("cmds/lgc")
 
-// OldCommand returns an oldcmds.Command from a Command.
-func OldCommand(cmd *cmds.Command) *oldcmds.Command {
-	oldcmd := &oldcmds.Command{
-		Options:   cmd.Options,
-		Arguments: cmd.Arguments,
-		Helptext:  cmd.Helptext,
-		External:  cmd.External,
-		Type:      cmd.Type,
-
-		Subcommands: func() map[string]*oldcmds.Command {
-			cs := make(map[string]*oldcmds.Command)
-
-			/*
-			for k, v := range cmd.OldSubcommands {
-				cs[k] = v
-			}
-			*/
-
-			for k, v := range cmd.Subcommands {
-				cs[k] = OldCommand(v)
-			}
-
-			return cs
-		}(),
-	}
-
-	if cmd.Run != nil {
-		oldcmd.Run = func(oldReq oldcmds.Request, res oldcmds.Response) {
-			req := FromOldRequest(oldReq)
-			re := &wrappedResponseEmitter{res}
-
-			cmd.Run(req, re, oldReq.InvocContext())
-		}
-	}
-	if cmd.PreRun != nil {
-		oldcmd.PreRun = func(oldReq oldcmds.Request) error {
-			req := FromOldRequest(oldReq)
-			return cmd.PreRun(req)
-		}
-	}
-
-	return oldcmd
-}
-
 // NewCommand returns a Command from an oldcmds.Command
 func NewCommand(oldcmd *oldcmds.Command) *cmds.Command {
 	if oldcmd == nil {
@@ -69,7 +25,7 @@ func NewCommand(oldcmd *oldcmds.Command) *cmds.Command {
 		External:  oldcmd.External,
 		Type:      oldcmd.Type,
 
-		// OldSubcommands: oldcmd.Subcommands,
+		Subcommands: make(map[string]*cmds.Command),
 	}
 
 	if oldcmd.Run != nil {
@@ -88,10 +44,14 @@ func NewCommand(oldcmd *oldcmds.Command) *cmds.Command {
 	}
 
 	if oldcmd.PreRun != nil {
-		cmd.PreRun = func(req *cmds.Request) error {
-			oldReq := &requestWrapper{req, nil}
+		cmd.PreRun = func(req *cmds.Request, env interface{}) error {
+			oldReq := &requestWrapper{req, env.(*oldcmds.Context)}
 			return oldcmd.PreRun(oldReq)
 		}
+	}
+
+	for name, sub := range oldcmd.Subcommands {
+		cmd.Subcommands[name] = NewCommand(sub)
 	}
 
 	cmd.Encoders = make(cmds.EncoderMap)

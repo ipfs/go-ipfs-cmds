@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	cmds "github.com/ipfs/go-ipfs-cmds"
-	cmdkit "gx/ipfs/QmbhbBpwubAKvZUMrAQDVQznoJX9Y7NSwJZEmNZYhLgvdL/go-ipfs-cmdkit"
+	cmdkit "gx/ipfs/QmfNNaAwKLJkvGRnj254wMXJD36SnWU522dWbUxzzXCiTP/go-ipfs-cmdkit"
 )
 
 type VersionOutput struct {

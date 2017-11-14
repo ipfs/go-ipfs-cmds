@@ -6,8 +6,9 @@ import (
 	"io"
 	"testing"
 
-	oldcmds "github.com/ipfs/go-ipfs/commands"
 	cmds "github.com/ipfs/go-ipfs-cmds"
+	oldcmds "github.com/ipfs/go-ipfs/commands"
+	cmdkit "gx/ipfs/QmfNNaAwKLJkvGRnj254wMXJD36SnWU522dWbUxzzXCiTP/go-ipfs-cmdkit"
 )
 
 type WriteNopCloser struct {
@@ -47,6 +48,13 @@ func TestNewCommand(t *testing.T) {
 						return buf, nil
 					},
 				},
+				Subcommands: map[string]*oldcmds.Command{
+					"sub": &oldcmds.Command{
+						Options: []cmdkit.Option{
+							cmdkit.NewOption(cmdkit.String, "test", "t", "some random test flag"),
+						},
+					},
+				},
 			}),
 		},
 	}
@@ -59,6 +67,7 @@ func TestNewCommand(t *testing.T) {
 
 	buf := bytes.NewBuffer(nil)
 
+	// test calling "test" command
 	testCmd := root.Subcommand("test")
 	enc := testCmd.Encoders[oldcmds.Text]
 	if enc == nil {
@@ -79,39 +88,30 @@ func TestNewCommand(t *testing.T) {
 	if buf.String() != expected {
 		t.Fatalf("expected string %#v but got %#v", expected, buf.String())
 	}
-}
 
-func TestOldCommand(t *testing.T) {
-	expected := "test"
-
-	cmd := &cmds.Command{
-		Run: func(req *cmds.Request, re cmds.ResponseEmitter, env interface{}) {
-			re.Emit(expected)
-		},
+	// test getting subcommand
+	subCmd := testCmd.Subcommand("sub")
+	if subCmd == nil {
+		t.Fatal("got nil subcommand")
 	}
 
-	oldcmd := OldCommand(cmd)
-	req, err := oldcmds.NewRequest(nil, nil, nil, nil, nil, nil)
-	if err != nil {
-		t.Fatal(err)
+	if nOpts := len(subCmd.Options); nOpts != 1 {
+		t.Fatalf("subcommand has %v options, expected 1", nOpts)
 	}
 
-	// nil means call root command
-	res := oldcmd.Call(req)
+	opt := subCmd.Options[0]
 
-	ch, ok := res.Output().(chan interface{})
-	if !ok {
-		t.Fatalf("expected type %T, got %T", ch, res.Output())
+	if nNames := len(opt.Names()); nNames != 2 {
+		t.Fatalf("option has %v names, expected 2", nNames)
 	}
 
-	v := <-ch
-	str, ok := v.(string)
-	if !ok {
-		t.Fatalf("expected type %T, got %T", str, v)
+	names := opt.Names()
+	if names[0] != "test" {
+		t.Fatalf("option has name %q, expected %q", names[0], "test")
 	}
 
-	if str != expected {
-		t.Fatal("expected value %#v, got %#v", expected, str)
+	if names[1] != "t" {
+		t.Fatalf("option has name %q, expected %q", names[1], "t")
 	}
 }
 
