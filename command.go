@@ -240,12 +240,10 @@ func (c *Command) CheckArguments(req *Request) error {
 func (c *Command) Subcommand(id string) *Command {
 	// copy command, then add parent command options to the copy
 	// so we have access to all option definitions
-	cmdPtr := c.Subcommands[id]
-	if cmdPtr != nil {
-		cmd := *cmdPtr
-		cmd.Options = append(cmd.Options, c.Options...)
+	cmd := c.Subcommands[id]
+	if cmd != nil {
 		cmd.path = append(c.path, id)
-		return &cmd
+		return cmd
 	}
 
 	return nil

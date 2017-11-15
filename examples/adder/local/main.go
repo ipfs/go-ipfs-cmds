@@ -11,7 +11,7 @@ import (
 
 func main() {
 	// parse the command path, arguments and options from the command line
-	req,  err := cli.Parse(os.Args[1:], os.Stdin, adder.RootCmd)
+	req, err := cli.Parse(os.Args[1:], os.Stdin, adder.RootCmd)
 	if err != nil {
 		panic(err)
 	}

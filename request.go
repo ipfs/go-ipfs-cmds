@@ -12,8 +12,8 @@ import (
 
 // Request represents a call to a command from a consumer
 type Request struct {
-	Context context.Context
-	Command *Command
+	Context       context.Context
+	Root, Command *Command
 
 	Path      []string
 	Arguments []string
@@ -39,6 +39,7 @@ func NewRequest(ctx context.Context, path []string, opts cmdkit.OptMap, args []s
 		Options:   opts,
 		Arguments: args,
 		Files:     file,
+		Root:      root,
 		Command:   cmd,
 		Context:   ctx,
 	}
@@ -65,33 +66,13 @@ func (req *Request) BodyArgs() (*bufio.Scanner, error) {
 }
 
 func (req *Request) SetOption(name string, value interface{}) {
-	var (
-		optDef cmdkit.Option
-		iName  int
-	)
-
-L:
-	for _, optDef = range req.Command.Options {
-		for j, optName := range optDef.Names() {
-			if optName == name {
-				iName = j
-				break L
-			}
-		}
-	}
+	optDefs, err := req.Root.GetOptions(req.Path)
+	log.Debugf("req.Root.GetOptions returned %q", err)
+	optDef, found := optDefs[name]
 
 	// unknown option, simply set the value and return
 	// TODO we might error out here instead
-	if optDef == nil {
-		req.Options[name] = value
-		return
-	}
-
-	names := optDef.Names()
-
-	// unknown option, simply set the value and return
-	// TODO we might error out here instead
-	if len(names) < iName+1 || names[iName] != name {
+	if !found {
 		req.Options[name] = value
 		return
 	}

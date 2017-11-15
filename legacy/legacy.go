@@ -50,7 +50,7 @@ func OldContext(env interface{}) *oldcmds.Context {
 	if !ok {
 		log.Errorf("NewCommand: env passed is not %T but %T\n%s", ctx, env, debug.Stack())
 	}
-	
+
 	return ctx
 }
 
