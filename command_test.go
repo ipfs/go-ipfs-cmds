@@ -173,32 +173,11 @@ func TestRegistration(t *testing.T) {
 			"a": cmdA,
 		},
 	}
-	
+
 	path := []string{"a"}
 	_, err := cmdB.GetOptions(path)
 	if err == nil {
 		t.Error("Should have failed (option name collision)")
-	}
-}
-
-func TestOptionInheritance(t *testing.T) {
-	cmd := &Command{
-		Options: []cmdkit.Option{
-			cmdkit.StringOption("foo", "f", "respect foo"),
-		},
-		Subcommands: map[string]*Command{
-			"sub": &Command{},
-		},
-	}
-
-	sub := cmd.Subcommand("sub")
-	if len(sub.Options) != 1 {
-		t.Error("expected one option, get %d", len(sub.Options))
-	}
-	
-	names := sub.Options[0].Names()
-	if len(names) != 2 || names[0] != "foo" || names[1] != "f" {
-		t.Error("expected Option foo/f, got %v", sub.Options[0])
 	}
 }
 
@@ -226,21 +205,7 @@ func TestResolving(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	// we can't test for equality because Resolve returns copies of the commands,
-	// extended by the parent options
-	if len(cmds) != 4 ||
-		len(cmds[0].Subcommands) != 1 ||
-		len(cmds[1].Subcommands) != 2 ||
-		len(cmds[2].Subcommands) != 1 ||
-		cmds[3].Subcommands != nil {
-		t.Error("Returned command path is different than expected", cmds)
-	}
-	
-	_, ok0 := cmds[0].Subcommands["a"]
-	_, ok1 := cmds[1].Subcommands["b"]
-	_, ok2 := cmds[1].Subcommands["B"]
-	_, ok3 := cmds[2].Subcommands["c"]
-	if !(ok0 && ok1 && ok2 && ok3) {
+	if len(cmds) != 4 || cmds[0] != cmd || cmds[1] != cmdA || cmds[2] != cmdB || cmds[3] != cmdC {
 		t.Error("Returned command path is different than expected", cmds)
 	}
 }

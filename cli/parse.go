@@ -188,6 +188,7 @@ L:
 
 	req = &cmds.Request{
 		Context:   context.TODO(),
+		Root:      root,
 		Command:   cmd,
 		Path:      path,
 		Arguments: args,

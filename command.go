@@ -36,7 +36,7 @@ type Command struct {
 	Options   []cmdkit.Option
 	Arguments []cmdkit.Argument
 	PreRun    func(req *Request, env interface{}) error
-	
+
 	// Run is the function that processes the request to generate a response.
 	// Note that when executing the command over the HTTP API you can only read
 	// after writing when using multipart requests. The request body will not be
@@ -57,10 +57,9 @@ type Command struct {
 	// ie. If command Run returns &Block{}, then Command.Type == &Block{}
 	Type        interface{}
 	Subcommands map[string]*Command
-	
+
 	// path is the current commands path. It is populated by calls to Subcommand().
 	path []string
-
 }
 
 // ErrNotCallable signals a command that cannot be called.
@@ -237,12 +236,10 @@ func (c *Command) CheckArguments(req *Request) error {
 func (c *Command) Subcommand(id string) *Command {
 	// copy command, then add parent command options to the copy
 	// so we have access to all option definitions
-	cmdPtr := c.Subcommands[id]
-	if cmdPtr != nil {
-		cmd := *cmdPtr
-		cmd.Options = append(cmd.Options, c.Options...)
-		cmd.Path = append(c.Path, id)
-		return &cmd
+	cmd := c.Subcommands[id]
+	if cmd != nil {
+		cmd.path = append(c.path, id)
+		return cmd
 	}
 
 	return nil
