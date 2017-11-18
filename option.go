@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gx/ipfs/QmWbjfz3u6HkAdPh34dgPchGbQjob6LXLhAeCGii2TX69n/go-ipfs-util"
+	"github.com/ipfs/go-ipfs-util"
 )
 
 // Types of Command options
