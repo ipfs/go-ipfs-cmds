@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
-	"gx/ipfs/QmdgLyCJYMFwNv5Qx3vMiTrrtAdWGTaL5G7xYwkB6CCgja/go-ipfs-cmds"
-	"gx/ipfs/QmdgLyCJYMFwNv5Qx3vMiTrrtAdWGTaL5G7xYwkB6CCgja/go-ipfs-cmds/cli"
+	"github.com/ipfs/go-ipfs-cmds"
+	"github.com/ipfs/go-ipfs-cmds/cli"
 )
 
 // AddStatus describes the progress of the add operation
