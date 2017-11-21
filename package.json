@@ -20,20 +20,20 @@
     },
     {
       "author": "whyrusleeping",
-      "hash": "QmWbjfz3u6HkAdPh34dgPchGbQjob6LXLhAeCGii2TX69n",
+      "hash": "QmSU6eubNdhXjFBJBSksTp8kv8YRub8mGAPv8tVJHmL2EU",
       "name": "go-ipfs-util",
-      "version": "1.2.4"
+      "version": "1.2.5"
     },
     {
-      "hash": "QmSNbH2A1evCCbJSDC6u3RV3GGDhgu6pRGbXHvrN89tMKf",
+      "hash": "QmUyfy4QSr3NXym4etEiRyxBLqqAeKHJuRdi8AACxg63fZ",
       "name": "go-ipfs-cmdkit",
-      "version": "0.3.3"
+      "version": "0.3.5"
     }
   ],
   "gxVersion": "0.10.0",
   "language": "go",
   "license": "MIT",
   "name": "go-ipfs-cmds",
-  "version": "0.4.9"
+  "version": "0.4.10"
 }
 
