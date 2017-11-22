@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,13 +10,11 @@ import (
 	"strings"
 	"sync"
 
-	context "context"
+	"github.com/ipfs/go-ipfs-cmds"
 	"github.com/ipfs/go-ipfs/repo/config"
-	cors "github.com/rs/cors"
-
-	cmds "github.com/ipfs/go-ipfs-cmds"
-
 	logging "github.com/ipfs/go-log"
+	"github.com/libp2p/go-libp2p-loggables"
+	"github.com/rs/cors"
 )
 
 var log = logging.Logger("cmds/http")
@@ -139,6 +138,7 @@ func (i internalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithCancel(node.Context())
 	defer cancel()
+	ctx = logging.ContextWithLoggable(ctx, loggables.Uuid("requestId"))
 	if cn, ok := w.(http.CloseNotifier); ok {
 		clientGone := cn.CloseNotify()
 		go func() {
