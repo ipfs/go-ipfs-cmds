@@ -28,6 +28,12 @@
       "hash": "QmUyfy4QSr3NXym4etEiRyxBLqqAeKHJuRdi8AACxg63fZ",
       "name": "go-ipfs-cmdkit",
       "version": "0.3.5"
+    },
+    {
+      "author": "whyrusleeping",
+      "hash": "QmT4PgCNdv73hnFAqzHqwW44q7M9PWpykSswHDxndquZbc",
+      "name": "go-libp2p-loggables",
+      "version": "1.1.8"
     }
   ],
   "gxVersion": "0.10.0",
