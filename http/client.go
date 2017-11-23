@@ -47,13 +47,13 @@ func (c *client) Send(req *cmds.Request) (cmds.Response, error) {
 	}
 
 	// save user-provided encoding
-	previousUserProvidedEncoding, found := req.Options[cmdkit.EncShort].(string)
+	previousUserProvidedEncoding, found := req.Options[cmds.EncLong].(string)
 
 	// override with json to send to server
-	req.Options[cmdkit.EncShort] = cmds.JSON
+	req.SetOption(cmds.EncLong, cmds.JSON)
 
 	// stream channel output
-	req.Options[cmdkit.ChanOpt] = true
+	req.SetOption(cmds.ChanOpt, true)
 
 	query, err := getQuery(req)
 	if err != nil {
@@ -102,7 +102,7 @@ func (c *client) Send(req *cmds.Request) (cmds.Response, error) {
 		// reset to user provided encoding after sending request
 		// NB: if user has provided an encoding but it is the empty string,
 		// still leave it as JSON.
-		req.Options[cmdkit.EncShort] = previousUserProvidedEncoding
+		req.SetOption(cmds.EncLong, previousUserProvidedEncoding)
 	}
 
 	return res, nil

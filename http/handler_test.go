@@ -40,6 +40,13 @@ func getRepoVersion(env interface{}) (string, bool) {
 
 var (
 	cmdRoot = &cmds.Command{
+		Options: []cmdkit.Option{
+			// global options, added to every command
+			cmds.OptionEncodingType,
+			cmds.OptionStreamChannels,
+			cmds.OptionTimeout,
+		},
+
 		Subcommands: map[string]*cmds.Command{
 			"version": &cmds.Command{
 				Helptext: cmdkit.HelpText{

@@ -57,6 +57,24 @@ func parseRequest(ctx context.Context, r *http.Request, root *cmds.Command) (*cm
 	}
 
 	opts, stringArgs2 := parseOptions(r)
+	optDefs, err := root.GetOptions(pth)
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range opts {
+		if optDef, ok := optDefs[k]; ok {
+			name := optDef.Names()[0]
+			if k != name {
+				opts[name] = v
+				delete(opts, k)
+			}
+		}
+	}
+	// default to setting encoding to JSON
+	if _, ok := opts[cmds.EncLong]; !ok {
+		opts[cmds.EncLong] = cmds.JSON
+	}
+
 	stringArgs = append(stringArgs, stringArgs2...)
 
 	// count required argument definitions
@@ -147,15 +165,9 @@ func parseOptions(r *http.Request) (map[string]interface{}, []string) {
 		if k == "arg" {
 			args = v
 		} else {
+
 			opts[k] = v[0]
 		}
-	}
-
-	// default to setting encoding to JSON
-	_, short := opts[cmdkit.EncShort]
-	_, long := opts[cmdkit.EncLong]
-	if !short && !long {
-		opts[cmdkit.EncShort] = cmds.JSON
 	}
 
 	return opts, args

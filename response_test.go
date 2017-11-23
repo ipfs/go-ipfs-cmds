@@ -34,7 +34,7 @@ func TestMarshalling(t *testing.T) {
 	cmd := &Command{}
 
 	req, err := NewRequest(context.TODO(), nil, map[string]interface{}{
-		cmdkit.EncShort: JSON,
+		EncLong: JSON,
 	}, nil, nil, cmd)
 	if err != nil {
 		t.Error(err, "Should have passed")
