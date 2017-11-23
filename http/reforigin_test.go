@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	cmds "github.com/ipfs/go-ipfs-cmds"
-	cmdkit "gx/ipfs/QmfNNaAwKLJkvGRnj254wMXJD36SnWU522dWbUxzzXCiTP/go-ipfs-cmdkit"
 )
 
 func assertHeaders(t *testing.T, resHeaders http.Header, reqHeaders map[string]string) {

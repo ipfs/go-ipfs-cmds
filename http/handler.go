@@ -11,11 +11,11 @@ import (
 
 	context "context"
 	"github.com/ipfs/go-ipfs/repo/config"
-	cors "gx/ipfs/QmPG2kW5t27LuHgHnvhUwbHCNHAt2eUcb4gPHqofrESUdB/cors"
+	cors "github.com/rs/cors"
 
 	cmds "github.com/ipfs/go-ipfs-cmds"
 
-	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
+	logging "github.com/ipfs/go-log"
 )
 
 var log = logging.Logger("cmds/http")
