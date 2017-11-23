@@ -84,10 +84,7 @@ Outer:
 			}
 		}
 
-		name, ok := optDef.CanonicalName()
-		if !ok {
-			name = names[0]
-		}
+		name := optDef.Names()[0]
 
 		opts[name] = dflt
 	}
@@ -134,9 +131,7 @@ L:
 				panic(fmt.Errorf("multiple values for option %q", k))
 			}
 
-			if can, ok := optDefs[k].CanonicalName(); ok {
-				k = can
-			}
+			k = optDefs[k].Names()[0]
 
 			opts[k] = v
 		case strings.HasPrefix(param, "-") && param != "-":
@@ -144,12 +139,10 @@ L:
 			kvs, i = parseShortOpts(cmdline, i, optDefs)
 
 			for _, kv := range kvs {
+				kv.Key = optDefs[kv.Key].Names()[0]
+
 				if _, exists := opts[kv.Key]; exists {
 					panic(fmt.Errorf("multiple values for option %q", k))
-				}
-
-				if can, ok := optDefs[kv.Key].CanonicalName(); ok {
-					kv.Key = can
 				}
 
 				opts[kv.Key] = kv.Value

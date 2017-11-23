@@ -67,14 +67,18 @@ func TestSameWords(t *testing.T) {
 }
 
 func TestOptionParsing(t *testing.T) {
-	subCmd := &cmds.Command{}
 	cmd := &cmds.Command{
 		Options: []cmdkit.Option{
 			cmdkit.StringOption("string", "s", "a string"),
 			cmdkit.BoolOption("bool", "b", "a bool"),
 		},
 		Subcommands: map[string]*cmds.Command{
-			"test": subCmd,
+			"test": &cmds.Command{},
+			"defaults": &cmds.Command{
+				Options: []cmdkit.Option{
+					cmdkit.StringOption("opt", "o", "an option").WithDefault("def"),
+				},
+			},
 		},
 	}
 
@@ -104,35 +108,37 @@ func TestOptionParsing(t *testing.T) {
 	testFail("-b -b")
 	test("test beep boop", kvs{}, words{"beep", "boop"})
 	testFail("-s")
-	test("-s foo", kvs{"s": "foo"}, words{})
-	test("-sfoo", kvs{"s": "foo"}, words{})
-	test("-s=foo", kvs{"s": "foo"}, words{})
-	test("-b", kvs{"b": true}, words{})
-	test("-bs foo", kvs{"b": true, "s": "foo"}, words{})
-	test("-sb", kvs{"s": "b"}, words{})
-	test("-b test foo", kvs{"b": true}, words{"foo"})
+	test("-s foo", kvs{"string": "foo"}, words{})
+	test("-sfoo", kvs{"string": "foo"}, words{})
+	test("-s=foo", kvs{"string": "foo"}, words{})
+	test("-b", kvs{"bool": true}, words{})
+	test("-bs foo", kvs{"bool": true, "string": "foo"}, words{})
+	test("-sb", kvs{"string": "b"}, words{})
+	test("-b test foo", kvs{"bool": true}, words{"foo"})
 	test("--bool test foo", kvs{"bool": true}, words{"foo"})
 	testFail("--bool=foo")
 	testFail("--string")
 	test("--string foo", kvs{"string": "foo"}, words{})
 	test("--string=foo", kvs{"string": "foo"}, words{})
 	test("-- -b", kvs{}, words{"-b"})
-	test("test foo -b", kvs{"b": true}, words{"foo"})
-	test("-b=false", kvs{"b": false}, words{})
-	test("-b=true", kvs{"b": true}, words{})
-	test("-b=false test foo", kvs{"b": false}, words{"foo"})
-	test("-b=true test foo", kvs{"b": true}, words{"foo"})
+	test("test foo -b", kvs{"bool": true}, words{"foo"})
+	test("-b=false", kvs{"bool": false}, words{})
+	test("-b=true", kvs{"bool": true}, words{})
+	test("-b=false test foo", kvs{"bool": false}, words{"foo"})
+	test("-b=true test foo", kvs{"bool": true}, words{"foo"})
 	test("--bool=true test foo", kvs{"bool": true}, words{"foo"})
 	test("--bool=false test foo", kvs{"bool": false}, words{"foo"})
-	test("-b test true", kvs{"b": true}, words{"true"})
-	test("-b test false", kvs{"b": true}, words{"false"})
-	test("-b=FaLsE test foo", kvs{"b": false}, words{"foo"})
-	test("-b=TrUe test foo", kvs{"b": true}, words{"foo"})
-	test("-b test true", kvs{"b": true}, words{"true"})
-	test("-b test false", kvs{"b": true}, words{"false"})
-	test("-b --string foo test bar", kvs{"b": true, "string": "foo"}, words{"bar"})
-	test("-b=false --string bar", kvs{"b": false, "string": "bar"}, words{})
+	test("-b test true", kvs{"bool": true}, words{"true"})
+	test("-b test false", kvs{"bool": true}, words{"false"})
+	test("-b=FaLsE test foo", kvs{"bool": false}, words{"foo"})
+	test("-b=TrUe test foo", kvs{"bool": true}, words{"foo"})
+	test("-b test true", kvs{"bool": true}, words{"true"})
+	test("-b test false", kvs{"bool": true}, words{"false"})
+	test("-b --string foo test bar", kvs{"bool": true, "string": "foo"}, words{"bar"})
+	test("-b=false --string bar", kvs{"bool": false, "string": "bar"}, words{})
 	testFail("foo test")
+	test("defaults", kvs{"opt": "def"}, words{})
+	test("defaults -o foo", kvs{"opt": "foo"}, words{})
 }
 
 func TestArgumentParsing(t *testing.T) {
