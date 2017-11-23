@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	"gx/ipfs/QmUyfy4QSr3NXym4etEiRyxBLqqAeKHJuRdi8AACxg63fZ/go-ipfs-cmdkit"
+	"github.com/ipfs/go-ipfs-cmdkit"
 )
 
 // Single can be used to signal to any ResponseEmitter that only one value will be emitted.

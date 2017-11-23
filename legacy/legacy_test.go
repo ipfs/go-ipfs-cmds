@@ -8,7 +8,6 @@ import (
 
 	cmds "github.com/ipfs/go-ipfs-cmds"
 	oldcmds "github.com/ipfs/go-ipfs/commands"
-	cmdkit "gx/ipfs/QmfNNaAwKLJkvGRnj254wMXJD36SnWU522dWbUxzzXCiTP/go-ipfs-cmdkit"
 )
 
 type WriteNopCloser struct {

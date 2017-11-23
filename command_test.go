@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"gx/ipfs/QmUyfy4QSr3NXym4etEiRyxBLqqAeKHJuRdi8AACxg63fZ/go-ipfs-cmdkit"
+	"github.com/ipfs/go-ipfs-cmdkit"
 )
 
 // nopClose implements io.Close and does nothing

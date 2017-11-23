@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"sync"
 
-	"gx/ipfs/QmUyfy4QSr3NXym4etEiRyxBLqqAeKHJuRdi8AACxg63fZ/go-ipfs-cmdkit/files"
+	"github.com/ipfs/go-ipfs-cmdkit/files"
 )
 
 // MultiFileReader reads from a `commands.File` (which can be a directory of files

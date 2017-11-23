@@ -5,8 +5,8 @@ import (
 	//"io"
 	"testing"
 
+	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-cmds"
-	"gx/ipfs/QmUyfy4QSr3NXym4etEiRyxBLqqAeKHJuRdi8AACxg63fZ/go-ipfs-cmdkit"
 )
 
 type writeCloser struct {

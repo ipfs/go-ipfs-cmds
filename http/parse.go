@@ -11,10 +11,10 @@ import (
 	"io/ioutil"
 	"strconv"
 
+	"github.com/ipfs/go-ipfs-cmdkit"
+	"github.com/ipfs/go-ipfs-cmdkit/files"
 	cmds "github.com/ipfs/go-ipfs-cmds"
 	path "github.com/ipfs/go-ipfs/path"
-	"gx/ipfs/QmUyfy4QSr3NXym4etEiRyxBLqqAeKHJuRdi8AACxg63fZ/go-ipfs-cmdkit"
-	"gx/ipfs/QmUyfy4QSr3NXym4etEiRyxBLqqAeKHJuRdi8AACxg63fZ/go-ipfs-cmdkit/files"
 )
 
 // parseRequest parses the data in a http.Request and returns a command Request object

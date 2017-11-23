@@ -5,10 +5,10 @@ import (
 
 	"github.com/ipfs/go-ipfs-cmds/examples/adder"
 
+	cmdkit "github.com/ipfs/go-ipfs-cmdkit"
 	cmds "github.com/ipfs/go-ipfs-cmds"
 	cli "github.com/ipfs/go-ipfs-cmds/cli"
 	http "github.com/ipfs/go-ipfs-cmds/http"
-	cmdkit "gx/ipfs/QmUyfy4QSr3NXym4etEiRyxBLqqAeKHJuRdi8AACxg63fZ/go-ipfs-cmdkit"
 )
 
 func main() {
