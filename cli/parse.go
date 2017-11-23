@@ -51,7 +51,7 @@ func isHidden(req *cmds.Request) bool {
 }
 
 func isRecursive(req *cmds.Request) bool {
-	rec, ok := req.Options[cmdkit.RecShort].(bool)
+	rec, ok := req.Options[cmds.RecLong].(bool)
 	return rec && ok
 }
 
@@ -488,7 +488,7 @@ func appendFile(fpath string, argDef *cmdkit.Argument, recursive, hidden bool) (
 			return nil, fmt.Errorf(dirNotSupportedFmtStr, fpath, argDef.Name)
 		}
 		if !recursive {
-			return nil, fmt.Errorf(notRecursiveFmtStr, fpath, cmdkit.RecShort)
+			return nil, fmt.Errorf(notRecursiveFmtStr, fpath, cmds.RecShort)
 		}
 	}
 

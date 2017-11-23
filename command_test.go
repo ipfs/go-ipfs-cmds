@@ -108,7 +108,7 @@ func TestOptionValidation(t *testing.T) {
 
 	re = newBufferResponseEmitter()
 	req, err = NewRequest(context.TODO(), nil, map[string]interface{}{
-		cmdkit.EncShort: "json",
+		EncLong: "json",
 	}, nil, nil, cmd)
 	if err != nil {
 		t.Error("Should have passed")
@@ -323,7 +323,7 @@ func TestPostRun(t *testing.T) {
 		}
 
 		req, err := NewRequest(context.TODO(), nil, map[string]interface{}{
-			cmdkit.EncShort: CLI,
+			EncLong: CLI,
 		}, nil, nil, cmd)
 		if err != nil {
 			t.Fatal(err)
@@ -334,9 +334,9 @@ func TestPostRun(t *testing.T) {
 			t.Fatal("req.Options() is nil")
 		}
 
-		encTypeIface := opts[cmdkit.EncShort]
+		encTypeIface := opts[EncLong]
 		if encTypeIface == nil {
-			t.Fatal("req.Options()[cmdkit.EncShort] is nil")
+			t.Fatal("req.Options()[EncLong] is nil")
 		}
 
 		encType := EncodingType(encTypeIface.(string))

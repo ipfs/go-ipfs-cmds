@@ -74,8 +74,8 @@ func TestParseRequest(t *testing.T) {
 				Path:      []string{"version"},
 				Arguments: []string{},
 				Options: cmdkit.OptMap{
-					"all":           true,
-					cmdkit.EncShort: cmds.JSON,
+					"all":        true,
+					cmds.EncLong: cmds.JSON,
 				},
 			},
 		},

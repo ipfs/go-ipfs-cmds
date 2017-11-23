@@ -130,35 +130,17 @@ func (req *Request) convertOptions(root *Command) error {
 
 // GetEncoding returns the EncodingType set in a request, falling back to JSON
 func GetEncoding(req *Request) EncodingType {
-	var (
-		encType = EncodingType(Undefined)
-		encStr  = string(Undefined)
-		ok      = false
-		opts    = req.Options
-	)
-
-	// try EncShort
-	encIface := opts[cmdkit.EncShort]
-
-	// if that didn't work, try EncLong
+	encIface := req.Options[EncLong]
 	if encIface == nil {
-		encIface = opts[cmdkit.EncLong]
+		return JSON
 	}
 
-	// try casting
-	if encIface != nil {
-		encStr, ok = encIface.(string)
+	switch enc := encIface.(type) {
+	case string:
+		return EncodingType(enc)
+	case EncodingType:
+		return enc
+	default:
+		return JSON
 	}
-
-	// if casting worked, convert to EncodingType
-	if ok {
-		encType = EncodingType(encStr)
-	}
-
-	// in case of error, use default
-	if !ok || encType == Undefined {
-		encType = JSON
-	}
-
-	return encType
 }
