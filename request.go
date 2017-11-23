@@ -65,21 +65,31 @@ func (req *Request) BodyArgs() (*bufio.Scanner, error) {
 	return bufio.NewScanner(fi), nil
 }
 
+func (req *Request) ParseBodyArgs() error {
+	s, err := req.BodyArgs()
+	if err != nil {
+		return err
+	}
+
+	for s.Scan() {
+		req.Arguments = append(req.Arguments, s.Text())
+	}
+
+	return s.Err()
+}
+
 func (req *Request) SetOption(name string, value interface{}) {
 	optDefs, err := req.Root.GetOptions(req.Path)
-	log.Debugf("req.Root.GetOptions returned %q", err)
 	optDef, found := optDefs[name]
 
 	// unknown option, simply set the value and return
 	// TODO we might error out here instead
-	if !found {
+	if err != nil || !found {
 		req.Options[name] = value
 		return
 	}
 
-	if cname, ok := optDef.CanonicalName(); ok {
-		name = cname
-	}
+	name = optDef.Names()[0]
 
 	req.Options[name] = value
 	return
