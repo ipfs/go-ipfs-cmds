@@ -28,6 +28,12 @@
       "hash": "QmfNNaAwKLJkvGRnj254wMXJD36SnWU522dWbUxzzXCiTP",
       "name": "go-ipfs-cmdkit",
       "version": "0.4.1"
+    },
+    {
+      "author": "texttheater",
+      "hash": "QmTVvctiHWZzSDZdyU5wdnXh7VF3kprHSyQFwVChos5qKu",
+      "name": "golang-levenshtein",
+      "version": "1.0.0"
     }
   ],
   "gxVersion": "0.10.0",
