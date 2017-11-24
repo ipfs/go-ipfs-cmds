@@ -119,8 +119,8 @@ type requestAdder interface {
 	AddRequest(*cmds.Request) func()
 }
 
-type contexter interface {
-	Context() context.Context
+type ContextEnv interface {
+	RootContext() context.Context
 }
 
 func (i internalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -135,19 +135,26 @@ func (i internalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	var ctx context.Context
-	if ctxer, ok := i.env.(contexter); ok {
-		ctx, cancel := context.WithCancel(ctxer.Context())
-		defer cancel()
-		if cn, ok := w.(http.CloseNotifier); ok {
-			clientGone := cn.CloseNotify()
-			go func() {
-				select {
-				case <-clientGone:
-				case <-ctx.Done():
-				}
-				cancel()
-			}()
-		}
+
+	if ctxer, ok := i.env.(ContextEnv); ok {
+		ctx = ctxer.RootContext()
+	}
+	if ctx == nil {
+		log.Error("no root context found, using background")
+		ctx = context.Background()
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	if cn, ok := w.(http.CloseNotifier); ok {
+		clientGone := cn.CloseNotify()
+		go func() {
+			select {
+			case <-clientGone:
+			case <-ctx.Done():
+			}
+			cancel()
+		}()
 	}
 
 	if !allowOrigin(r, i.cfg) || !allowReferer(r, i.cfg) {
@@ -168,12 +175,15 @@ func (i internalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.Context == nil {
+		fmt.Println("cmd.Call: request nil")
+		debug.PrintStack()
+	}
+
 	if reqAdder, ok := i.env.(requestAdder); ok {
 		done := reqAdder.AddRequest(req)
 		defer done()
 	}
-
-	req.Context = ctx
 
 	// set user's headers first.
 	for k, v := range i.cfg.Headers {
