@@ -89,9 +89,9 @@ func (req *Request) SetOption(name string, value interface{}) {
 		return
 	}
 
-	name = optDef.Names()[0]
-
+	name = optDef.Name()
 	req.Options[name] = value
+
 	return
 }
 

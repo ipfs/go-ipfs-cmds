@@ -14,7 +14,6 @@ import (
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 
-	// oldcmds "github.com/ipfs/go-ipfs/commands"
 	"github.com/ipfs/go-ipfs/path"
 	logging "github.com/ipfs/go-log"
 )
