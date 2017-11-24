@@ -51,7 +51,6 @@ func parseRequest(ctx context.Context, r *http.Request, root *cmds.Command) (*cm
 		// e.g. /objects/Qabc12345 (we are passing "Qabc12345" to the "objects" command)
 		stringArgs = append(stringArgs, pth[len(pth)-1])
 		pth = pth[:len(pth)-1]
-
 	} else {
 		cmd = sub
 	}

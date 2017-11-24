@@ -84,9 +84,7 @@ Outer:
 			}
 		}
 
-		name := optDef.Names()[0]
-
-		opts[name] = dflt
+		opts[optDef.Name()] = dflt
 	}
 
 	return nil
@@ -131,8 +129,7 @@ L:
 				panic(fmt.Errorf("multiple values for option %q", k))
 			}
 
-			k = optDefs[k].Names()[0]
-
+			k = optDefs[k].Name()
 			opts[k] = v
 		case strings.HasPrefix(param, "-") && param != "-":
 			// short options

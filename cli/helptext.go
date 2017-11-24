@@ -225,9 +225,9 @@ func ShortHelp(rootName string, root *cmds.Command, path []string, out io.Writer
 func generateSynopsis(cmd *cmds.Command, path string) string {
 	res := path
 	for _, opt := range cmd.Options {
-		valopt, ok := cmd.Helptext.SynopsisOptionsValues[opt.Names()[0]]
+		valopt, ok := cmd.Helptext.SynopsisOptionsValues[opt.Name()]
 		if !ok {
-			valopt = opt.Names()[0]
+			valopt = opt.Name()
 		}
 		sopt := ""
 		for i, n := range opt.Names() {
