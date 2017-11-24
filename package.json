@@ -34,6 +34,12 @@
       "hash": "QmT4PgCNdv73hnFAqzHqwW44q7M9PWpykSswHDxndquZbc",
       "name": "go-libp2p-loggables",
       "version": "1.1.8"
+    },
+    {
+      "author": "texttheater",
+      "hash": "QmTVvctiHWZzSDZdyU5wdnXh7VF3kprHSyQFwVChos5qKu",
+      "name": "golang-levenshtein",
+      "version": "1.0.0"
     }
   ],
   "gxVersion": "0.10.0",
