@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,13 +10,10 @@ import (
 	"strings"
 	"sync"
 
-	context "context"
-	"github.com/ipfs/go-ipfs/repo/config"
-	cors "github.com/rs/cors"
+	logging "github.com/ipfs/go-log"
 
 	cmds "github.com/ipfs/go-ipfs-cmds"
-
-	logging "github.com/ipfs/go-log"
+	cors "github.com/rs/cors"
 )
 
 var log = logging.Logger("cmds/http")
@@ -322,22 +320,4 @@ func allowReferer(r *http.Request, cfg *ServerConfig) bool {
 	}
 
 	return false
-}
-
-// apiVersionMatches checks whether the api client is running the
-// same version of go-ipfs. for now, only the exact same version of
-// client + server work. In the future, we should use semver for
-// proper API versioning! \o/
-func apiVersionMatches(r *http.Request) error {
-	clientVersion := r.UserAgent()
-	// skips check if client is not go-ipfs
-	if clientVersion == "" || !strings.Contains(clientVersion, "/go-ipfs/") {
-		return nil
-	}
-
-	daemonVersion := config.ApiVersion
-	if daemonVersion != clientVersion {
-		return fmt.Errorf("%s (%s != %s)", errApiVersionMismatch, daemonVersion, clientVersion)
-	}
-	return nil
 }
