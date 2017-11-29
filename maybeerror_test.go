@@ -32,11 +32,38 @@ type anyTestCase struct {
 func TestMaybeError(t *testing.T) {
 	testcases := []anyTestCase{
 		anyTestCase{
+			Value: &Foo{},
+			JSON:  `{"Bar":23}{"Bar":42}{"Message":"some error", "Type": "error"}`,
+			Decoded: []ValueError{
+				ValueError{Error: nil, Value: &Foo{23}},
+				ValueError{Error: nil, Value: &Foo{42}},
+				ValueError{Error: nil, Value: cmdkit.Error{Message: "some error", Code: 0}},
+			},
+		},
+		anyTestCase{
 			Value: Foo{},
 			JSON:  `{"Bar":23}{"Bar":42}{"Message":"some error", "Type": "error"}`,
 			Decoded: []ValueError{
 				ValueError{Error: nil, Value: &Foo{23}},
 				ValueError{Error: nil, Value: &Foo{42}},
+				ValueError{Error: nil, Value: cmdkit.Error{Message: "some error", Code: 0}},
+			},
+		},
+		anyTestCase{
+			Value: &Bar{},
+			JSON:  `{"Foo":""}{"Foo":"Qmabc"}{"Message":"some error", "Type": "error"}`,
+			Decoded: []ValueError{
+				ValueError{Error: nil, Value: &Bar{""}},
+				ValueError{Error: nil, Value: &Bar{"Qmabc"}},
+				ValueError{Error: nil, Value: cmdkit.Error{Message: "some error", Code: 0}},
+			},
+		},
+		anyTestCase{
+			Value: Bar{},
+			JSON:  `{"Foo":""}{"Foo":"Qmabc"}{"Message":"some error", "Type": "error"}`,
+			Decoded: []ValueError{
+				ValueError{Error: nil, Value: &Bar{""}},
+				ValueError{Error: nil, Value: &Bar{"Qmabc"}},
 				ValueError{Error: nil, Value: cmdkit.Error{Message: "some error", Code: 0}},
 			},
 		},
