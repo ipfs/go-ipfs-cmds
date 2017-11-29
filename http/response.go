@@ -67,18 +67,15 @@ func (res *Response) RawNext() (interface{}, error) {
 		}
 	}
 
-	a := &cmds.Any{}
-	a.Add(&cmdkit.Error{})
-	a.Add(res.req.Command().Type)
-
-	err := res.dec.Decode(a)
+	m := &cmds.MaybeError{Value: res.req.Command().Type}
+	err := res.dec.Decode(m)
 
 	// last error was sent as value, now we get the same error from the headers. ignore and EOF!
 	if err != nil && res.err != nil && err.Error() == res.err.Error() {
 		err = io.EOF
 	}
 
-	return a.Interface(), err
+	return m.Get(), err
 }
 
 func (res *Response) Next() (interface{}, error) {
