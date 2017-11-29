@@ -9,8 +9,6 @@ import (
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 	cmds "github.com/ipfs/go-ipfs-cmds"
-
-	"github.com/ipfs/go-ipfs/repo/config"
 )
 
 var (
@@ -156,11 +154,8 @@ func (re *responseEmitter) Flush() {
 }
 
 func (re *responseEmitter) preamble(value interface{}) {
-	h := re.w.Header()
-	// Expose our agent to allow identification
-	h.Set("Server", "go-ipfs/"+config.CurrentVersionNumber)
-
 	status := http.StatusOK
+	h := re.w.Header()
 
 	// unpack value if it needs special treatment in the type switch below
 	if s, isSingle := value.(cmds.Single); isSingle {

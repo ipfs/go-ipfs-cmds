@@ -14,25 +14,21 @@ import (
 	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-cmdkit/files"
 	cmds "github.com/ipfs/go-ipfs-cmds"
+
 	path "github.com/ipfs/go-ipfs/path"
 )
 
 // parseRequest parses the data in a http.Request and returns a command Request object
 func parseRequest(ctx context.Context, r *http.Request, root *cmds.Command) (*cmds.Request, error) {
+	var stringArgs []string
+
 	if !strings.HasPrefix(r.URL.Path, ApiPath) {
 		return nil, errors.New("Unexpected path prefix")
 	}
+
 	pth := path.SplitList(strings.TrimPrefix(r.URL.Path, ApiPath+"/"))
-
-	stringArgs := make([]string, 0)
-
-	if err := apiVersionMatches(r); err != nil {
-		if pth[0] != "version" { // compatibility with previous version check
-			return nil, err
-		}
-	}
-
 	getPath := pth[:len(pth)-1]
+
 	cmd, err := root.Get(getPath)
 	if err != nil {
 		// 404 if there is no command at that path
