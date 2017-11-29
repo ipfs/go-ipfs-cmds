@@ -82,6 +82,10 @@ func (req *Request) SetOption(name string, value interface{}) {
 	optDefs, err := req.Root.GetOptions(req.Path)
 	optDef, found := optDefs[name]
 
+	if req.Options == nil {
+		req.Options = map[string]interface{}{}
+	}
+
 	// unknown option, simply set the value and return
 	// TODO we might error out here instead
 	if err != nil || !found {

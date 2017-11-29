@@ -4,18 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"mime"
 	"net/http"
-	"strings"
-
-	"io/ioutil"
 	"strconv"
+	"strings"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-cmdkit/files"
 	cmds "github.com/ipfs/go-ipfs-cmds"
-
-	path "github.com/ipfs/go-ipfs/path"
 )
 
 // parseRequest parses the data in a http.Request and returns a command Request object
@@ -26,7 +23,7 @@ func parseRequest(ctx context.Context, r *http.Request, root *cmds.Command) (*cm
 		return nil, errors.New("Unexpected path prefix")
 	}
 
-	pth := path.SplitList(strings.TrimPrefix(r.URL.Path, ApiPath+"/"))
+	pth := strings.Split(strings.TrimPrefix(r.URL.Path, ApiPath+"/"), "/")
 	getPath := pth[:len(pth)-1]
 
 	cmd, err := root.Get(getPath)
