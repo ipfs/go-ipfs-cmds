@@ -10,12 +10,10 @@ import (
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 	cmds "github.com/ipfs/go-ipfs-cmds"
-
-	config "github.com/ipfs/go-ipfs/repo/config"
 )
 
 const (
-	ApiUrlFormat = "http://%s%s/%s?%s"
+	ApiUrlFormat = "%s%s/%s?%s"
 	ApiPath      = "/api/v0" // TODO: make configurable
 )
 
@@ -31,13 +29,40 @@ type Client interface {
 type client struct {
 	serverAddress string
 	httpClient    *http.Client
+	ua            string
+	apiPrefix     string
 }
 
-func NewClient(address string) Client {
-	return &client{
+type ClientOpt func(*client)
+
+func ClientWithUserAgent(ua string) ClientOpt {
+	return func(c *client) {
+		c.ua = ua
+	}
+}
+
+func ClientWithAPIPrefix(apiPrefix string) ClientOpt {
+	return func(c *client) {
+		c.apiPrefix = apiPrefix
+	}
+}
+
+func NewClient(address string, opts ...ClientOpt) Client {
+	if !strings.HasPrefix(address, "http://") {
+		address = "http://" + address
+	}
+
+	c := &client{
 		serverAddress: address,
 		httpClient:    http.DefaultClient,
+		ua:            "go-ipfs-cmds/http",
 	}
+
+	for _, opt := range opts {
+		opt(c)
+	}
+
+	return c
 }
 
 func (c *client) Send(req *cmds.Request) (cmds.Response, error) {
@@ -69,7 +94,7 @@ func (c *client) Send(req *cmds.Request) (cmds.Response, error) {
 	}
 
 	path := strings.Join(req.Path, "/")
-	url := fmt.Sprintf(ApiUrlFormat, c.serverAddress, ApiPath, path, query)
+	url := fmt.Sprintf(ApiUrlFormat, c.serverAddress, c.apiPrefix, path, query)
 
 	httpReq, err := http.NewRequest("POST", url, reader)
 	if err != nil {
@@ -82,7 +107,7 @@ func (c *client) Send(req *cmds.Request) (cmds.Response, error) {
 	} else {
 		httpReq.Header.Set(contentTypeHeader, applicationOctetStream)
 	}
-	httpReq.Header.Set(uaHeader, config.ApiVersion)
+	httpReq.Header.Set(uaHeader, c.ua)
 
 	httpReq.Cancel = req.Context.Done()
 	httpReq.Close = true

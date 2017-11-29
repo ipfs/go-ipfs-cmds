@@ -11,10 +11,10 @@ package cmds
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 
-	"github.com/ipfs/go-ipfs/path"
 	logging "github.com/ipfs/go-log"
 )
 
@@ -127,7 +127,7 @@ func (c *Command) Resolve(pth []string) ([]*Command, error) {
 		cmd = cmd.Subcommand(name)
 
 		if cmd == nil {
-			pathS := path.Join(pth[:i])
+			pathS := strings.Join(pth[:i], "/")
 			return nil, fmt.Errorf("undefined command: %q", pathS)
 		}
 
