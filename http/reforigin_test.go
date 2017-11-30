@@ -57,7 +57,7 @@ func (tc *httpTestCase) test(t *testing.T) {
 
 	path := tc.Path
 	if path == "" {
-		path = "/api/v0/version"
+		path = "/version"
 	}
 
 	expectCode := tc.Code
@@ -331,7 +331,7 @@ func TestEncoding(t *testing.T) {
 			contentTypeHeader: contentType,
 		}
 
-		path := fmt.Sprintf("/api/v0/version?%v=%v", cmds.EncShort, enc)
+		path := fmt.Sprintf("/version?%v=%v", cmds.EncShort, enc)
 
 		return httpTestCase{
 			Method:       "GET",

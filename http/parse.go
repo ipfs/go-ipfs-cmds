@@ -2,7 +2,6 @@ package http
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"mime"
@@ -17,20 +16,20 @@ import (
 
 // parseRequest parses the data in a http.Request and returns a command Request object
 func parseRequest(ctx context.Context, r *http.Request, root *cmds.Command) (*cmds.Request, error) {
-	var stringArgs []string
-
-	if !strings.HasPrefix(r.URL.Path, ApiPath) {
-		return nil, errors.New("Unexpected path prefix")
+	if r.URL.Path[0] == '/' {
+		r.URL.Path = r.URL.Path[1:]
 	}
 
-	pth := strings.Split(strings.TrimPrefix(r.URL.Path, ApiPath+"/"), "/")
-	getPath := pth[:len(pth)-1]
+	var (
+		stringArgs []string
+		pth        = strings.Split(r.URL.Path, "/")
+		getPath    = pth[:len(pth)-1]
+	)
 
 	cmd, err := root.Get(getPath)
 	if err != nil {
 		// 404 if there is no command at that path
 		return nil, ErrNotFound
-
 	}
 
 	sub := cmd.Subcommand(pth[len(pth)-1])

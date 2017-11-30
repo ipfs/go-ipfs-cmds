@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
@@ -13,6 +14,16 @@ import (
 
 var (
 	HeadRequest = fmt.Errorf("HEAD request")
+
+	AllowedExposedHeadersArr = []string{streamHeader, channelHeader, extraContentLengthHeader}
+	AllowedExposedHeaders    = strings.Join(AllowedExposedHeadersArr, ", ")
+
+	mimeTypes = map[cmds.EncodingType]string{
+		cmds.Protobuf: "application/protobuf",
+		cmds.JSON:     "application/json",
+		cmds.XML:      "application/xml",
+		cmds.Text:     "text/plain",
+	}
 )
 
 // NewResponeEmitter returns a new ResponseEmitter.

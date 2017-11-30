@@ -14,7 +14,6 @@ import (
 
 const (
 	ApiUrlFormat = "%s%s/%s?%s"
-	ApiPath      = "/api/v0" // TODO: make configurable
 )
 
 var OptionSkipMap = map[string]bool{
