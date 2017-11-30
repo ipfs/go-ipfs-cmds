@@ -9,7 +9,7 @@ import (
 	cmds "github.com/ipfs/go-ipfs-cmds"
 )
 
-func TestUserAgent(t *testing.T) {
+func TestClientUserAgent(t *testing.T) {
 	type testcase struct {
 		host string
 		ua   string
@@ -52,7 +52,7 @@ func TestUserAgent(t *testing.T) {
 	}
 }
 
-func TestAPIPrefix(t *testing.T) {
+func TestClientAPIPrefix(t *testing.T) {
 	type testcase struct {
 		host   string
 		prefix string
@@ -61,6 +61,7 @@ func TestAPIPrefix(t *testing.T) {
 
 	tcs := []testcase{
 		{prefix: "/api/v0", path: []string{"version"}},
+		{prefix: "/api/v1", path: []string{"version"}},
 	}
 
 	for _, tc := range tcs {

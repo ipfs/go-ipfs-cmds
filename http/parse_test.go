@@ -65,7 +65,7 @@ func (tc parseReqTestCase) test(t *testing.T) {
 func TestParseRequest(t *testing.T) {
 	tcs := []parseReqTestCase{
 		{
-			path: "/api/v0/version",
+			path: "/version",
 			opts: url.Values{
 				"all": []string{"true"},
 			},
