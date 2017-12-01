@@ -25,9 +25,9 @@
       "version": "1.2.5"
     },
     {
-      "hash": "QmcD1jCG3HD3QyEQD4uCFnbE59MXcSGg2yQjP6w6k1ry5b",
+      "hash": "QmVD1W3MC8Hk1WZgFQPWWmBECJ3X72BgUYf9eCQ4PGzPps",
       "name": "go-ipfs-cmdkit",
-      "version": "0.3.7"
+      "version": "1.0.0-dev"
     },
     {
       "author": "whyrusleeping",

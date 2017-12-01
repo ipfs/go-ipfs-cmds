@@ -61,10 +61,10 @@ var (
 				},
 				Type: VersionOutput{},
 				Options: []cmdkit.Option{
-					cmdkit.BoolOption("number", "n", "Only show the version number.").WithDefault(false),
-					cmdkit.BoolOption("commit", "Show the commit hash.").WithDefault(false),
-					cmdkit.BoolOption("repo", "Show repo version.").WithDefault(false),
-					cmdkit.BoolOption("all", "Show all version information").WithDefault(false),
+					cmdkit.BoolOption("number", "n", "Only show the version number."),
+					cmdkit.BoolOption("commit", "Show the commit hash."),
+					cmdkit.BoolOption("repo", "Show repo version."),
+					cmdkit.BoolOption("all", "Show all version information"),
 				},
 				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env interface{}) {
 					version, ok := getVersion(env)

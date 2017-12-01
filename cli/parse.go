@@ -55,41 +55,6 @@ func isRecursive(req *cmds.Request) bool {
 	return rec && ok
 }
 
-// fillDefault fills in default values if option has not been set
-func fillDefaults(root *cmds.Command, path []string, opts map[string]interface{}) error {
-	optDefMap, err := root.GetOptions(path)
-	if err != nil {
-		return err
-	}
-
-	optDefs := map[cmdkit.Option]struct{}{}
-
-	for _, optDef := range optDefMap {
-		optDefs[optDef] = struct{}{}
-	}
-
-Outer:
-	for optDef := range optDefs {
-		dflt := optDef.Default()
-		if dflt == nil {
-			// option has no dflt, continue
-			continue
-		}
-
-		names := optDef.Names()
-		for _, name := range names {
-			if _, ok := opts[name]; ok {
-				// option has been set, continue with next option
-				continue Outer
-			}
-		}
-
-		opts[optDef.Name()] = dflt
-	}
-
-	return nil
-}
-
 func parse(cmdline []string, root *cmds.Command) (req *cmds.Request, err error) {
 	var (
 		path = make([]string, 0, len(cmdline))
@@ -174,8 +139,6 @@ L:
 		i++
 	}
 
-	err = fillDefaults(root, path, opts)
-
 	req = &cmds.Request{
 		Context:   context.TODO(),
 		Root:      root,
@@ -184,6 +147,8 @@ L:
 		Arguments: args,
 		Options:   opts,
 	}
+
+	err = req.FillDefaults()
 	return req, err
 }
 

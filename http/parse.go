@@ -144,7 +144,8 @@ func parseRequest(ctx context.Context, r *http.Request, root *cmds.Command) (*cm
 		return nil, err
 	}
 
-	return req, nil
+	err = req.FillDefaults()
+	return req, err
 }
 
 func parseOptions(r *http.Request) (map[string]interface{}, []string) {

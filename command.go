@@ -97,8 +97,13 @@ func (c *Command) Call(req *Request, re ResponseEmitter, env interface{}) (err e
 	if re_, ok := re.(EncodingEmitter); ok {
 		encType := GetEncoding(req)
 
-		if enc, ok := cmd.Encoders[EncodingType(encType)]; ok {
+		if enc, ok := cmd.Encoders[encType]; ok {
 			re_.SetEncoder(enc(req))
+		} else if enc, ok := Encoders[encType]; ok {
+			re_.SetEncoder(enc(req))
+		} else {
+			log.Errorf("unknown encoding %q, using json", encType)
+			re_.SetEncoder(Encoders[JSON](req))
 		}
 	}
 

@@ -158,3 +158,38 @@ func GetEncoding(req *Request) EncodingType {
 		return JSON
 	}
 }
+
+// fillDefault fills in default values if option has not been set
+func (req *Request) FillDefaults() error {
+	optDefMap, err := req.Root.GetOptions(req.Path)
+	if err != nil {
+		return err
+	}
+
+	optDefs := map[cmdkit.Option]struct{}{}
+
+	for _, optDef := range optDefMap {
+		optDefs[optDef] = struct{}{}
+	}
+
+Outer:
+	for optDef := range optDefs {
+		dflt := optDef.Default()
+		if dflt == nil {
+			// option has no dflt, continue
+			continue
+		}
+
+		names := optDef.Names()
+		for _, name := range names {
+			if _, ok := req.Options[name]; ok {
+				// option has been set, continue with next option
+				continue Outer
+			}
+		}
+
+		req.Options[optDef.Name()] = dflt
+	}
+
+	return nil
+}
