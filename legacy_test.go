@@ -2,6 +2,7 @@ package cmds
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"testing"
@@ -56,6 +57,10 @@ func TestNewCommand(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	req.SetRootContext(ctx)
 
 	buf := bytes.NewBuffer(nil)
 
