@@ -67,34 +67,24 @@ func (r *readerResponse) Length() uint64 {
 }
 
 func (r *readerResponse) RawNext() (interface{}, error) {
-	a := &Any{}
-	a.Add(cmdkit.Error{})
-	a.Add(r.req.Command().Type)
-
-	err := r.dec.Decode(a)
+	m := &MaybeError{Value: r.req.Command().Type}
+	err := r.dec.Decode(m)
 	if err != nil {
 		return nil, err
 	}
 
 	r.once.Do(func() { close(r.emitted) })
 
-	v := a.Interface()
+	v := m.Get()
 	return v, nil
 }
 
 func (r *readerResponse) Next() (interface{}, error) {
-	a := &Any{}
-	a.Add(cmdkit.Error{})
-	a.Add(r.req.Command().Type)
-
-	err := r.dec.Decode(a)
+	v, err := r.RawNext()
 	if err != nil {
 		return nil, err
 	}
 
-	r.once.Do(func() { close(r.emitted) })
-
-	v := a.Interface()
 	if err, ok := v.(cmdkit.Error); ok {
 		v = &err
 	}
@@ -177,81 +167,32 @@ func (re *WriterResponseEmitter) Emit(v interface{}) error {
 	return re.enc.Encode(v)
 }
 
-type Any struct {
-	types map[reflect.Type]bool
-	order []reflect.Type
+type MaybeError struct {
+	Value interface{} // needs to be a pointer
+	Error cmdkit.Error
 
-	v interface{}
+	isError bool
 }
 
-func (a *Any) UnmarshalJSON(data []byte) error {
-	var (
-		iv  interface{}
-		err error
-	)
-
-	for _, t := range a.order {
-		v := reflect.New(t).Elem().Addr()
-
-		isNil := func(v reflect.Value) (yup, ok bool) {
-			ok = true
-			defer func() {
-				r := recover()
-				if r != nil {
-					ok = false
-				}
-			}()
-			yup = v.IsNil()
-			return
-		}
-
-		isZero := func(v reflect.Value, t reflect.Type) (yup, ok bool) {
-			ok = true
-			defer func() {
-				r := recover()
-				if r != nil {
-					ok = false
-				}
-			}()
-			yup = v.Elem().Interface() == reflect.Zero(t).Interface()
-			return
-		}
-
-		err = json.Unmarshal(data, v.Interface())
-
-		vIsNil, isNilOk := isNil(v)
-		vIsZero, isZeroOk := isZero(v, t)
-
-		nilish := (isNilOk && vIsNil) || (isZeroOk && vIsZero)
-		if err == nil && !nilish {
-			a.v = v.Interface()
-			return nil
-		}
+func (m *MaybeError) Get() interface{} {
+	if m.isError {
+		return m.Error
 	}
-
-	err = json.Unmarshal(data, &iv)
-	a.v = iv
-
-	return err
+	return m.Value
 }
 
-func (a *Any) Add(v interface{}) {
-	if v == nil {
-		return
-	}
-	if a.types == nil {
-		a.types = map[reflect.Type]bool{}
-	}
-	t := reflect.TypeOf(v)
-	isPtr := t.Kind() == reflect.Ptr
-	if isPtr || t.Kind() == reflect.Interface {
-		t = t.Elem()
+func (m *MaybeError) UnmarshalJSON(data []byte) error {
+	err := json.Unmarshal(data, &m.Error)
+	if err == nil {
+		m.isError = true
+		return nil
 	}
 
-	a.types[t] = isPtr
-	a.order = append(a.order, t)
-}
+	// make sure we are working with a pointer here
+	v := reflect.ValueOf(m.Value)
+	if v.Kind() != reflect.Ptr {
+		m.Value = reflect.New(v.Type()).Interface()
+	}
 
-func (a *Any) Interface() interface{} {
-	return a.v
+	return json.Unmarshal(data, m.Value)
 }
