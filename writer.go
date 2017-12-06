@@ -188,11 +188,18 @@ func (m *MaybeError) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	// make sure we are working with a pointer here
-	v := reflect.ValueOf(m.Value)
-	if v.Kind() != reflect.Ptr {
-		m.Value = reflect.New(v.Type()).Interface()
+	if m.Value != nil {
+		// make sure we are working with a pointer here
+		v := reflect.ValueOf(m.Value)
+		if v.Kind() != reflect.Ptr {
+			m.Value = reflect.New(v.Type()).Interface()
+		}
+
+		err = json.Unmarshal(data, m.Value)
+	} else {
+		// let the json decoder decode into whatever it finds appropriate
+		err = json.Unmarshal(data, &m.Value)
 	}
 
-	return json.Unmarshal(data, m.Value)
+	return err
 }
