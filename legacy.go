@@ -405,6 +405,12 @@ func NewCommand(oldcmd *oldcmds.Command) *Command {
 			select {
 			case err := <-errCh:
 				if err != nil {
+					select {
+					case <-req.Context().Done():
+						err = cmdkit.Error{Message: req.Context().Err().Error(), Code: cmdkit.ErrNormal}
+					default:
+					}
+
 					if e, ok := err.(*cmdkit.Error); ok {
 						err = *e
 					}
