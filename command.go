@@ -70,9 +70,14 @@ var ErrIncorrectType = errors.New("The command returned a value with a different
 // Call invokes the command for the given Request
 func (c *Command) Call(req Request, re ResponseEmitter) (err error) {
 	// we need the named return parameter so we can change the value from defer()
-	defer re.Close()
+	defer func() {
+		if err == nil {
+			re.Close()
+		}
+	}()
 
-	cmd, err := c.Get(req.Path())
+	var cmd *Command
+	cmd, err = c.Get(req.Path())
 	if err != nil {
 		return err
 	}

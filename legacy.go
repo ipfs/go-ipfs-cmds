@@ -63,8 +63,7 @@ func (rw *responseWrapper) Output() interface{} {
 
 					if err == io.EOF || err == context.Canceled {
 						return
-					}
-					if err != nil {
+					} else if err != nil {
 						log.Error(err)
 						return
 					}
@@ -403,9 +402,27 @@ func NewCommand(oldcmd *oldcmds.Command) *Command {
 			errCh := make(chan error)
 			go res.Send(errCh)
 			oldcmd.Run(oldReq, res)
-			err := <-errCh
-			if err != nil {
-				log.Error(err)
+			select {
+			case err := <-errCh:
+				if err != nil {
+					select {
+					case <-req.Context().Done():
+						err = cmdkit.Error{Message: req.Context().Err().Error(), Code: cmdkit.ErrNormal}
+					default:
+					}
+
+					if e, ok := err.(*cmdkit.Error); ok {
+						err = *e
+					}
+
+					if e, ok := err.(cmdkit.Error); ok {
+						re.SetError(e.Message, e.Code)
+					} else {
+						re.SetError(err.Error(), cmdkit.ErrNormal)
+					}
+				}
+			case <-req.Context().Done():
+				re.SetError(req.Context().Err(), cmdkit.ErrNormal)
 			}
 		}
 	}
