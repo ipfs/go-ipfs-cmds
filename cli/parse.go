@@ -22,11 +22,13 @@ var log = logging.Logger("cmds/cli")
 
 // Parse parses the input commandline string (cmd, flags, and args).
 // returns the corresponding command Request object.
-func Parse(input []string, stdin *os.File, root *cmds.Command) (*cmds.Request, error) {
+func Parse(ctx context.Context, input []string, stdin *os.File, root *cmds.Command) (*cmds.Request, error) {
 	req, err := parse(input, root)
 	if err != nil {
 		return req, err
 	}
+
+	req.Context = ctx
 
 	// This is an ugly hack to maintain our current CLI interface while fixing
 	// other stdin usage bugs. Let this serve as a warning, be careful about the
@@ -42,7 +44,21 @@ func Parse(input []string, stdin *os.File, root *cmds.Command) (*cmds.Request, e
 		return req, err
 	}
 
-	return req, req.Command.CheckArguments(req)
+	if err = req.Command.CheckArguments(req); err != nil {
+		return req, err
+	}
+
+	// if no encoding was specified by user, default to plaintext encoding
+	// (if command doesn't support plaintext, use JSON instead)
+	if enc := req.Options[cmds.EncLong]; enc == "" {
+		if req.Command.Encoders != nil && req.Command.Encoders[cmds.Text] != nil {
+			req.SetOption(cmds.EncLong, cmds.Text)
+		} else {
+			req.SetOption(cmds.EncLong, cmds.JSON)
+		}
+	}
+
+	return req, nil
 }
 
 func isHidden(req *cmds.Request) bool {

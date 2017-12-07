@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -83,11 +84,11 @@ func (re *responseEmitter) isClosed() bool {
 }
 
 func (re *responseEmitter) Close() error {
-	log.Debugf("err=%v exit=%v\nStack:\n%s", re.err, re.exit, debug.Stack())
-
 	if re.isClosed() {
-		return nil
+		return errors.New("closing closed responseemitter")
 	}
+
+	log.Debugf("err=%v exit=%v\nStack:\n%s", re.err, re.exit, debug.Stack())
 
 	re.wLock.Lock()
 	defer re.wLock.Unlock()
@@ -175,6 +176,9 @@ func (re *responseEmitter) Emit(v interface{}) error {
 
 	switch t := v.(type) {
 	case *cmdkit.Error:
+		if t.Message == "context canceled" {
+			//debug.PrintStack()
+		}
 		_, err = fmt.Fprintln(re.stderr, "Error:", t.Message)
 		if t.Code == cmdkit.ErrFatal {
 			defer re.Close()

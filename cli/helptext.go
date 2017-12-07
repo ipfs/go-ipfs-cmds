@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -121,6 +122,26 @@ func init() {
 	usageTemplate = template.Must(template.New("usage").Parse(usageFormat))
 	longHelpTemplate = template.Must(usageTemplate.New("longHelp").Parse(longHelpFormat))
 	shortHelpTemplate = template.Must(usageTemplate.New("shortHelp").Parse(shortHelpFormat))
+}
+
+var ErrNoHelpRequested = errors.New("no help requested")
+
+func HandleHelp(appName string, req *cmds.Request, out io.Writer) error {
+	if req == nil {
+		return ErrNoHelpRequested
+	}
+
+	long, _ := req.Options[cmds.OptLongHelp].(bool)
+	short, _ := req.Options[cmds.OptShortHelp].(bool)
+
+	switch {
+	case long:
+		return LongHelp(appName, req.Root, req.Path, out)
+	case short:
+		return ShortHelp(appName, req.Root, req.Path, out)
+	default:
+		return ErrNoHelpRequested
+	}
 }
 
 // LongHelp writes a formatted CLI helptext string to a Writer for the given command

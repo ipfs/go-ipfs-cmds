@@ -29,7 +29,8 @@ const (
 	Protobuf    = "protobuf"
 	Text        = "text"
 	TextNewline = "textnl"
-	CLI         = "cli"
+
+	CLI = "*cli.responseEmitter"
 
 	// TODO: support more encoding types
 )

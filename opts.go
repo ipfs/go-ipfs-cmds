@@ -6,12 +6,14 @@ import (
 
 // Flag names
 const (
-	EncShort   = "enc"
-	EncLong    = "encoding"
-	RecShort   = "r"
-	RecLong    = "recursive"
-	ChanOpt    = "stream-channels"
-	TimeoutOpt = "timeout"
+	EncShort     = "enc"
+	EncLong      = "encoding"
+	RecShort     = "r"
+	RecLong      = "recursive"
+	ChanOpt      = "stream-channels"
+	TimeoutOpt   = "timeout"
+	OptShortHelp = "h"
+	OptLongHelp  = "help"
 )
 
 // options that are used by this package

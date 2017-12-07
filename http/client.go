@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strings"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
@@ -62,6 +63,46 @@ func NewClient(address string, opts ...ClientOpt) Client {
 	}
 
 	return c
+}
+
+func (c *client) Execute(req *cmds.Request, re cmds.ResponseEmitter, env interface{}) error {
+	cmd := req.Command
+
+	// If this ResponseEmitter encodes messages (e.g. http, cli or writer - but not chan),
+	// we need to update the encoding to the one specified by the command.
+	if ee, ok := re.(cmds.EncodingEmitter); ok {
+		encType := cmds.GetEncoding(req)
+
+		// note the difference: cmd.Encoders vs. cmds.Encoders
+		if enc, ok := cmd.Encoders[encType]; ok {
+			ee.SetEncoder(enc(req))
+		} else if enc, ok := cmds.Encoders[encType]; ok {
+			ee.SetEncoder(enc(req))
+		} else {
+			log.Errorf("unknown encoding %q, using json", encType)
+			ee.SetEncoder(cmds.Encoders[cmds.JSON](req))
+		}
+	}
+
+	if cmd.PreRun != nil {
+		err := cmd.PreRun(req, env)
+		if err != nil {
+			return err
+		}
+	}
+
+	// TODO(keks) use the reflect.Type as map key, not the string representation
+	emitterType := cmds.EncodingType(reflect.TypeOf(re).String())
+	if cmd.PostRun != nil && cmd.PostRun[emitterType] != nil {
+		re = cmd.PostRun[emitterType](req, re)
+	}
+
+	res, err := c.Send(req)
+	if err != nil {
+		return err
+	}
+
+	return cmds.Copy(re, res)
 }
 
 func (c *client) Send(req *cmds.Request) (cmds.Response, error) {
