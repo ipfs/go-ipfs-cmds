@@ -17,6 +17,10 @@ var (
 	HeadRequest = fmt.Errorf("HEAD request")
 )
 
+type Doner interface {
+	Done() <-chan struct{}
+}
+
 // NewResponeEmitter returns a new ResponseEmitter.
 func NewResponseEmitter(w http.ResponseWriter, method string, req cmds.Request) ResponseEmitter {
 	encType := cmds.GetEncoding(req)
@@ -28,11 +32,13 @@ func NewResponseEmitter(w http.ResponseWriter, method string, req cmds.Request) 
 	}
 
 	re := &responseEmitter{
-		w:       w,
-		encType: encType,
-		enc:     enc,
-		method:  method,
-		req:     req,
+		w:         w,
+		encType:   encType,
+		enc:       enc,
+		method:    method,
+		req:       req,
+		preWait:   make(chan struct{}),
+		closeWait: make(chan struct{}),
 	}
 	return re
 }
@@ -54,7 +60,9 @@ type responseEmitter struct {
 
 	streaming bool
 	once      sync.Once
+	preWait   chan struct{}
 	method    string
+	closeWait chan struct{}
 }
 
 func (re *responseEmitter) Emit(value interface{}) error {
@@ -76,6 +84,7 @@ func (re *responseEmitter) Emit(value interface{}) error {
 	var err error
 
 	re.once.Do(func() { re.preamble(value) })
+	<-re.preWait // wait for preamble to complete
 
 	if single, ok := value.(cmds.Single); ok {
 		value = single.Value
@@ -103,7 +112,6 @@ func (re *responseEmitter) Emit(value interface{}) error {
 
 	switch v := value.(type) {
 	case io.Reader:
-		re.streaming = true
 		err = flushCopy(re.w, v)
 	case *cmdkit.Error:
 		if re.streaming || v.Code == cmdkit.ErrFatal {
@@ -127,6 +135,10 @@ func (re *responseEmitter) Emit(value interface{}) error {
 	return err
 }
 
+func (re *responseEmitter) Done() <-chan struct{} {
+	return re.closeWait
+}
+
 func (re *responseEmitter) SetLength(l uint64) {
 	h := re.w.Header()
 	h.Set("X-Content-Length", strconv.FormatUint(l, 10))
@@ -135,8 +147,17 @@ func (re *responseEmitter) SetLength(l uint64) {
 }
 
 func (re *responseEmitter) Close() error {
+	defer close(re.closeWait)
 	re.once.Do(func() { re.preamble(nil) })
+	<-re.preWait // wait for preamble to complete
 	// can't close HTTP connections
+
+	select {
+	case <-re.closeWait:
+		return nil // already closed
+	default:
+	}
+
 	return nil
 }
 
@@ -151,11 +172,19 @@ func (re *responseEmitter) SetError(v interface{}, errType cmdkit.ErrorType) {
 // Flush the http connection
 func (re *responseEmitter) Flush() {
 	re.once.Do(func() { re.preamble(nil) })
+	<-re.preWait // wait for preamble to complete
+
+	select {
+	case <-re.closeWait:
+		log.Error("flush after close")
+	default:
+	}
 
 	re.w.(http.Flusher).Flush()
 }
 
 func (re *responseEmitter) preamble(value interface{}) {
+	defer close(re.preWait)
 	h := re.w.Header()
 	// Expose our agent to allow identification
 	h.Set("Server", "go-ipfs/"+config.CurrentVersionNumber)
@@ -195,6 +224,7 @@ func (re *responseEmitter) preamble(value interface{}) {
 		// set streams output type to text to avoid issues with browsers rendering
 		// html pages on priveleged api ports
 		h.Set(streamHeader, "1")
+		re.streaming = true
 
 		mime = "text/plain"
 	case cmds.Single:

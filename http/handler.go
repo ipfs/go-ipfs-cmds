@@ -195,6 +195,14 @@ func (i internalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
+	d := re.(Doner)
+	select {
+	case <-d.Done():
+	case <-req.Context().Done():
+		log.Error("waiting for http.Responseemitter to close but then %s", req.Context().Err())
+		// too late to send an error, just return
+	}
+
 	return
 }
 
