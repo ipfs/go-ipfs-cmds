@@ -37,7 +37,6 @@ func NewResponseEmitter(w http.ResponseWriter, method string, req cmds.Request) 
 		enc:       enc,
 		method:    method,
 		req:       req,
-		preWait:   make(chan struct{}),
 		closeWait: make(chan struct{}),
 	}
 	return re
@@ -60,7 +59,6 @@ type responseEmitter struct {
 
 	streaming bool
 	once      sync.Once
-	preWait   chan struct{}
 	method    string
 	closeWait chan struct{}
 }
@@ -84,7 +82,6 @@ func (re *responseEmitter) Emit(value interface{}) error {
 	var err error
 
 	re.once.Do(func() { re.preamble(value) })
-	<-re.preWait // wait for preamble to complete
 
 	if single, ok := value.(cmds.Single); ok {
 		value = single.Value
@@ -147,15 +144,13 @@ func (re *responseEmitter) SetLength(l uint64) {
 }
 
 func (re *responseEmitter) Close() error {
-	defer close(re.closeWait)
 	re.once.Do(func() { re.preamble(nil) })
-	<-re.preWait // wait for preamble to complete
-	// can't close HTTP connections
 
 	select {
 	case <-re.closeWait:
 		return nil // already closed
 	default:
+		close(re.closeWait)
 	}
 
 	return nil
@@ -172,11 +167,11 @@ func (re *responseEmitter) SetError(v interface{}, errType cmdkit.ErrorType) {
 // Flush the http connection
 func (re *responseEmitter) Flush() {
 	re.once.Do(func() { re.preamble(nil) })
-	<-re.preWait // wait for preamble to complete
 
 	select {
 	case <-re.closeWait:
 		log.Error("flush after close")
+		return
 	default:
 	}
 
@@ -184,7 +179,6 @@ func (re *responseEmitter) Flush() {
 }
 
 func (re *responseEmitter) preamble(value interface{}) {
-	defer close(re.preWait)
 	h := re.w.Header()
 	// Expose our agent to allow identification
 	h.Set("Server", "go-ipfs/"+config.CurrentVersionNumber)
