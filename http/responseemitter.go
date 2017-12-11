@@ -60,6 +60,8 @@ type responseEmitter struct {
 	streaming bool
 	once      sync.Once
 	method    string
+
+	closeOnce sync.Once
 	closeWait chan struct{}
 }
 
@@ -145,13 +147,7 @@ func (re *responseEmitter) SetLength(l uint64) {
 
 func (re *responseEmitter) Close() error {
 	re.once.Do(func() { re.preamble(nil) })
-
-	select {
-	case <-re.closeWait:
-		return nil // already closed
-	default:
-		close(re.closeWait)
-	}
+	re.closeOnce.Do(func() { close(re.closeWait) })
 
 	return nil
 }
