@@ -5,8 +5,6 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-
-	"github.com/ipfs/go-ipfs-util"
 )
 
 // Types of Command options
@@ -224,7 +222,7 @@ func (ov *OptionValue) Bool() (value bool, found bool, err error) {
 	}
 	val, ok := ov.Value.(bool)
 	if !ok {
-		err = util.ErrCast()
+		err = fmt.Errorf("expected type %T, got %T", val, ov.Value)
 	}
 	return val, ov.ValueFound, err
 }
@@ -235,7 +233,7 @@ func (ov *OptionValue) Int() (value int, found bool, err error) {
 	}
 	val, ok := ov.Value.(int)
 	if !ok {
-		err = util.ErrCast()
+		err = fmt.Errorf("expected type %T, got %T", val, ov.Value)
 	}
 	return val, ov.ValueFound, err
 }
@@ -246,7 +244,7 @@ func (ov *OptionValue) Uint() (value uint, found bool, err error) {
 	}
 	val, ok := ov.Value.(uint)
 	if !ok {
-		err = util.ErrCast()
+		err = fmt.Errorf("expected type %T, got %T", val, ov.Value)
 	}
 	return val, ov.ValueFound, err
 }
@@ -257,7 +255,7 @@ func (ov *OptionValue) Float() (value float64, found bool, err error) {
 	}
 	val, ok := ov.Value.(float64)
 	if !ok {
-		err = util.ErrCast()
+		err = fmt.Errorf("expected type %T, got %T", val, ov.Value)
 	}
 	return val, ov.ValueFound, err
 }
@@ -268,7 +266,7 @@ func (ov *OptionValue) String() (value string, found bool, err error) {
 	}
 	val, ok := ov.Value.(string)
 	if !ok {
-		err = util.ErrCast()
+		err = fmt.Errorf("expected type %T, got %T", val, ov.Value)
 	}
 	return val, ov.ValueFound, err
 }
