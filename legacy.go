@@ -402,27 +402,27 @@ func NewCommand(oldcmd *oldcmds.Command) *Command {
 			errCh := make(chan error)
 			go res.Send(errCh)
 			oldcmd.Run(oldReq, res)
-			select {
-			case err := <-errCh:
-				if err != nil {
-					select {
-					case <-req.Context().Done():
-						err = cmdkit.Error{Message: req.Context().Err().Error(), Code: cmdkit.ErrNormal}
-					default:
-					}
 
-					if e, ok := err.(*cmdkit.Error); ok {
-						err = *e
-					}
-
-					if e, ok := err.(cmdkit.Error); ok {
-						re.SetError(e.Message, e.Code)
-					} else {
-						re.SetError(err.Error(), cmdkit.ErrNormal)
-					}
+			// No need to select with ctx.Done here because when the connection aborts, Emit will error.
+			// Actually we *can't* select with ctx.Done here, because otherwise we might return from the http handler
+			// while there still is a goroutine writing to the ResponseWriter, which panics.
+			err := <-errCh
+			if err != nil {
+				select {
+				case <-req.Context().Done():
+					err = cmdkit.Error{Message: req.Context().Err().Error(), Code: cmdkit.ErrNormal}
+				default:
 				}
-			case <-req.Context().Done():
-				re.SetError(req.Context().Err(), cmdkit.ErrNormal)
+
+				if e, ok := err.(*cmdkit.Error); ok {
+					err = *e
+				}
+
+				if e, ok := err.(cmdkit.Error); ok {
+					re.SetError(e.Message, e.Code)
+				} else {
+					re.SetError(err.Error(), cmdkit.ErrNormal)
+				}
 			}
 		}
 	}
