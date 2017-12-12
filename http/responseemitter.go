@@ -289,5 +289,4 @@ func flushCopy(w io.Writer, r io.Reader) error {
 
 		f.Flush()
 	}
-	return nil
 }

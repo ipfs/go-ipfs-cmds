@@ -114,7 +114,7 @@ func TestOldCommand(t *testing.T) {
 	}
 
 	if str != expected {
-		t.Fatal("expected value %#v, got %#v", expected, str)
+		t.Fatalf("expected value %#v, got %#v", expected, str)
 	}
 }
 
@@ -179,11 +179,11 @@ func TestTeeEmitter(t *testing.T) {
 	}
 
 	if buf1.String() != expect {
-		t.Fatal("expected %#v, got %#v", expect, buf1.String())
+		t.Fatalf("expected %#v, got %#v", expect, buf1.String())
 	}
 
 	if buf2.String() != expect {
-		t.Fatal("expected %#v, got %#v", expect, buf2.String())
+		t.Fatalf("expected %#v, got %#v", expect, buf2.String())
 	}
 }
 

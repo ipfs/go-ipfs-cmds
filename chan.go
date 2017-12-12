@@ -176,8 +176,6 @@ func (re *chanResponseEmitter) Emit(v interface{}) error {
 	case <-re.done:
 		return context.Canceled
 	}
-
-	return nil
 }
 
 func (re *chanResponseEmitter) SetError(v interface{}, errType cmdkit.ErrorType) {

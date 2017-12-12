@@ -135,7 +135,7 @@ func TestHandleError(t *testing.T) {
 
 	go func() {
 		for v, err := resFwd.Next(); err != io.EOF; {
-			t.Log("received forwarded value %#v, error  %#v", v, err)
+			t.Logf("received forwarded value %#v, error  %#v", v, err)
 		}
 	}()
 
