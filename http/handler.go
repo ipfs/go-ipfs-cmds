@@ -188,6 +188,7 @@ func (i internalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	re := NewResponseEmitter(w, r.Method, req)
+	defer re.Close()
 
 	// call the command
 	err = i.root.Call(req, re)
