@@ -44,6 +44,6 @@ func TestCopy(t *testing.T) {
 
 	_, err = res2.Next()
 	if err != io.EOF {
-		t.Fatal("expected EOF but got err=%v", err)
+		t.Fatalf("expected EOF but got err=%v", err)
 	}
 }

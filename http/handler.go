@@ -201,7 +201,7 @@ func (i internalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	select {
 	case <-d.Done():
 	case <-req.Context().Done():
-		log.Error("waiting for http.Responseemitter to close but then %s", req.Context().Err())
+		log.Errorf("waiting for http.Responseemitter to close but then %s", req.Context().Err())
 		// too late to send an error, just return
 	}
 
@@ -221,7 +221,7 @@ func NewServerConfig() *ServerConfig {
 	return cfg
 }
 
-func (cfg ServerConfig) AllowedOrigins() []string {
+func (cfg *ServerConfig) AllowedOrigins() []string {
 	cfg.cORSOptsRWMutex.RLock()
 	defer cfg.cORSOptsRWMutex.RUnlock()
 	return cfg.cORSOpts.AllowedOrigins
@@ -241,7 +241,7 @@ func (cfg *ServerConfig) AppendAllowedOrigins(origins ...string) {
 	cfg.cORSOpts.AllowedOrigins = append(cfg.cORSOpts.AllowedOrigins, origins...)
 }
 
-func (cfg ServerConfig) AllowedMethods() []string {
+func (cfg *ServerConfig) AllowedMethods() []string {
 	cfg.cORSOptsRWMutex.RLock()
 	defer cfg.cORSOptsRWMutex.RUnlock()
 	return []string(cfg.cORSOpts.AllowedMethods)
