@@ -39,7 +39,7 @@ func Parse(r *http.Request, root *cmds.Command) (cmds.Request, error) {
 	sub := cmd.Subcommand(pth[len(pth)-1])
 
 	if sub == nil {
-		if len(pth) <= 1 {
+		if cmd.Run == nil {
 			return nil, ErrNotFound
 		}
 
