@@ -34,7 +34,7 @@ func (rw *responseWrapper) Output() interface{} {
 	//if not called before
 	if rw.out == nil {
 		// get first emitted value
-		x, err := rw.Next()
+		x, err := rw.RawNext()
 		if err != nil {
 			return nil
 		}
@@ -274,6 +274,17 @@ func NewMarshalerEncoder(req Request, m oldcmds.Marshaler, w io.Writer) *Marshal
 
 // Encode encodes v onto the io.Writer w using Marshaler m, with both m and w passed in NewMarshalerEncoder
 func (me *MarshalerEncoder) Encode(v interface{}) error {
+	if err, ok := v.(*cmdkit.Error); ok {
+		// don't use cmd encoder for errors - use global encoder instead
+		encType := GetEncoding(me.req)
+		mkEnc, ok := Encoders[encType]
+		if !ok {
+			return fmt.Errorf("no error encoder for encoding %q available when trying to encode error %q", encType, err)
+		}
+
+		return mkEnc(me.req)(me.w).Encode(err)
+	}
+
 	re, res := NewChanResponsePair(me.req)
 	go re.Emit(v)
 
