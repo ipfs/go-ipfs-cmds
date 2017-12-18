@@ -85,6 +85,11 @@ func (re *responseEmitter) Emit(value interface{}) error {
 
 	re.once.Do(func() { re.preamble(value) })
 
+	// return immediately if this is a head request
+	if re.method == "HEAD" {
+		return nil
+	}
+
 	if single, ok := value.(cmds.Single); ok {
 		value = single.Value
 		defer re.Close()
@@ -96,11 +101,6 @@ func (re *responseEmitter) Emit(value interface{}) error {
 
 	// ignore those
 	if value == nil {
-		return nil
-	}
-
-	// return immediately if this is a head request
-	if re.method == "HEAD" {
 		return nil
 	}
 
