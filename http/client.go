@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
+	"github.com/ipfs/go-ipfs-cmdkit/files"
 	cmds "github.com/ipfs/go-ipfs-cmds"
 
 	config "github.com/ipfs/go-ipfs/repo/config"
@@ -65,11 +66,11 @@ func (c *client) Send(req cmds.Request) (cmds.Response, error) {
 		return nil, err
 	}
 
-	var fileReader *MultiFileReader
+	var fileReader *files.MultiFileReader
 	var reader io.Reader
 
 	if req.Files() != nil {
-		fileReader = NewMultiFileReader(req.Files(), true)
+		fileReader = files.NewMultiFileReader(req.Files(), true)
 		reader = fileReader
 	}
 
