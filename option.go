@@ -114,13 +114,12 @@ func (o *option) Parse(v string) (interface{}, error) {
 
 // constructor helper functions
 func NewOption(kind reflect.Kind, names ...string) Option {
-	if len(names) < 2 {
-		// FIXME(btc) don't panic (fix_before_merge)
-		panic("Options require at least two string values (name and description)")
-	}
+	var desc string
 
-	desc := names[len(names)-1]
-	names = names[:len(names)-1]
+	if len(names) >= 2 {
+		desc = names[len(names)-1]
+		names = names[:len(names)-1]
+	}
 
 	return &option{
 		names:       names,
