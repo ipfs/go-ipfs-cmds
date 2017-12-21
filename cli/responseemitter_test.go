@@ -23,10 +23,7 @@ type tcSetError struct {
 }
 
 func (tc tcSetError) Run(t *testing.T) {
-	req, err := cmds.NewEmptyRequest()
-	if err != nil {
-		t.Fatal(err)
-	}
+	req := &cmds.Request{}
 
 	cmdsre, exitCh := NewResponseEmitter(tc.stdout, tc.stderr, nil, req)
 

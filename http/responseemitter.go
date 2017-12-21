@@ -5,16 +5,25 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 	cmds "github.com/ipfs/go-ipfs-cmds"
-
-	"github.com/ipfs/go-ipfs/repo/config"
 )
 
 var (
 	HeadRequest = fmt.Errorf("HEAD request")
+
+	AllowedExposedHeadersArr = []string{streamHeader, channelHeader, extraContentLengthHeader}
+	AllowedExposedHeaders    = strings.Join(AllowedExposedHeadersArr, ", ")
+
+	mimeTypes = map[cmds.EncodingType]string{
+		cmds.Protobuf: "application/protobuf",
+		cmds.JSON:     "application/json",
+		cmds.XML:      "application/xml",
+		cmds.Text:     "text/plain",
+	}
 )
 
 type Doner interface {
@@ -22,7 +31,7 @@ type Doner interface {
 }
 
 // NewResponeEmitter returns a new ResponseEmitter.
-func NewResponseEmitter(w http.ResponseWriter, method string, req cmds.Request) ResponseEmitter {
+func NewResponseEmitter(w http.ResponseWriter, method string, req *cmds.Request) ResponseEmitter {
 	encType := cmds.GetEncoding(req)
 
 	var enc cmds.Encoder
@@ -52,7 +61,7 @@ type responseEmitter struct {
 
 	enc     cmds.Encoder
 	encType cmds.EncodingType
-	req     cmds.Request
+	req     *cmds.Request
 
 	length uint64
 	err    *cmdkit.Error
@@ -175,11 +184,8 @@ func (re *responseEmitter) Flush() {
 }
 
 func (re *responseEmitter) preamble(value interface{}) {
-	h := re.w.Header()
-	// Expose our agent to allow identification
-	h.Set("Server", "go-ipfs/"+config.CurrentVersionNumber)
-
 	status := http.StatusOK
+	h := re.w.Header()
 
 	// unpack value if it needs special treatment in the type switch below
 	if s, isSingle := value.(cmds.Single); isSingle {

@@ -2,6 +2,7 @@ package cmds
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -31,20 +32,22 @@ func eqStringSlice(a, b []string) bool {
 
 func TestMarshalling(t *testing.T) {
 	cmd := &Command{}
-	opts, _ := cmd.GetOptions(nil)
 
-	req, _ := NewRequest(nil, nil, nil, nil, nil, opts)
+	req, err := NewRequest(context.TODO(), nil, map[string]interface{}{
+		EncLong: JSON,
+	}, nil, nil, cmd)
+	if err != nil {
+		t.Error(err, "Should have passed")
+	}
 
 	buf := bytes.NewBuffer(nil)
 	wc := writecloser{Writer: buf, Closer: nopCloser{}}
 	re := NewWriterResponseEmitter(wc, req, Encoders[JSON])
 
-	err := re.Emit(TestOutput{"beep", "boop", 1337})
+	err = re.Emit(TestOutput{"beep", "boop", 1337})
 	if err != nil {
 		t.Error(err, "Should have passed")
 	}
-
-	req.SetOption(cmdkit.EncShort, JSON)
 
 	output := buf.String()
 	if removeWhitespace(output) != "{\"Foo\":\"beep\",\"Bar\":\"boop\",\"Baz\":1337}" {
@@ -72,9 +75,11 @@ func TestHandleError_Error(t *testing.T) {
 	)
 
 	cmd := &Command{}
-	opts, _ := cmd.GetOptions(nil)
 
-	req, _ := NewRequest(nil, nil, nil, nil, nil, opts)
+	req, err := NewRequest(context.TODO(), nil, nil, nil, nil, cmd)
+	if err != nil {
+		t.Error(err, "Should have passed")
+	}
 
 	re, res := NewChanResponsePair(req)
 	reFwd, resFwd := NewChanResponsePair(req)
@@ -120,9 +125,11 @@ func TestHandleError(t *testing.T) {
 	)
 
 	cmd := &Command{}
-	opts, _ := cmd.GetOptions(nil)
 
-	req, _ := NewRequest(nil, nil, nil, nil, nil, opts)
+	req, err := NewRequest(context.TODO(), nil, nil, nil, nil, cmd)
+	if err != nil {
+		t.Error(err, "Should have passed")
+	}
 
 	re, res := NewChanResponsePair(req)
 	reFwd, resFwd := NewChanResponsePair(req)
@@ -139,7 +146,6 @@ func TestHandleError(t *testing.T) {
 		}
 	}()
 
-	var err error
 	for HandleError(err, res, reFwd) {
 		var v interface{}
 		v, err = res.Next()

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 
 	"github.com/ipfs/go-ipfs-cmds/examples/adder"
@@ -13,7 +14,7 @@ import (
 
 func main() {
 	// parse the command path, arguments and options from the command line
-	req, cmd, _, err := cli.Parse(os.Args[1:], os.Stdin, adder.RootCmd)
+	req, err := cli.Parse(context.TODO(), os.Args[1:], os.Stdin, adder.RootCmd)
 	if err != nil {
 		panic(err)
 	}
@@ -27,12 +28,12 @@ func main() {
 		panic(err)
 	}
 
-	req.SetOption("encoding", cmds.Text)
+	req.Options["encoding"] = cmds.Text
 
 	// create an emitter
-	re, retCh := cli.NewResponseEmitter(os.Stdout, os.Stderr, cmd.Encoders["Text"], req)
+	re, retCh := cli.NewResponseEmitter(os.Stdout, os.Stderr, req.Command.Encoders["Text"], req)
 
-	if pr, ok := cmd.PostRun[cmds.CLI]; ok {
+	if pr, ok := req.Command.PostRun[cmds.CLI]; ok {
 		re = pr(req, re)
 	}
 

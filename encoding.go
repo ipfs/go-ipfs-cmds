@@ -29,7 +29,8 @@ const (
 	Protobuf    = "protobuf"
 	Text        = "text"
 	TextNewline = "textnl"
-	CLI         = "cli"
+
+	CLI = "*cli.responseEmitter"
 
 	// TODO: support more encoding types
 )
@@ -43,34 +44,34 @@ var Decoders = map[EncodingType]func(w io.Reader) Decoder{
 	},
 }
 
-type EncoderFunc func(req Request) func(w io.Writer) Encoder
+type EncoderFunc func(req *Request) func(w io.Writer) Encoder
 type EncoderMap map[EncodingType]EncoderFunc
 
 var Encoders = EncoderMap{
-	XML: func(req Request) func(io.Writer) Encoder {
+	XML: func(req *Request) func(io.Writer) Encoder {
 		return func(w io.Writer) Encoder { return xml.NewEncoder(w) }
 	},
-	JSON: func(req Request) func(io.Writer) Encoder {
+	JSON: func(req *Request) func(io.Writer) Encoder {
 		return func(w io.Writer) Encoder { return json.NewEncoder(w) }
 	},
-	Text: func(req Request) func(io.Writer) Encoder {
+	Text: func(req *Request) func(io.Writer) Encoder {
 		return func(w io.Writer) Encoder { return TextEncoder{w: w} }
 	},
-	TextNewline: func(req Request) func(io.Writer) Encoder {
+	TextNewline: func(req *Request) func(io.Writer) Encoder {
 		return func(w io.Writer) Encoder { return TextEncoder{w: w, suffix: "\n"} }
 	},
 }
 
-func MakeEncoder(f func(Request, io.Writer, interface{}) error) func(Request) func(io.Writer) Encoder {
-	return func(req Request) func(io.Writer) Encoder {
+func MakeEncoder(f func(*Request, io.Writer, interface{}) error) func(*Request) func(io.Writer) Encoder {
+	return func(req *Request) func(io.Writer) Encoder {
 		return func(w io.Writer) Encoder { return &genericEncoder{f: f, w: w, req: req} }
 	}
 }
 
 type genericEncoder struct {
-	f   func(Request, io.Writer, interface{}) error
+	f   func(*Request, io.Writer, interface{}) error
 	w   io.Writer
-	req Request
+	req *Request
 }
 
 func (e *genericEncoder) Encode(v interface{}) error {
