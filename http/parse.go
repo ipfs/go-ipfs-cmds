@@ -32,7 +32,7 @@ func parseRequest(ctx context.Context, r *http.Request, root *cmds.Command) (*cm
 		return nil, ErrNotFound
 	}
 
-	sub := cmd.Subcommand(pth[len(pth)-1])
+	sub := cmd.Subcommands[pth[len(pth)-1]]
 
 	if sub == nil {
 		if cmd.Run == nil {

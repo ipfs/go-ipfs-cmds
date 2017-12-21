@@ -128,7 +128,7 @@ L:
 		default:
 			arg := cmdline[i]
 			// arg is a sub-command or a positional argument
-			sub := cmd.Subcommand(arg)
+			sub := cmd.Subcommands[arg]
 			if sub != nil {
 				cmd = sub
 				path = append(path, arg)

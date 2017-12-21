@@ -130,7 +130,7 @@ func (c *Command) Resolve(pth []string) ([]*Command, error) {
 
 	cmd := c
 	for i, name := range pth {
-		cmd = cmd.Subcommand(name)
+		cmd = cmd.Subcommands[name]
 
 		if cmd == nil {
 			pathS := strings.Join(pth[:i], "/")
@@ -237,25 +237,13 @@ func (c *Command) CheckArguments(req *Request) error {
 	return nil
 }
 
-// Subcommand returns the subcommand with the given id
-func (c *Command) Subcommand(id string) *Command {
-	// copy command, then add parent command options to the copy
-	// so we have access to all option definitions
-	cmd := c.Subcommands[id]
-	if cmd != nil {
-		return cmd
-	}
-
-	return nil
-}
-
 type CommandVisitor func(*Command)
 
 // Walks tree of all subcommands (including this one)
 func (c *Command) Walk(visitor CommandVisitor) {
 	visitor(c)
-	for name := range c.Subcommands {
-		c.Subcommand(name).Walk(visitor)
+	for _, sub := range c.Subcommands {
+		sub.Walk(visitor)
 	}
 }
 

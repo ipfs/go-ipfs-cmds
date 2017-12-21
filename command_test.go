@@ -24,9 +24,7 @@ func newBufferResponseEmitter() ResponseEmitter {
 }
 
 // noop does nothing and can be used as a noop Run function
-func noop(req *Request, re ResponseEmitter, env interface{}) {
-	return
-}
+func noop(req *Request, re ResponseEmitter, env interface{}) {}
 
 // writecloser implements io.WriteCloser by embedding
 // an io.Writer and an io.Closer
@@ -139,21 +137,6 @@ func TestOptionValidation(t *testing.T) {
 	if err == nil {
 		t.Error("Should have failed (string value not convertible to int)")
 	}
-	/*
-		err = req.SetOptions(map[string]interface{}{
-			"b": 100,
-		})
-		if err != nil {
-			t.Error("Should have passed")
-		}
-
-		err = req.SetOptions(map[string]interface{}{
-			"b": ":)",
-		})
-		if err == nil {
-			t.Error("Should have failed (string value not convertible to int)")
-		}
-	*/
 }
 
 func TestRegistration(t *testing.T) {
