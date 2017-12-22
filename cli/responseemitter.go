@@ -59,6 +59,10 @@ type responseEmitter struct {
 	ch chan<- int
 }
 
+func (re *responseEmitter) Type() cmds.PostRunType {
+	return cmds.CLI
+}
+
 func (re *responseEmitter) SetLength(l uint64) {
 	re.length = l
 }

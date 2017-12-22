@@ -17,8 +17,7 @@ type Closer interface {
 
 func Run(ctx context.Context, root *cmds.Command,
 	cmdline []string, stdin, stdout, stderr *os.File,
-	buildEnv func(context.Context, *cmds.Request) (interface{}, error),
-	makeExecutor func(*cmds.Request, interface{}) (cmds.Executor, error)) error {
+	buildEnv cmds.MakeEnvironment, makeExecutor cmds.MakeExecutor) error {
 
 	printErr := func(err error) {
 		fmt.Fprintf(stderr, "Error: %s\n", err.Error())

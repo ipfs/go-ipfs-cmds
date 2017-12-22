@@ -47,14 +47,24 @@ func NewRequest(ctx context.Context, path []string, opts cmdkit.OptMap, args []s
 	return req, req.convertOptions(root)
 }
 
+type allArgsCovered struct{}
+
+func (allArgsCovered) Error() string            { return "all arguments covered by positional arguments" }
+func (allArgsCovered) ArgsAlreadyCovered() bool { return true }
+
+type moreArgsExpected struct{}
+
+func (moreArgsExpected) Error() string          { return "expected more arguments from stdin" }
+func (moreArgsExpected) MoreArgsExpected() bool { return true }
+
 // BodyArgs returns a scanner that returns arguments passed in the body as tokens.
 func (req *Request) BodyArgs() (*bufio.Scanner, error) {
 	if len(req.Arguments) >= len(req.Command.Arguments) {
-		return nil, fmt.Errorf("all arguments covered by positional arguments")
+		return nil, allArgsCovered{}
 	}
 
 	if req.Files == nil {
-		return nil, fmt.Errorf("expected more arguments from stdin")
+		return nil, moreArgsExpected{}
 	}
 
 	fi, err := req.Files.NextFile()
@@ -65,12 +75,22 @@ func (req *Request) BodyArgs() (*bufio.Scanner, error) {
 	return bufio.NewScanner(fi), nil
 }
 
+type argsAlreadyCovereder interface {
+	ArgsAlreadyCovered() bool
+}
+
 func IsAllArgsAlreadyCovered(err error) bool {
-	return err != nil && err.Error() == "all arguments covered by positional arguments"
+	argsErr, ok := err.(argsAlreadyCovereder)
+	return ok && argsErr.ArgsAlreadyCovered()
+}
+
+type moreArgsExpecteder interface {
+	MoreArgsExpected() bool
 }
 
 func IsMoreArgumentsExpected(err error) bool {
-	return err != nil && err.Error() == "expected more arguments from stdin"
+	argsErr, ok := err.(moreArgsExpecteder)
+	return ok && argsErr.MoreArgsExpected()
 }
 
 func (req *Request) ParseBodyArgs() error {

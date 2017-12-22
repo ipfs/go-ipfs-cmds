@@ -2,7 +2,6 @@ package cmds
 
 import (
 	"context"
-	"reflect"
 	"time"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
@@ -11,6 +10,17 @@ import (
 type Executor interface {
 	Execute(req *Request, re ResponseEmitter, env interface{}) error
 }
+
+// MakeEnvironment takes a context and the request to construct the environment
+// that is passed to the command's Run function.
+// The user can define a function like this to pass it to cli.Run.
+type MakeEnvironment func(context.Context, *Request) (interface{}, error)
+
+// MakeExecutor takes the request and environment variable to construct the
+// executor that determines how to call the command - i.e. by calling Run or
+// making an API request to a daemon.
+// The user can define a function like this to pass it to cli.Run.
+type MakeExecutor func(*Request, interface{}) (Executor, error)
 
 func NewExecutor(root *Command) Executor {
 	return &executor{
@@ -69,10 +79,12 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env interface{}) (e
 		}
 	}
 
-	// TODO(keks) use the reflect.Type as map key, not the string representation
-	emitterType := EncodingType(reflect.TypeOf(re).String())
-	if cmd.PostRun != nil && cmd.PostRun[emitterType] != nil {
-		re = cmd.PostRun[emitterType](req, re)
+	if cmd.PostRun != nil {
+		if typer, ok := re.(interface {
+			Type() PostRunType
+		}); ok && cmd.PostRun[typer.Type()] != nil {
+			re = cmd.PostRun[typer.Type()](req, re)
+		}
 	}
 
 	defer func() {

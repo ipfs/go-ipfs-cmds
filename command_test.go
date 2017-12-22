@@ -332,7 +332,7 @@ func TestPostRun(t *testing.T) {
 		}
 
 		re, res := NewChanResponsePair(req)
-		re = cmd.PostRun[encType](req, re)
+		re = cmd.PostRun[PostRunType(encType)](req, re)
 
 		err = cmd.Call(req, re, nil)
 		if err != nil {
@@ -381,7 +381,7 @@ func TestCancel(t *testing.T) {
 	wait := make(chan struct{})
 	ctx, cancel := context.WithCancel(context.Background())
 
-	req, err := NewRequest(ctx, nil, nil, nil, nil, nil)
+	req, err := NewRequest(ctx, nil, nil, nil, nil, &Command{})
 	if err != nil {
 		t.Fatal(err)
 	}

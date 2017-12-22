@@ -87,6 +87,10 @@ func parse(cmdline []string, root *cmds.Command) (req *cmds.Request, err error) 
 	// get root options
 	optDefs, err := root.GetOptions([]string{})
 
+	// Not on panics in parse code:
+	// Here we recover from panics during parsing.
+	// When parsing, EVERY error is considered fatal to
+	// parsing and will be returned as an error to the call.
 	defer func() {
 		e := recover()
 		if er, ok := e.(error); ok {
@@ -328,10 +332,7 @@ type kv struct {
 
 func parseShortOpts(cmdline []string, i int, optDefs map[string]cmdkit.Option) ([]kv, int) {
 	k, vStr, ok := splitkv(cmdline[i][1:])
-	var (
-		j   int
-		kvs = make([]kv, 0, len(k))
-	)
+	kvs := make([]kv, 0, len(k))
 
 	if ok {
 		// split at = successful
@@ -341,13 +342,16 @@ func parseShortOpts(cmdline []string, i int, optDefs map[string]cmdkit.Option) (
 		})
 
 	} else {
-		for j < len(k) {
+	LOOP:
+		for j := 0; j < len(k); {
 			flag := k[j : j+1]
+			od, ok := optDefs[flag]
 
-			if od, ok := optDefs[flag]; !ok {
+			switch {
+			case !ok:
 				panic(fmt.Errorf("unknown option %q", k))
 
-			} else if od.Type() == cmdkit.Bool {
+			case od.Type() == cmdkit.Bool:
 				// single char flags for bools
 				kvs = append(kvs, kv{
 					Key:   flag,
@@ -355,7 +359,7 @@ func parseShortOpts(cmdline []string, i int, optDefs map[string]cmdkit.Option) (
 				})
 				j++
 
-			} else if j < len(k)-1 {
+			case j < len(k)-1:
 				// single char flag for non-bools (use the rest of the flag as value)
 				rest := k[j+1:]
 
@@ -363,18 +367,18 @@ func parseShortOpts(cmdline []string, i int, optDefs map[string]cmdkit.Option) (
 					Key:   flag,
 					Value: parseOpt(flag, rest, optDefs),
 				})
-				break
+				break LOOP
 
-			} else if i < len(cmdline)-1 {
+			case i < len(cmdline)-1:
 				// single char flag for non-bools (use the next word as value)
 				i++
 				kvs = append(kvs, kv{
 					Key:   flag,
 					Value: parseOpt(flag, cmdline[i], optDefs),
 				})
-				break
+				break LOOP
 
-			} else {
+			default:
 				panic(fmt.Errorf("missing argument for option %q", k))
 			}
 		}

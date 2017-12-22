@@ -167,7 +167,6 @@ func parseOptions(r *http.Request) (map[string]interface{}, []string) {
 
 // parseResponse decodes a http.Response to create a cmds.Response
 func parseResponse(httpRes *http.Response, req *cmds.Request) (cmds.Response, error) {
-	var err error
 	res := &Response{
 		res: httpRes,
 		req: req,
@@ -213,7 +212,7 @@ func parseResponse(httpRes *http.Response, req *cmds.Request) (cmds.Response, er
 			e.Code = cmdkit.ErrNormal
 		default:
 			// handle marshalled errors
-			err = res.dec.Decode(&e)
+			err := res.dec.Decode(&e)
 			if err != nil {
 				return nil, err
 			}

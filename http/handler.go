@@ -3,7 +3,6 @@ package http
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"runtime/debug"
 	"strings"
@@ -140,11 +139,6 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Write([]byte(err.Error()))
 		return
-	}
-
-	if req.Context == nil {
-		fmt.Println("cmd.Call: request nil")
-		debug.PrintStack()
 	}
 
 	if reqLogger, ok := h.env.(requestLogger); ok {

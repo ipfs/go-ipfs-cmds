@@ -27,7 +27,7 @@ var log = logging.Logger("cmds")
 type Function func(*Request, ResponseEmitter, interface{})
 
 // PostRunMap is the map used in Command.PostRun.
-type PostRunMap map[EncodingType]func(*Request, ResponseEmitter) ResponseEmitter
+type PostRunMap map[PostRunType]func(*Request, ResponseEmitter) ResponseEmitter
 
 // Command is a runnable command, with input arguments and options (flags).
 // It can also have Subcommands, to group units of work into sets.
@@ -154,10 +154,6 @@ func (c *Command) Get(path []string) (*Command, error) {
 
 // GetOptions returns the options in the given path of commands
 func (c *Command) GetOptions(path []string) (map[string]cmdkit.Option, error) {
-	if c == nil {
-		return nil, nil
-	}
-
 	options := make([]cmdkit.Option, 0, len(c.Options))
 
 	cmds, err := c.Resolve(path)

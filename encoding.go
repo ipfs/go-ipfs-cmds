@@ -20,19 +20,23 @@ type Decoder interface {
 // EncodingType defines a supported encoding
 type EncodingType string
 
+// PostRunType defines which PostRunFunc should be used
+type PostRunType string
+
 // Supported EncodingType constants.
 const (
+	// General purpose
 	Undefined = ""
 
+	// EncodingTypes
 	JSON        = "json"
 	XML         = "xml"
 	Protobuf    = "protobuf"
 	Text        = "text"
 	TextNewline = "textnl"
 
-	CLI = "*cli.responseEmitter"
-
-	// TODO: support more encoding types
+	// PostRunTypes
+	CLI = "cli"
 )
 
 var Decoders = map[EncodingType]func(w io.Reader) Decoder{

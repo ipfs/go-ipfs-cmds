@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strings"
 	"time"
 
@@ -99,10 +98,12 @@ func (c *client) Execute(req *cmds.Request, re cmds.ResponseEmitter, env interfa
 		}
 	}
 
-	// TODO(keks) use the reflect.Type as map key, not the string representation
-	emitterType := cmds.EncodingType(reflect.TypeOf(re).String())
-	if cmd.PostRun != nil && cmd.PostRun[emitterType] != nil {
-		re = cmd.PostRun[emitterType](req, re)
+	if cmd.PostRun != nil {
+		if typer, ok := re.(interface {
+			Type() cmds.PostRunType
+		}); ok && cmd.PostRun[typer.Type()] != nil {
+			re = cmd.PostRun[typer.Type()](req, re)
+		}
 	}
 
 	res, err := c.Send(req)

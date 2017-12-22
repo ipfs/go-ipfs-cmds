@@ -99,7 +99,7 @@ func (r *chanResponse) Next() (interface{}, error) {
 		}
 	case <-ctx.Done():
 		close(r.done)
-		return nil, r.req.Context.Err()
+		return nil, ctx.Err()
 	}
 
 }
@@ -125,7 +125,7 @@ func (r *chanResponse) RawNext() (interface{}, error) {
 		return nil, io.EOF
 	case <-ctx.Done():
 		close(r.done)
-		return nil, r.req.Context.Err()
+		return nil, ctx.Err()
 	}
 
 }

@@ -104,7 +104,7 @@ func allowOrigin(r *http.Request, cfg *ServerConfig) bool {
 // allowReferer this is here to prevent some CSRF attacks that
 // the API would be vulnerable to. We check that the Referer
 // is allowed by CORS Origin (origins and referrers here will
-// work similarly in the normla uses of the API).
+// work similarly in the normal uses of the API).
 // See discussion at https://github.com/ipfs/go-ipfs/issues/1532
 func allowReferer(r *http.Request, cfg *ServerConfig) bool {
 	referer := r.Referer()
