@@ -127,10 +127,6 @@ func init() {
 var ErrNoHelpRequested = errors.New("no help requested")
 
 func HandleHelp(appName string, req *cmds.Request, out io.Writer) error {
-	if req == nil {
-		return ErrNoHelpRequested
-	}
-
 	long, _ := req.Options[cmds.OptLongHelp].(bool)
 	short, _ := req.Options[cmds.OptShortHelp].(bool)
 

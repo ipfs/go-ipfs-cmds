@@ -120,7 +120,7 @@ func (c *client) Execute(req *cmds.Request, re cmds.ResponseEmitter, env interfa
 func (c *client) Send(req *cmds.Request) (cmds.Response, error) {
 	if req.Context == nil {
 		log.Warningf("no context set in request")
-		req.Context = context.TODO()
+		req.Context = context.Background()
 	}
 
 	// save user-provided encoding
@@ -170,7 +170,7 @@ func (c *client) Send(req *cmds.Request) (cmds.Response, error) {
 		req.Context, reqCancel = context.WithTimeout(req.Context, timeout)
 	}
 
-	httpReq.Cancel = req.Context.Done()
+	httpReq = httpReq.WithContext(req.Context)
 	httpReq.Close = true
 
 	httpRes, err := c.httpClient.Do(httpReq)

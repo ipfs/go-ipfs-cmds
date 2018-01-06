@@ -76,8 +76,8 @@ func (r *chanResponse) Next() (interface{}, error) {
 	}
 
 	var ctx context.Context
-	if r.req.Context != nil {
-		ctx = r.req.Context
+	if rctx := r.req.Context; rctx != nil {
+		ctx = rctx
 	} else {
 		ctx = context.Background()
 	}

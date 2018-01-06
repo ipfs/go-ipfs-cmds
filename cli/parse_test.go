@@ -85,7 +85,11 @@ func TestOptionParsing(t *testing.T) {
 	}
 
 	testHelper := func(args string, expectedOpts kvs, expectedWords words, expectErr bool) {
-		req, err := parse(strings.Split(args, " "), cmd)
+		req := &cmds.Request{}
+		err := parse(req, strings.Split(args, " "), cmd)
+		if err == nil {
+			err = req.FillDefaults()
+		}
 		if expectErr {
 			if err == nil {
 				t.Errorf("Command line '%v' parsing should have failed", args)
