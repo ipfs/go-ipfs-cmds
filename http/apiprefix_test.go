@@ -38,7 +38,7 @@ func TestAPIPrefixHandler(t *testing.T) {
 
 	assert := func(name string, exp, real interface{}) {
 		if exp != real {
-			t.Error("expected %s to be %q, but got %q", name, exp, real)
+			t.Errorf("expected %s to be %q, but got %q", name, exp, real)
 		} else {
 			t.Log("ok:", name)
 		}

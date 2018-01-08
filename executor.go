@@ -76,7 +76,9 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) (e
 		if err != nil {
 			return err
 		}
-		req.Context, _ = context.WithTimeout(req.Context, timeout)
+		var cancel func()
+		req.Context, cancel = context.WithTimeout(req.Context, timeout)
+		defer cancel()
 	}
 
 	if cmd.PreRun != nil {

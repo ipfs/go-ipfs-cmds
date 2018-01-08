@@ -35,7 +35,7 @@ func NewServerConfig() *ServerConfig {
 	return cfg
 }
 
-func (cfg ServerConfig) AllowedOrigins() []string {
+func (cfg *ServerConfig) AllowedOrigins() []string {
 	cfg.corsOptsRWMutex.RLock()
 	defer cfg.corsOptsRWMutex.RUnlock()
 	return cfg.corsOpts.AllowedOrigins
@@ -55,7 +55,7 @@ func (cfg *ServerConfig) AppendAllowedOrigins(origins ...string) {
 	cfg.corsOpts.AllowedOrigins = append(cfg.corsOpts.AllowedOrigins, origins...)
 }
 
-func (cfg ServerConfig) AllowedMethods() []string {
+func (cfg *ServerConfig) AllowedMethods() []string {
 	cfg.corsOptsRWMutex.RLock()
 	defer cfg.corsOptsRWMutex.RUnlock()
 	return []string(cfg.corsOpts.AllowedMethods)

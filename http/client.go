@@ -175,12 +175,14 @@ func (c *client) Send(req *cmds.Request) (cmds.Response, error) {
 
 	httpRes, err := c.httpClient.Do(httpReq)
 	if err != nil {
+		reqCancel()
 		return nil, err
 	}
 
 	// using the overridden JSON encoding in request
 	res, err := parseResponse(httpRes, req)
 	if err != nil {
+		reqCancel()
 		return nil, err
 	}
 
