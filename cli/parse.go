@@ -324,7 +324,7 @@ func splitkv(opt string) (k, v string, ok bool) {
 func parseOpt(opt, value string, opts map[string]cmdkit.Option) (interface{}, error) {
 	optDef, ok := opts[opt]
 	if !ok {
-		panic(fmt.Errorf("unknown option %q", opt))
+		return nil, fmt.Errorf("unknown option %q", opt)
 	}
 
 	v, err := optDef.Parse(value)
@@ -405,7 +405,11 @@ func (st *parseState) parseShortOpts(optDefs map[string]cmdkit.Option) ([]kv, er
 func (st *parseState) parseLongOpt(optDefs map[string]cmdkit.Option) (string, interface{}, error) {
 	k, v, ok := splitkv(st.peek()[2:])
 	if !ok {
-		if optDefs[k].Type() == cmdkit.Bool {
+		optDef, ok := optDefs[k]
+		if !ok {
+			return "", nil, fmt.Errorf("unknown option %q", k)
+		}
+		if optDef.Type() == cmdkit.Bool {
 			return k, true, nil
 		} else if st.i < len(st.cmdline)-1 {
 			st.i++

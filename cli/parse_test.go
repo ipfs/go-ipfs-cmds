@@ -145,6 +145,12 @@ func TestOptionParsing(t *testing.T) {
 	testFail("foo test")
 	test("defaults", kvs{"opt": "def"}, words{})
 	test("defaults -o foo", kvs{"opt": "foo"}, words{})
+
+	testFail("--bad-flag")
+	testFail("--bad-flag=")
+	testFail("--bad-flag=xyz")
+	testFail("-z")
+	testFail("-zz--- --")
 }
 
 func TestArgumentParsing(t *testing.T) {
