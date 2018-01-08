@@ -29,7 +29,7 @@ var RootCmd = &cmds.Command{
 			Arguments: []cmdkit.Argument{
 				cmdkit.StringArg("summands", true, true, "values that are supposed to be summed"),
 			},
-			Run: func(req *cmds.Request, re cmds.ResponseEmitter, env interface{}) {
+			Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) {
 				sum := 0
 
 				for i, str := range req.Arguments {
@@ -51,7 +51,7 @@ var RootCmd = &cmds.Command{
 			Arguments: []cmdkit.Argument{
 				cmdkit.StringArg("summands", true, true, "values that are supposed to be summed"),
 			},
-			Run: func(req *cmds.Request, re cmds.ResponseEmitter, env interface{}) {
+			Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) {
 				sum := 0
 
 				for i, str := range req.Arguments {
@@ -94,7 +94,7 @@ var RootCmd = &cmds.Command{
 				cmdkit.StringArg("summands", true, true, "values that are supposed to be summed"),
 			},
 			// this is the same as for encoderAdd
-			Run: func(req *cmds.Request, re cmds.ResponseEmitter, env interface{}) {
+			Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) {
 				sum := 0
 
 				for i, str := range req.Arguments {
@@ -159,7 +159,7 @@ var RootCmd = &cmds.Command{
 				cmdkit.StringArg("summands", true, true, "values that are supposed to be summed"),
 			},
 			// this is the same as for encoderAdd
-			Run: func(req *cmds.Request, re cmds.ResponseEmitter, env interface{}) {
+			Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) {
 				sum := 0
 
 				for i, str := range req.Arguments {

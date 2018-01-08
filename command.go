@@ -24,7 +24,7 @@ var log = logging.Logger("cmds")
 
 // Function is the type of function that Commands use.
 // It reads from the Request, and writes results to the ResponseEmitter.
-type Function func(*Request, ResponseEmitter, interface{})
+type Function func(*Request, ResponseEmitter, Environment)
 
 // PostRunMap is the map used in Command.PostRun.
 type PostRunMap map[PostRunType]func(*Request, ResponseEmitter) ResponseEmitter
@@ -34,7 +34,7 @@ type PostRunMap map[PostRunType]func(*Request, ResponseEmitter) ResponseEmitter
 type Command struct {
 	Options   []cmdkit.Option
 	Arguments []cmdkit.Argument
-	PreRun    func(req *Request, env interface{}) error
+	PreRun    func(req *Request, env Environment) error
 
 	// Run is the function that processes the request to generate a response.
 	// Note that when executing the command over the HTTP API you can only read
@@ -66,7 +66,7 @@ var ErrNoFormatter = ClientError("This command cannot be formatted to plain text
 var ErrIncorrectType = errors.New("The command returned a value with a different type than expected")
 
 // Call invokes the command for the given Request
-func (c *Command) Call(req *Request, re ResponseEmitter, env interface{}) (err error) {
+func (c *Command) Call(req *Request, re ResponseEmitter, env Environment) (err error) {
 	// we need the named return parameter so we can change the value from defer()
 	defer func() {
 		if err == nil {

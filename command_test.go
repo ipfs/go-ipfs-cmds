@@ -24,7 +24,7 @@ func newBufferResponseEmitter() ResponseEmitter {
 }
 
 // noop does nothing and can be used as a noop Run function
-func noop(req *Request, re ResponseEmitter, env interface{}) {}
+func noop(req *Request, re ResponseEmitter, env Environment) {}
 
 // writecloser implements io.WriteCloser by embedding
 // an io.Writer and an io.Closer
@@ -289,7 +289,7 @@ func TestPostRun(t *testing.T) {
 
 	for _, tc := range testcases {
 		cmd := &Command{
-			Run: func(req *Request, re ResponseEmitter, env interface{}) {
+			Run: func(req *Request, re ResponseEmitter, env Environment) {
 				re.SetLength(tc.length)
 
 				for _, v := range tc.emit {

@@ -8,13 +8,20 @@ import (
 )
 
 type Executor interface {
-	Execute(req *Request, re ResponseEmitter, env interface{}) error
+	Execute(req *Request, re ResponseEmitter, env Environment) error
+}
+
+// Environment is the environment passed to commands. The only required method
+// is Context.
+type Environment interface {
+	// Context returns the environment's context.
+	Context() context.Context
 }
 
 // MakeEnvironment takes a context and the request to construct the environment
 // that is passed to the command's Run function.
 // The user can define a function like this to pass it to cli.Run.
-type MakeEnvironment func(context.Context, *Request) (interface{}, error)
+type MakeEnvironment func(context.Context, *Request) (Environment, error)
 
 // MakeExecutor takes the request and environment variable to construct the
 // executor that determines how to call the command - i.e. by calling Run or
@@ -32,7 +39,7 @@ type executor struct {
 	root *Command
 }
 
-func (x *executor) Execute(req *Request, re ResponseEmitter, env interface{}) (err error) {
+func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) (err error) {
 	cmd := req.Command
 
 	if cmd.Run == nil {

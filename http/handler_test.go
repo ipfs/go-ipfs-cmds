@@ -25,21 +25,21 @@ type testEnv struct {
 	rootCtx                      context.Context
 }
 
-func (env testEnv) RootContext() context.Context {
+func (env testEnv) Context() context.Context {
 	return env.rootCtx
 }
 
-func getCommit(env interface{}) (string, bool) {
+func getCommit(env cmds.Environment) (string, bool) {
 	tEnv, ok := env.(testEnv)
 	return tEnv.commit, ok
 }
 
-func getVersion(env interface{}) (string, bool) {
+func getVersion(env cmds.Environment) (string, bool) {
 	tEnv, ok := env.(testEnv)
 	return tEnv.version, ok
 }
 
-func getRepoVersion(env interface{}) (string, bool) {
+func getRepoVersion(env cmds.Environment) (string, bool) {
 	tEnv, ok := env.(testEnv)
 	return tEnv.repoVersion, ok
 }
@@ -66,7 +66,7 @@ var (
 					cmdkit.BoolOption("repo", "Show repo version."),
 					cmdkit.BoolOption("all", "Show all version information"),
 				},
-				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env interface{}) {
+				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) {
 					version, ok := getVersion(env)
 					if !ok {
 						re.SetError("couldn't get version", cmdkit.ErrNormal)
