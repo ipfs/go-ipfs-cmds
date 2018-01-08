@@ -7,7 +7,7 @@ import (
 )
 
 func TestCopy(t *testing.T) {
-	req, err := NewRequest(context.TODO(), nil, nil, nil, nil, &Command{})
+	req, err := NewRequest(context.Background(), nil, nil, nil, nil, &Command{})
 	if err != nil {
 		t.Fatal(err)
 	}

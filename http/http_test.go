@@ -30,7 +30,7 @@ func TestHTTP(t *testing.T) {
 	for _, tc := range tcs {
 		srv := getTestServer(t, nil)
 		c := NewClient(srv.URL)
-		req, err := cmds.NewRequest(context.TODO(), tc.path, nil, nil, nil, cmdRoot)
+		req, err := cmds.NewRequest(context.Background(), tc.path, nil, nil, nil, cmdRoot)
 		if err != nil {
 			t.Fatal(err)
 		}

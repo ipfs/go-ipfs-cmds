@@ -44,7 +44,7 @@ func TestOptionValidation(t *testing.T) {
 	}
 
 	re := newBufferResponseEmitter()
-	req, err := NewRequest(context.TODO(), nil, map[string]interface{}{
+	req, err := NewRequest(context.Background(), nil, map[string]interface{}{
 		"beep": true,
 	}, nil, nil, cmd)
 	if err == nil {
@@ -52,7 +52,7 @@ func TestOptionValidation(t *testing.T) {
 	}
 
 	re = newBufferResponseEmitter()
-	req, err = NewRequest(context.TODO(), nil, map[string]interface{}{
+	req, err = NewRequest(context.Background(), nil, map[string]interface{}{
 		"beep": 5,
 	}, nil, nil, cmd)
 	if err != nil {
@@ -64,7 +64,7 @@ func TestOptionValidation(t *testing.T) {
 	}
 
 	re = newBufferResponseEmitter()
-	req, err = NewRequest(context.TODO(), nil, map[string]interface{}{
+	req, err = NewRequest(context.Background(), nil, map[string]interface{}{
 		"beep": 5,
 		"boop": "test",
 	}, nil, nil, cmd)
@@ -78,7 +78,7 @@ func TestOptionValidation(t *testing.T) {
 	}
 
 	re = newBufferResponseEmitter()
-	req, err = NewRequest(context.TODO(), nil, map[string]interface{}{
+	req, err = NewRequest(context.Background(), nil, map[string]interface{}{
 		"b": 5,
 		"B": "test",
 	}, nil, nil, cmd)
@@ -92,7 +92,7 @@ func TestOptionValidation(t *testing.T) {
 	}
 
 	re = newBufferResponseEmitter()
-	req, err = NewRequest(context.TODO(), nil, map[string]interface{}{
+	req, err = NewRequest(context.Background(), nil, map[string]interface{}{
 		"foo": 5,
 	}, nil, nil, cmd)
 	if err != nil {
@@ -105,7 +105,7 @@ func TestOptionValidation(t *testing.T) {
 	}
 
 	re = newBufferResponseEmitter()
-	req, err = NewRequest(context.TODO(), nil, map[string]interface{}{
+	req, err = NewRequest(context.Background(), nil, map[string]interface{}{
 		EncLong: "json",
 	}, nil, nil, cmd)
 	if err != nil {
@@ -118,7 +118,7 @@ func TestOptionValidation(t *testing.T) {
 	}
 
 	re = newBufferResponseEmitter()
-	req, err = NewRequest(context.TODO(), nil, map[string]interface{}{
+	req, err = NewRequest(context.Background(), nil, map[string]interface{}{
 		"b": "100",
 	}, nil, nil, cmd)
 	if err != nil {
@@ -131,7 +131,7 @@ func TestOptionValidation(t *testing.T) {
 	}
 
 	re = newBufferResponseEmitter()
-	req, err = NewRequest(context.TODO(), nil, map[string]interface{}{
+	req, err = NewRequest(context.Background(), nil, map[string]interface{}{
 		"b": ":)",
 	}, nil, nil, cmd)
 	if err == nil {
@@ -243,6 +243,9 @@ type postRunTestCase struct {
 
 // TestPostRun tests whether commands with PostRun return the intended result
 func TestPostRun(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	var testcases = []postRunTestCase{
 		postRunTestCase{
 			length:      3,
@@ -305,7 +308,7 @@ func TestPostRun(t *testing.T) {
 			},
 		}
 
-		req, err := NewRequest(context.TODO(), nil, map[string]interface{}{
+		req, err := NewRequest(ctx, nil, map[string]interface{}{
 			EncLong: CLI,
 		}, nil, nil, cmd)
 		if err != nil {

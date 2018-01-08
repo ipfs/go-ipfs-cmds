@@ -24,7 +24,7 @@ type wc struct {
 
 func TestExecutor(t *testing.T) {
 	env := 42
-	req, err := NewRequest(context.TODO(), []string{"test"}, nil, nil, nil, root)
+	req, err := NewRequest(context.Background(), []string{"test"}, nil, nil, nil, root)
 	if err != nil {
 		t.Fatal(err)
 	}
