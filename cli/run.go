@@ -116,7 +116,7 @@ func Run(ctx context.Context, root *cmds.Command,
 		return fmt.Errorf("could not find matching encoder for enctype %#v", encType)
 	}
 
-	errCh := make(chan error)
+	errCh := make(chan error, 1)
 	go func() {
 		err := exctr.Execute(req, re, env)
 		if err != nil {
