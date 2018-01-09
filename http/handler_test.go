@@ -1,7 +1,6 @@
 package http
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net/http/httptest"
@@ -22,24 +21,19 @@ type VersionOutput struct {
 
 type testEnv struct {
 	version, commit, repoVersion string
-	rootCtx                      context.Context
 }
 
-func (env testEnv) Context() context.Context {
-	return env.rootCtx
-}
-
-func getCommit(env cmds.Environment) (string, bool) {
+func getCommit(env interface{}) (string, bool) {
 	tEnv, ok := env.(testEnv)
 	return tEnv.commit, ok
 }
 
-func getVersion(env cmds.Environment) (string, bool) {
+func getVersion(env interface{}) (string, bool) {
 	tEnv, ok := env.(testEnv)
 	return tEnv.version, ok
 }
 
-func getRepoVersion(env cmds.Environment) (string, bool) {
+func getRepoVersion(env interface{}) (string, bool) {
 	tEnv, ok := env.(testEnv)
 	return tEnv.repoVersion, ok
 }
@@ -66,7 +60,7 @@ var (
 					cmdkit.BoolOption("repo", "Show repo version."),
 					cmdkit.BoolOption("all", "Show all version information"),
 				},
-				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) {
+				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env interface{}) {
 					version, ok := getVersion(env)
 					if !ok {
 						re.SetError("couldn't get version", cmdkit.ErrNormal)
@@ -135,7 +129,6 @@ func getTestServer(t *testing.T, origins []string) *httptest.Server {
 		version:     "0.1.2",
 		commit:      "c0mm17", // yes, I know there's no 'm' in hex.
 		repoVersion: "4",
-		rootCtx:     context.Background(),
 	}
 
 	return httptest.NewServer(NewHandler(env, cmdRoot, originCfg(origins)))

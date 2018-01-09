@@ -1,7 +1,6 @@
 package http
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"runtime/debug"
@@ -54,10 +53,10 @@ func skipAPIHeader(h string) bool {
 type handler struct {
 	root *cmds.Command
 	cfg  *ServerConfig
-	env  cmds.Environment
+	env  interface{}
 }
 
-func NewHandler(env cmds.Environment, root *cmds.Command, cfg *ServerConfig) http.Handler {
+func NewHandler(env interface{}, root *cmds.Command, cfg *ServerConfig) http.Handler {
 	if cfg == nil {
 		panic("must provide a valid ServerConfig")
 	}
@@ -95,26 +94,8 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	ctx := h.env.Context()
-	if ctx == nil {
-		log.Error("no root context found, using background")
-		ctx = context.Background()
-	}
-
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
+	ctx := r.Context()
 	ctx = logging.ContextWithLoggable(ctx, loggables.Uuid("requestId"))
-	if cn, ok := w.(http.CloseNotifier); ok {
-		clientGone := cn.CloseNotify()
-		go func() {
-			select {
-			case <-clientGone:
-			case <-ctx.Done():
-			}
-			cancel()
-		}()
-	}
 
 	if !allowOrigin(r, h.cfg) || !allowReferer(r, h.cfg) {
 		w.WriteHeader(http.StatusForbidden)
