@@ -1,7 +1,6 @@
 package http
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"runtime/debug"
@@ -84,10 +83,6 @@ type requestLogger interface {
 	LogRequest(*cmds.Request) func()
 }
 
-type ContextEnv interface {
-	RootContext() context.Context
-}
-
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Debug("incoming API request: ", r.URL)
 
@@ -99,29 +94,8 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	var ctx context.Context
-	if ctxer, ok := h.env.(ContextEnv); ok {
-		ctx = ctxer.RootContext()
-	}
-	if ctx == nil {
-		log.Error("no root context found, using background")
-		ctx = context.Background()
-	}
-
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
+	ctx := r.Context()
 	ctx = logging.ContextWithLoggable(ctx, loggables.Uuid("requestId"))
-	if cn, ok := w.(http.CloseNotifier); ok {
-		clientGone := cn.CloseNotify()
-		go func() {
-			select {
-			case <-clientGone:
-			case <-ctx.Done():
-			}
-			cancel()
-		}()
-	}
 
 	if !allowOrigin(r, h.cfg) || !allowReferer(r, h.cfg) {
 		w.WriteHeader(http.StatusForbidden)

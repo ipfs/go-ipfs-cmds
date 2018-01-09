@@ -1,7 +1,6 @@
 package http
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net/http/httptest"
@@ -22,11 +21,6 @@ type VersionOutput struct {
 
 type testEnv struct {
 	version, commit, repoVersion string
-	rootCtx                      context.Context
-}
-
-func (env testEnv) RootContext() context.Context {
-	return env.rootCtx
 }
 
 func getCommit(env interface{}) (string, bool) {
@@ -135,7 +129,6 @@ func getTestServer(t *testing.T, origins []string) *httptest.Server {
 		version:     "0.1.2",
 		commit:      "c0mm17", // yes, I know there's no 'm' in hex.
 		repoVersion: "4",
-		rootCtx:     context.Background(),
 	}
 
 	return httptest.NewServer(NewHandler(env, cmdRoot, originCfg(origins)))
