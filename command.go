@@ -11,11 +11,10 @@ package cmds
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 
-	oldcmds "github.com/ipfs/go-ipfs/commands"
-	"github.com/ipfs/go-ipfs/path"
 	logging "github.com/ipfs/go-log"
 )
 
@@ -25,17 +24,17 @@ var log = logging.Logger("cmds")
 
 // Function is the type of function that Commands use.
 // It reads from the Request, and writes results to the ResponseEmitter.
-type Function func(Request, ResponseEmitter)
+type Function func(*Request, ResponseEmitter, Environment)
 
 // PostRunMap is the map used in Command.PostRun.
-type PostRunMap map[EncodingType]func(Request, ResponseEmitter) ResponseEmitter
+type PostRunMap map[PostRunType]func(*Request, ResponseEmitter) ResponseEmitter
 
 // Command is a runnable command, with input arguments and options (flags).
 // It can also have Subcommands, to group units of work into sets.
 type Command struct {
 	Options   []cmdkit.Option
 	Arguments []cmdkit.Argument
-	PreRun    func(req Request) error
+	PreRun    func(req *Request, env Environment) error
 
 	// Run is the function that processes the request to generate a response.
 	// Note that when executing the command over the HTTP API you can only read
@@ -55,9 +54,8 @@ type Command struct {
 	// the Run Function.
 	//
 	// ie. If command Run returns &Block{}, then Command.Type == &Block{}
-	Type           interface{}
-	Subcommands    map[string]*Command
-	OldSubcommands map[string]*oldcmds.Command
+	Type        interface{}
+	Subcommands map[string]*Command
 }
 
 // ErrNotCallable signals a command that cannot be called.
@@ -68,7 +66,7 @@ var ErrNoFormatter = ClientError("This command cannot be formatted to plain text
 var ErrIncorrectType = errors.New("The command returned a value with a different type than expected")
 
 // Call invokes the command for the given Request
-func (c *Command) Call(req Request, re ResponseEmitter) (err error) {
+func (c *Command) Call(req *Request, re ResponseEmitter, env Environment) (err error) {
 	// we need the named return parameter so we can change the value from defer()
 	defer func() {
 		if err == nil {
@@ -77,7 +75,7 @@ func (c *Command) Call(req Request, re ResponseEmitter) (err error) {
 	}()
 
 	var cmd *Command
-	cmd, err = c.Get(req.Path())
+	cmd, err = c.Get(req.Path)
 	if err != nil {
 		return err
 	}
@@ -91,18 +89,18 @@ func (c *Command) Call(req Request, re ResponseEmitter) (err error) {
 		return err
 	}
 
-	err = req.ConvertOptions()
-	if err != nil {
-		return err
-	}
-
 	// If this ResponseEmitter encodes messages (e.g. http, cli or writer - but not chan),
 	// we need to update the encoding to the one specified by the command.
 	if re_, ok := re.(EncodingEmitter); ok {
 		encType := GetEncoding(req)
 
-		if enc, ok := cmd.Encoders[EncodingType(encType)]; ok {
+		if enc, ok := cmd.Encoders[encType]; ok {
 			re_.SetEncoder(enc(req))
+		} else if enc, ok := Encoders[encType]; ok {
+			re_.SetEncoder(enc(req))
+		} else {
+			log.Errorf("unknown encoding %q, using json", encType)
+			re_.SetEncoder(Encoders[JSON](req))
 		}
 	}
 
@@ -120,7 +118,7 @@ func (c *Command) Call(req Request, re ResponseEmitter) (err error) {
 			}
 		*/
 	}()
-	cmd.Run(req, re)
+	cmd.Run(req, re, env)
 
 	return err
 }
@@ -132,11 +130,11 @@ func (c *Command) Resolve(pth []string) ([]*Command, error) {
 
 	cmd := c
 	for i, name := range pth {
-		cmd = cmd.Subcommand(name)
+		cmd = cmd.Subcommands[name]
 
 		if cmd == nil {
-			pathS := path.Join(pth[:i])
-			return nil, fmt.Errorf("Undefined command: '%s'", pathS)
+			pathS := strings.Join(pth[:i], "/")
+			return nil, fmt.Errorf("undefined command: %q", pathS)
 		}
 
 		cmds[i+1] = cmd
@@ -162,7 +160,6 @@ func (c *Command) GetOptions(path []string) (map[string]cmdkit.Option, error) {
 	if err != nil {
 		return nil, err
 	}
-	cmds = append(cmds, globalCommand)
 
 	for _, cmd := range cmds {
 		options = append(options, cmd.Options...)
@@ -172,7 +169,7 @@ func (c *Command) GetOptions(path []string) (map[string]cmdkit.Option, error) {
 	for _, opt := range options {
 		for _, name := range opt.Names() {
 			if _, found := optionsMap[name]; found {
-				return nil, fmt.Errorf("Option name '%s' used multiple times", name)
+				return nil, fmt.Errorf("option name %q used multiple times", name)
 			}
 
 			optionsMap[name] = opt
@@ -182,8 +179,8 @@ func (c *Command) GetOptions(path []string) (map[string]cmdkit.Option, error) {
 	return optionsMap, nil
 }
 
-func (c *Command) CheckArguments(req Request) error {
-	args := req.(*request).arguments
+func (c *Command) CheckArguments(req *Request) error {
+	args := req.Arguments
 
 	// count required argument definitions
 	numRequired := 0
@@ -236,28 +233,13 @@ func (c *Command) CheckArguments(req Request) error {
 	return nil
 }
 
-// Subcommand returns the subcommand with the given id
-func (c *Command) Subcommand(id string) *Command {
-	cmd := c.Subcommands[id]
-	if cmd != nil {
-		return cmd
-	}
-
-	oldcmd := c.OldSubcommands[id]
-	if oldcmd != nil {
-		return NewCommand(oldcmd)
-	}
-
-	return nil
-}
-
 type CommandVisitor func(*Command)
 
 // Walks tree of all subcommands (including this one)
 func (c *Command) Walk(visitor CommandVisitor) {
 	visitor(c)
-	for _, cm := range c.Subcommands {
-		cm.Walk(visitor)
+	for _, sub := range c.Subcommands {
+		sub.Walk(visitor)
 	}
 }
 
@@ -278,7 +260,7 @@ func checkArgValue(v string, found bool, def cmdkit.Argument) error {
 	}
 
 	if !found && def.Required {
-		return fmt.Errorf("Argument '%s' is required", def.Name)
+		return fmt.Errorf("argument %q is required", def.Name)
 	}
 
 	return nil
@@ -286,16 +268,4 @@ func checkArgValue(v string, found bool, def cmdkit.Argument) error {
 
 func ClientError(msg string) error {
 	return &cmdkit.Error{Code: cmdkit.ErrClient, Message: msg}
-}
-
-// global options, added to every command
-var globalOptions = []cmdkit.Option{
-	cmdkit.OptionEncodingType,
-	cmdkit.OptionStreamChannels,
-	cmdkit.OptionTimeout,
-}
-
-// the above array of Options, wrapped in a Command
-var globalCommand = &Command{
-	Options: globalOptions,
 }

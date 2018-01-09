@@ -2,22 +2,26 @@ package http
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-cmdkit/files"
 	cmds "github.com/ipfs/go-ipfs-cmds"
-
-	config "github.com/ipfs/go-ipfs/repo/config"
 )
 
 const (
-	ApiUrlFormat = "http://%s%s/%s?%s"
-	ApiPath      = "/api/v0" // TODO: make configurable
+	ApiUrlFormat = "%s%s/%s?%s"
+)
+
+var (
+	ErrAPINotRunning = errors.New("api not running")
 )
 
 var OptionSkipMap = map[string]bool{
@@ -26,40 +30,107 @@ var OptionSkipMap = map[string]bool{
 
 // Client is the commands HTTP client interface.
 type Client interface {
-	Send(req cmds.Request) (cmds.Response, error)
+	Send(req *cmds.Request) (cmds.Response, error)
 }
 
 type client struct {
 	serverAddress string
 	httpClient    *http.Client
+	ua            string
+	apiPrefix     string
 }
 
-func NewClient(address string) Client {
-	return &client{
-		serverAddress: address,
-		httpClient:    http.DefaultClient,
+type ClientOpt func(*client)
+
+func ClientWithUserAgent(ua string) ClientOpt {
+	return func(c *client) {
+		c.ua = ua
 	}
 }
 
-func (c *client) Send(req cmds.Request) (cmds.Response, error) {
-	if req.Context() == nil {
-		log.Warningf("no context set in request")
-		if err := req.SetRootContext(context.TODO()); err != nil {
-			return nil, err
+func ClientWithAPIPrefix(apiPrefix string) ClientOpt {
+	return func(c *client) {
+		c.apiPrefix = apiPrefix
+	}
+}
+
+func NewClient(address string, opts ...ClientOpt) Client {
+	if !strings.HasPrefix(address, "http://") {
+		address = "http://" + address
+	}
+
+	c := &client{
+		serverAddress: address,
+		httpClient:    http.DefaultClient,
+		ua:            "go-ipfs-cmds/http",
+	}
+
+	for _, opt := range opts {
+		opt(c)
+	}
+
+	return c
+}
+
+func (c *client) Execute(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+	cmd := req.Command
+
+	// If this ResponseEmitter encodes messages (e.g. http, cli or writer - but not chan),
+	// we need to update the encoding to the one specified by the command.
+	if ee, ok := re.(cmds.EncodingEmitter); ok {
+		encType := cmds.GetEncoding(req)
+
+		// note the difference: cmd.Encoders vs. cmds.Encoders
+		if enc, ok := cmd.Encoders[encType]; ok {
+			ee.SetEncoder(enc(req))
+		} else if enc, ok := cmds.Encoders[encType]; ok {
+			ee.SetEncoder(enc(req))
+		} else {
+			log.Errorf("unknown encoding %q, using json", encType)
+			ee.SetEncoder(cmds.Encoders[cmds.JSON](req))
 		}
 	}
 
-	// save user-provided encoding
-	previousUserProvidedEncoding, found, err := req.Option(cmdkit.EncShort).String()
-	if err != nil {
-		return nil, err
+	if cmd.PreRun != nil {
+		err := cmd.PreRun(req, env)
+		if err != nil {
+			return err
+		}
 	}
 
+	if cmd.PostRun != nil {
+		if typer, ok := re.(interface {
+			Type() cmds.PostRunType
+		}); ok && cmd.PostRun[typer.Type()] != nil {
+			re = cmd.PostRun[typer.Type()](req, re)
+		}
+	}
+
+	res, err := c.Send(req)
+	if err != nil {
+		if isConnRefused(err) {
+			err = ErrAPINotRunning
+		}
+		return err
+	}
+
+	return cmds.Copy(re, res)
+}
+
+func (c *client) Send(req *cmds.Request) (cmds.Response, error) {
+	if req.Context == nil {
+		log.Warningf("no context set in request")
+		req.Context = context.Background()
+	}
+
+	// save user-provided encoding
+	previousUserProvidedEncoding, found := req.Options[cmds.EncLong].(string)
+
 	// override with json to send to server
-	req.SetOption(cmdkit.EncShort, cmds.JSON)
+	req.SetOption(cmds.EncLong, cmds.JSON)
 
 	// stream channel output
-	req.SetOption(cmdkit.ChanOpt, "true")
+	req.SetOption(cmds.ChanOpt, true)
 
 	query, err := getQuery(req)
 	if err != nil {
@@ -69,13 +140,13 @@ func (c *client) Send(req cmds.Request) (cmds.Response, error) {
 	var fileReader *files.MultiFileReader
 	var reader io.Reader
 
-	if req.Files() != nil {
-		fileReader = files.NewMultiFileReader(req.Files(), true)
+	if req.Files != nil {
+		fileReader = files.NewMultiFileReader(req.Files, true)
 		reader = fileReader
 	}
 
-	path := strings.Join(req.Path(), "/")
-	url := fmt.Sprintf(ApiUrlFormat, c.serverAddress, ApiPath, path, query)
+	path := strings.Join(req.Path, "/")
+	url := fmt.Sprintf(ApiUrlFormat, c.serverAddress, c.apiPrefix, path, query)
 
 	httpReq, err := http.NewRequest("POST", url, reader)
 	if err != nil {
@@ -88,35 +159,49 @@ func (c *client) Send(req cmds.Request) (cmds.Response, error) {
 	} else {
 		httpReq.Header.Set(contentTypeHeader, applicationOctetStream)
 	}
-	httpReq.Header.Set(uaHeader, config.ApiVersion)
+	httpReq.Header.Set(uaHeader, c.ua)
 
-	httpReq.Cancel = req.Context().Done()
+	var reqCancel func()
+	if timeoutStr, ok := req.Options[cmds.TimeoutOpt]; ok {
+		timeout, err := time.ParseDuration(timeoutStr.(string))
+		if err != nil {
+			return nil, err
+		}
+		req.Context, reqCancel = context.WithTimeout(req.Context, timeout)
+	}
+
+	httpReq = httpReq.WithContext(req.Context)
 	httpReq.Close = true
 
 	httpRes, err := c.httpClient.Do(httpReq)
 	if err != nil {
+		reqCancel()
 		return nil, err
 	}
 
 	// using the overridden JSON encoding in request
-	res, err := getResponse(httpRes, req)
+	res, err := parseResponse(httpRes, req)
 	if err != nil {
+		reqCancel()
 		return nil, err
 	}
+
+	res.(*Response).reqCancel = reqCancel
 
 	if found && len(previousUserProvidedEncoding) > 0 {
 		// reset to user provided encoding after sending request
 		// NB: if user has provided an encoding but it is the empty string,
 		// still leave it as JSON.
-		req.SetOption(cmdkit.EncShort, previousUserProvidedEncoding)
+		req.SetOption(cmds.EncLong, previousUserProvidedEncoding)
 	}
 
 	return res, nil
 }
 
-func getQuery(req cmds.Request) (string, error) {
+func getQuery(req *cmds.Request) (string, error) {
 	query := url.Values{}
-	for k, v := range req.Options() {
+
+	for k, v := range req.Options {
 		if OptionSkipMap[k] {
 			continue
 		}
@@ -124,8 +209,8 @@ func getQuery(req cmds.Request) (string, error) {
 		query.Set(k, str)
 	}
 
-	args := req.StringArguments()
-	argDefs := req.Command().Arguments
+	args := req.Arguments
+	argDefs := req.Command.Arguments
 
 	argDefIndex := 0
 
@@ -145,4 +230,18 @@ func getQuery(req cmds.Request) (string, error) {
 	}
 
 	return query.Encode(), nil
+}
+
+func isConnRefused(err error) bool {
+	// unwrap url errors from http calls
+	if urlerr, ok := err.(*url.Error); ok {
+		err = urlerr.Err
+	}
+
+	netoperr, ok := err.(*net.OpError)
+	if !ok {
+		return false
+	}
+
+	return netoperr.Op == "dial"
 }

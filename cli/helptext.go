@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -123,6 +124,22 @@ func init() {
 	shortHelpTemplate = template.Must(usageTemplate.New("shortHelp").Parse(shortHelpFormat))
 }
 
+var ErrNoHelpRequested = errors.New("no help requested")
+
+func HandleHelp(appName string, req *cmds.Request, out io.Writer) error {
+	long, _ := req.Options[cmds.OptLongHelp].(bool)
+	short, _ := req.Options[cmds.OptShortHelp].(bool)
+
+	switch {
+	case long:
+		return LongHelp(appName, req.Root, req.Path, out)
+	case short:
+		return ShortHelp(appName, req.Root, req.Path, out)
+	default:
+		return ErrNoHelpRequested
+	}
+}
+
 // LongHelp writes a formatted CLI helptext string to a Writer for the given command
 func LongHelp(rootName string, root *cmds.Command, path []string, out io.Writer) error {
 	cmd, err := root.Get(path)
@@ -225,9 +242,9 @@ func ShortHelp(rootName string, root *cmds.Command, path []string, out io.Writer
 func generateSynopsis(cmd *cmds.Command, path string) string {
 	res := path
 	for _, opt := range cmd.Options {
-		valopt, ok := cmd.Helptext.SynopsisOptionsValues[opt.Names()[0]]
+		valopt, ok := cmd.Helptext.SynopsisOptionsValues[opt.Name()]
 		if !ok {
-			valopt = opt.Names()[0]
+			valopt = opt.Name()
 		}
 		sopt := ""
 		for i, n := range opt.Names() {
@@ -358,23 +375,18 @@ func subcommandText(cmd *cmds.Command, rootName string, path []string) []string 
 	for name := range cmd.Subcommands {
 		sortedNames = append(sortedNames, name)
 	}
-	for name := range cmd.OldSubcommands {
-		sortedNames = append(sortedNames, name)
-	}
 	sort.Strings(sortedNames)
 
-	subcmds := make([]*cmds.Command, len(cmd.Subcommands)+len(cmd.OldSubcommands))
-	lines := make([]string, len(cmd.Subcommands)+len(cmd.OldSubcommands))
+	subcmds := make([]*cmds.Command, len(cmd.Subcommands))
+	lines := make([]string, len(cmd.Subcommands))
 
 	for i, name := range sortedNames {
 		sub := cmd.Subcommands[name]
-		if sub == nil {
-			sub = cmds.NewCommand(cmd.OldSubcommands[name])
-		}
 		usage := usageText(sub)
 		if len(usage) > 0 {
 			usage = " " + usage
 		}
+
 		lines[i] = prefix + name + usage
 		subcmds[i] = sub
 	}

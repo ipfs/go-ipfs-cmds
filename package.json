@@ -25,15 +25,21 @@
       "version": "1.2.6"
     },
     {
-      "hash": "QmQp2a2Hhb7F6eK2A5hN8f9aJy4mtkEikL9Zj4cgB7d1dD",
+      "hash": "QmceUdzxkimdYsgtX733uNgzf1DLHyBKN6ehGSp85ayppM",
       "name": "go-ipfs-cmdkit",
-      "version": "0.3.6"
+      "version": "1.0.0"
     },
     {
       "author": "whyrusleeping",
       "hash": "QmSvcDkiRwB8LuMhUtnvhum2C851Mproo75ZDD19jx43tD",
       "name": "go-libp2p-loggables",
       "version": "1.1.9"
+    },
+    {
+      "author": "texttheater",
+      "hash": "QmTVvctiHWZzSDZdyU5wdnXh7VF3kprHSyQFwVChos5qKu",
+      "name": "golang-levenshtein",
+      "version": "1.0.0"
     }
   ],
   "gxVersion": "0.10.0",

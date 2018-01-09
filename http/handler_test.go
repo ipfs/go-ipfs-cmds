@@ -1,350 +1,154 @@
 package http
 
 import (
-	"net/http"
+	"context"
+	"fmt"
+	"io"
 	"net/http/httptest"
-	"net/url"
+	"runtime"
 	"testing"
 
+	cmdkit "github.com/ipfs/go-ipfs-cmdkit"
 	cmds "github.com/ipfs/go-ipfs-cmds"
-	oldcmds "github.com/ipfs/go-ipfs/commands"
-
-	ipfscmd "github.com/ipfs/go-ipfs/core/commands"
-	coremock "github.com/ipfs/go-ipfs/core/mock"
 )
 
-func assertHeaders(t *testing.T, resHeaders http.Header, reqHeaders map[string]string) {
-	for name, value := range reqHeaders {
-		if resHeaders.Get(name) != value {
-			t.Errorf("Invalid header '%s', wanted '%s', got '%s'", name, value, resHeaders.Get(name))
-		}
-	}
+type VersionOutput struct {
+	Version string
+	Commit  string
+	Repo    string
+	System  string
+	Golang  string
 }
 
-func assertStatus(t *testing.T, actual, expected int) {
-	if actual != expected {
-		t.Errorf("Expected status: %d got: %d", expected, actual)
-	}
+type testEnv struct {
+	version, commit, repoVersion string
+	rootCtx                      context.Context
 }
 
-func originCfg(origins []string) *ServerConfig {
-	cfg := NewServerConfig()
-	cfg.SetAllowedOrigins(origins...)
-	cfg.SetAllowedMethods("GET", "PUT", "POST")
-	return cfg
+func (env testEnv) Context() context.Context {
+	return env.rootCtx
 }
 
-type testCase struct {
-	Method       string
-	Path         string
-	Code         int
-	Origin       string
-	Referer      string
-	AllowOrigins []string
-	ReqHeaders   map[string]string
-	ResHeaders   map[string]string
+func getCommit(env cmds.Environment) (string, bool) {
+	tEnv, ok := env.(testEnv)
+	return tEnv.commit, ok
 }
 
-var defaultOrigins = []string{
-	"http://localhost",
-	"http://127.0.0.1",
-	"https://localhost",
-	"https://127.0.0.1",
+func getVersion(env cmds.Environment) (string, bool) {
+	tEnv, ok := env.(testEnv)
+	return tEnv.version, ok
 }
 
-func getTestServer(t *testing.T, origins []string) *httptest.Server {
-	cmdsCtx, err := coremock.MockCmdsCtx()
-	if err != nil {
-		t.Error("failure to initialize mock cmds ctx", err)
-		return nil
-	}
+func getRepoVersion(env cmds.Environment) (string, bool) {
+	tEnv, ok := env.(testEnv)
+	return tEnv.repoVersion, ok
+}
 
-	cmdRoot := &cmds.Command{
-		OldSubcommands: map[string]*oldcmds.Command{
-			"version": ipfscmd.VersionCmd,
+var (
+	cmdRoot = &cmds.Command{
+		Options: []cmdkit.Option{
+			// global options, added to every command
+			cmds.OptionEncodingType,
+			cmds.OptionStreamChannels,
+			cmds.OptionTimeout,
+		},
+
+		Subcommands: map[string]*cmds.Command{
+			"version": &cmds.Command{
+				Helptext: cmdkit.HelpText{
+					Tagline:          "Show ipfs version information.",
+					ShortDescription: "Returns the current version of ipfs and exits.",
+				},
+				Type: VersionOutput{},
+				Options: []cmdkit.Option{
+					cmdkit.BoolOption("number", "n", "Only show the version number."),
+					cmdkit.BoolOption("commit", "Show the commit hash."),
+					cmdkit.BoolOption("repo", "Show repo version."),
+					cmdkit.BoolOption("all", "Show all version information"),
+				},
+				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) {
+					version, ok := getVersion(env)
+					if !ok {
+						re.SetError("couldn't get version", cmdkit.ErrNormal)
+					}
+
+					repoVersion, ok := getRepoVersion(env)
+					if !ok {
+						re.SetError("couldn't get repo version", cmdkit.ErrNormal)
+					}
+
+					commit, ok := getCommit(env)
+					if !ok {
+						re.SetError("couldn't get commit info", cmdkit.ErrNormal)
+					}
+
+					re.Emit(&VersionOutput{
+						Version: version,
+						Commit:  commit,
+						Repo:    repoVersion,
+						System:  runtime.GOARCH + "/" + runtime.GOOS, //TODO: Precise version here
+						Golang:  runtime.Version(),
+					})
+				},
+				Encoders: cmds.EncoderMap{
+					cmds.Text: cmds.MakeEncoder(func(req *cmds.Request, w io.Writer, value interface{}) error {
+						v := value.(*VersionOutput)
+
+						if repo, ok := req.Options["repo"].(bool); ok && repo {
+							_, err := fmt.Fprintf(w, "%v\n", v.Repo)
+							return err
+						}
+
+						var commitTxt string
+						if commit, ok := req.Options["commit"].(bool); ok && commit {
+							commitTxt = "-" + v.Commit
+						}
+
+						if number, ok := req.Options["number"].(bool); ok && number {
+							_, err := fmt.Fprintf(w, "%v%v\n", v.Version, commitTxt)
+							return err
+						}
+
+						if all, ok := req.Options["all"].(bool); ok && all {
+							_, err := fmt.Fprintf(w, "go-ipfs version: %s-%s\n"+
+								"Repo version: %s\nSystem version: %s\nGolang version: %s\n",
+								v.Version, v.Commit, v.Repo, v.System, v.Golang)
+
+							return err
+						}
+
+						_, err := fmt.Fprintf(w, "ipfs version %s%s\n", v.Version, commitTxt)
+						return err
+					}),
+				},
+			},
 		},
 	}
+)
 
+func getTestServer(t *testing.T, origins []string) *httptest.Server {
 	if len(origins) == 0 {
 		origins = defaultOrigins
 	}
 
-	handler := NewHandler(cmds.NewContext(cmdsCtx), cmdRoot, originCfg(origins))
-	return httptest.NewServer(handler)
+	env := testEnv{
+		version:     "0.1.2",
+		commit:      "c0mm17", // yes, I know there's no 'm' in hex.
+		repoVersion: "4",
+		rootCtx:     context.Background(),
+	}
+
+	return httptest.NewServer(NewHandler(env, cmdRoot, originCfg(origins)))
 }
 
-func (tc *testCase) test(t *testing.T) {
-	// defaults
-	method := tc.Method
-	if method == "" {
-		method = "GET"
+func errEq(err1, err2 error) bool {
+	if err1 == nil && err2 == nil {
+		return true
 	}
 
-	path := tc.Path
-	if path == "" {
-		path = "/api/v0/version"
+	if err1 == nil || err2 == nil {
+		return false
 	}
 
-	expectCode := tc.Code
-	if expectCode == 0 {
-		expectCode = 200
-	}
-
-	// request
-	req, err := http.NewRequest(method, path, nil)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	for k, v := range tc.ReqHeaders {
-		req.Header.Add(k, v)
-	}
-	if tc.Origin != "" {
-		req.Header.Add("Origin", tc.Origin)
-	}
-	if tc.Referer != "" {
-		req.Header.Add("Referer", tc.Referer)
-	}
-
-	// server
-	server := getTestServer(t, tc.AllowOrigins)
-	if server == nil {
-		return
-	}
-	defer server.Close()
-
-	req.URL, err = url.Parse(server.URL + path)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	// checks
-	t.Log("GET", server.URL+path, req.Header, res.Header)
-	assertHeaders(t, res.Header, tc.ResHeaders)
-	assertStatus(t, res.StatusCode, expectCode)
-}
-
-func TestDisallowedOrigins(t *testing.T) {
-	gtc := func(origin string, allowedOrigins []string) testCase {
-		return testCase{
-			Origin:       origin,
-			AllowOrigins: allowedOrigins,
-			ResHeaders: map[string]string{
-				ACAOrigin:                       "",
-				ACAMethods:                      "",
-				ACACredentials:                  "",
-				"Access-Control-Max-Age":        "",
-				"Access-Control-Expose-Headers": "",
-			},
-			Code: http.StatusForbidden,
-		}
-	}
-
-	tcs := []testCase{
-		gtc("http://barbaz.com", nil),
-		gtc("http://barbaz.com", []string{"http://localhost"}),
-		gtc("http://127.0.0.1", []string{"http://localhost"}),
-		gtc("http://localhost", []string{"http://127.0.0.1"}),
-		gtc("http://127.0.0.1:1234", nil),
-		gtc("http://localhost:1234", nil),
-	}
-
-	for _, tc := range tcs {
-		tc.test(t)
-	}
-}
-
-func TestAllowedOrigins(t *testing.T) {
-	gtc := func(origin string, allowedOrigins []string) testCase {
-		return testCase{
-			Origin:       origin,
-			AllowOrigins: allowedOrigins,
-			ResHeaders: map[string]string{
-				ACAOrigin:                       origin,
-				ACAMethods:                      "",
-				ACACredentials:                  "",
-				"Access-Control-Max-Age":        "",
-				"Access-Control-Expose-Headers": AllowedExposedHeaders,
-			},
-			Code: http.StatusOK,
-		}
-	}
-
-	tcs := []testCase{
-		gtc("http://barbaz.com", []string{"http://barbaz.com", "http://localhost"}),
-		gtc("http://localhost", []string{"http://barbaz.com", "http://localhost"}),
-		gtc("http://localhost", nil),
-		gtc("http://127.0.0.1", nil),
-	}
-
-	for _, tc := range tcs {
-		tc.test(t)
-	}
-}
-
-func TestWildcardOrigin(t *testing.T) {
-	gtc := func(origin string, allowedOrigins []string) testCase {
-		return testCase{
-			Origin:       origin,
-			AllowOrigins: allowedOrigins,
-			ResHeaders: map[string]string{
-				ACAOrigin:                       origin,
-				ACAMethods:                      "",
-				ACACredentials:                  "",
-				"Access-Control-Max-Age":        "",
-				"Access-Control-Expose-Headers": AllowedExposedHeaders,
-			},
-			Code: http.StatusOK,
-		}
-	}
-
-	tcs := []testCase{
-		gtc("http://barbaz.com", []string{"*"}),
-		gtc("http://barbaz.com", []string{"http://localhost", "*"}),
-		gtc("http://127.0.0.1", []string{"http://localhost", "*"}),
-		gtc("http://localhost", []string{"http://127.0.0.1", "*"}),
-		gtc("http://127.0.0.1", []string{"*"}),
-		gtc("http://localhost", []string{"*"}),
-		gtc("http://127.0.0.1:1234", []string{"*"}),
-		gtc("http://localhost:1234", []string{"*"}),
-	}
-
-	for _, tc := range tcs {
-		tc.test(t)
-	}
-}
-
-func TestDisallowedReferer(t *testing.T) {
-	gtc := func(referer string, allowedOrigins []string) testCase {
-		return testCase{
-			Origin:       "http://localhost",
-			Referer:      referer,
-			AllowOrigins: allowedOrigins,
-			ResHeaders: map[string]string{
-				ACAOrigin:                       "http://localhost",
-				ACAMethods:                      "",
-				ACACredentials:                  "",
-				"Access-Control-Max-Age":        "",
-				"Access-Control-Expose-Headers": "",
-			},
-			Code: http.StatusForbidden,
-		}
-	}
-
-	tcs := []testCase{
-		gtc("http://foobar.com", nil),
-		gtc("http://localhost:1234", nil),
-		gtc("http://127.0.0.1:1234", nil),
-	}
-
-	for _, tc := range tcs {
-		tc.test(t)
-	}
-}
-
-func TestAllowedReferer(t *testing.T) {
-	gtc := func(referer string, allowedOrigins []string) testCase {
-		return testCase{
-			Origin:       "http://localhost",
-			AllowOrigins: allowedOrigins,
-			ResHeaders: map[string]string{
-				ACAOrigin:                       "http://localhost",
-				ACAMethods:                      "",
-				ACACredentials:                  "",
-				"Access-Control-Max-Age":        "",
-				"Access-Control-Expose-Headers": AllowedExposedHeaders,
-			},
-			Code: http.StatusOK,
-		}
-	}
-
-	tcs := []testCase{
-		gtc("http://barbaz.com", []string{"http://barbaz.com", "http://localhost"}),
-		gtc("http://localhost", []string{"http://barbaz.com", "http://localhost"}),
-		gtc("http://localhost", nil),
-		gtc("http://127.0.0.1", nil),
-	}
-
-	for _, tc := range tcs {
-		tc.test(t)
-	}
-}
-
-func TestWildcardReferer(t *testing.T) {
-	gtc := func(origin string, allowedOrigins []string) testCase {
-		return testCase{
-			Origin:       origin,
-			AllowOrigins: allowedOrigins,
-			ResHeaders: map[string]string{
-				ACAOrigin:                       origin,
-				ACAMethods:                      "",
-				ACACredentials:                  "",
-				"Access-Control-Max-Age":        "",
-				"Access-Control-Expose-Headers": AllowedExposedHeaders,
-			},
-			Code: http.StatusOK,
-		}
-	}
-
-	tcs := []testCase{
-		gtc("http://barbaz.com", []string{"*"}),
-		gtc("http://barbaz.com", []string{"http://localhost", "*"}),
-		gtc("http://127.0.0.1", []string{"http://localhost", "*"}),
-		gtc("http://localhost", []string{"http://127.0.0.1", "*"}),
-		gtc("http://127.0.0.1", []string{"*"}),
-		gtc("http://localhost", []string{"*"}),
-		gtc("http://127.0.0.1:1234", []string{"*"}),
-		gtc("http://localhost:1234", []string{"*"}),
-	}
-
-	for _, tc := range tcs {
-		tc.test(t)
-	}
-}
-
-func TestAllowedMethod(t *testing.T) {
-	gtc := func(method string, ok bool) testCase {
-		code := http.StatusOK
-		hdrs := map[string]string{
-			ACAOrigin:                       "http://localhost",
-			ACAMethods:                      method,
-			ACACredentials:                  "",
-			"Access-Control-Max-Age":        "",
-			"Access-Control-Expose-Headers": "",
-		}
-
-		if !ok {
-			hdrs[ACAOrigin] = ""
-			hdrs[ACAMethods] = ""
-		}
-
-		return testCase{
-			Method:       "OPTIONS",
-			Origin:       "http://localhost",
-			AllowOrigins: []string{"*"},
-			ReqHeaders: map[string]string{
-				"Access-Control-Request-Method": method,
-			},
-			ResHeaders: hdrs,
-			Code:       code,
-		}
-	}
-
-	tcs := []testCase{
-		gtc("PUT", true),
-		gtc("GET", true),
-		gtc("FOOBAR", false),
-	}
-
-	for _, tc := range tcs {
-		tc.test(t)
-	}
+	return err1.Error() == err2.Error()
 }

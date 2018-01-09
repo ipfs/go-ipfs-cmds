@@ -10,7 +10,7 @@ import (
 	"github.com/ipfs/go-ipfs-cmdkit"
 )
 
-func NewWriterResponseEmitter(w io.WriteCloser, req Request, enc func(Request) func(io.Writer) Encoder) *WriterResponseEmitter {
+func NewWriterResponseEmitter(w io.WriteCloser, req *Request, enc func(*Request) func(io.Writer) Encoder) *WriterResponseEmitter {
 	re := &WriterResponseEmitter{
 		w:   w,
 		c:   w,
@@ -24,7 +24,7 @@ func NewWriterResponseEmitter(w io.WriteCloser, req Request, enc func(Request) f
 	return re
 }
 
-func NewReaderResponse(r io.Reader, encType EncodingType, req Request) Response {
+func NewReaderResponse(r io.Reader, encType EncodingType, req *Request) Response {
 	emitted := make(chan struct{})
 
 	return &readerResponse{
@@ -41,7 +41,7 @@ type readerResponse struct {
 	encType EncodingType
 	dec     Decoder
 
-	req Request
+	req *Request
 
 	length uint64
 	err    *cmdkit.Error
@@ -50,7 +50,7 @@ type readerResponse struct {
 	once    sync.Once
 }
 
-func (r *readerResponse) Request() Request {
+func (r *readerResponse) Request() *Request {
 	return r.req
 }
 
@@ -67,7 +67,7 @@ func (r *readerResponse) Length() uint64 {
 }
 
 func (r *readerResponse) RawNext() (interface{}, error) {
-	m := &MaybeError{Value: r.req.Command().Type}
+	m := &MaybeError{Value: r.req.Command.Type}
 	err := r.dec.Decode(m)
 	if err != nil {
 		return nil, err
@@ -105,7 +105,7 @@ type WriterResponseEmitter struct {
 	w   io.Writer
 	c   io.Closer
 	enc Encoder
-	req Request
+	req *Request
 
 	length *uint64
 	err    *cmdkit.Error

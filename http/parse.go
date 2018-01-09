@@ -1,42 +1,38 @@
 package http
 
 import (
-	"errors"
+	"context"
 	"fmt"
+	"io/ioutil"
 	"mime"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-cmdkit/files"
 	cmds "github.com/ipfs/go-ipfs-cmds"
-	path "github.com/ipfs/go-ipfs/path"
 )
 
-// Parse parses the data in a http.Request and returns a command Request object
-func Parse(r *http.Request, root *cmds.Command) (cmds.Request, error) {
-	if !strings.HasPrefix(r.URL.Path, ApiPath) {
-		return nil, errors.New("Unexpected path prefix")
-	}
-	pth := path.SplitList(strings.TrimPrefix(r.URL.Path, ApiPath+"/"))
-
-	stringArgs := make([]string, 0)
-
-	if err := apiVersionMatches(r); err != nil {
-		if pth[0] != "version" { // compatibility with previous version check
-			return nil, err
-		}
+// parseRequest parses the data in a http.Request and returns a command Request object
+func parseRequest(ctx context.Context, r *http.Request, root *cmds.Command) (*cmds.Request, error) {
+	if r.URL.Path[0] == '/' {
+		r.URL.Path = r.URL.Path[1:]
 	}
 
-	getPath := pth[:len(pth)-1]
+	var (
+		stringArgs []string
+		pth        = strings.Split(r.URL.Path, "/")
+		getPath    = pth[:len(pth)-1]
+	)
+
 	cmd, err := root.Get(getPath)
 	if err != nil {
 		// 404 if there is no command at that path
 		return nil, ErrNotFound
-
 	}
 
-	sub := cmd.Subcommand(pth[len(pth)-1])
+	sub := cmd.Subcommands[pth[len(pth)-1]]
 
 	if sub == nil {
 		if cmd.Run == nil {
@@ -47,12 +43,29 @@ func Parse(r *http.Request, root *cmds.Command) (cmds.Request, error) {
 		// e.g. /objects/Qabc12345 (we are passing "Qabc12345" to the "objects" command)
 		stringArgs = append(stringArgs, pth[len(pth)-1])
 		pth = pth[:len(pth)-1]
-
 	} else {
 		cmd = sub
 	}
 
 	opts, stringArgs2 := parseOptions(r)
+	optDefs, err := root.GetOptions(pth)
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range opts {
+		if optDef, ok := optDefs[k]; ok {
+			name := optDef.Names()[0]
+			if k != name {
+				opts[name] = v
+				delete(opts, k)
+			}
+		}
+	}
+	// default to setting encoding to JSON
+	if _, ok := opts[cmds.EncLong]; !ok {
+		opts[cmds.EncLong] = cmds.JSON
+	}
+
 	stringArgs = append(stringArgs, stringArgs2...)
 
 	// count required argument definitions
@@ -99,11 +112,6 @@ func Parse(r *http.Request, root *cmds.Command) (cmds.Request, error) {
 		}
 	}
 
-	optDefs, err := root.GetOptions(pth)
-	if err != nil {
-		return nil, err
-	}
-
 	// create cmds.File from multipart/form-data contents
 	contentType := r.Header.Get(contentTypeHeader)
 	mediatype, _, _ := mime.ParseMediaType(contentType)
@@ -126,7 +134,7 @@ func Parse(r *http.Request, root *cmds.Command) (cmds.Request, error) {
 		return nil, fmt.Errorf("File argument '%s' is required", requiredFile)
 	}
 
-	req, err := cmds.NewRequest(pth, opts, args, f, cmd, optDefs)
+	req, err := cmds.NewRequest(ctx, pth, opts, args, f, root)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +144,8 @@ func Parse(r *http.Request, root *cmds.Command) (cmds.Request, error) {
 		return nil, err
 	}
 
-	return req, nil
+	err = req.FillDefaults()
+	return req, err
 }
 
 func parseOptions(r *http.Request) (map[string]interface{}, []string) {
@@ -148,16 +157,69 @@ func parseOptions(r *http.Request) (map[string]interface{}, []string) {
 		if k == "arg" {
 			args = v
 		} else {
+
 			opts[k] = v[0]
 		}
 	}
 
-	// default to setting encoding to JSON
-	_, short := opts[cmdkit.EncShort]
-	_, long := opts[cmdkit.EncLong]
-	if !short && !long {
-		opts[cmdkit.EncShort] = cmds.JSON
+	return opts, args
+}
+
+// parseResponse decodes a http.Response to create a cmds.Response
+func parseResponse(httpRes *http.Response, req *cmds.Request) (cmds.Response, error) {
+	res := &Response{
+		res: httpRes,
+		req: req,
+		rr:  &responseReader{httpRes},
 	}
 
-	return opts, args
+	lengthHeader := httpRes.Header.Get(extraContentLengthHeader)
+	if len(lengthHeader) > 0 {
+		length, err := strconv.ParseUint(lengthHeader, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		res.length = length
+	}
+
+	contentType := httpRes.Header.Get(contentTypeHeader)
+	contentType = strings.Split(contentType, ";")[0]
+
+	encType, found := MIMEEncodings[contentType]
+	if found {
+		makeDec, ok := cmds.Decoders[encType]
+		if ok {
+			res.dec = makeDec(res.rr)
+		}
+	}
+
+	// If we ran into an error
+	if httpRes.StatusCode >= http.StatusBadRequest {
+		e := &cmdkit.Error{}
+
+		switch {
+		case httpRes.StatusCode == http.StatusNotFound:
+			// handle 404s
+			e.Message = "Command not found."
+			e.Code = cmdkit.ErrClient
+		case contentType == plainText:
+			// handle non-marshalled errors
+			mes, err := ioutil.ReadAll(res.rr)
+			if err != nil {
+				return nil, err
+			}
+			e.Message = string(mes)
+			e.Code = cmdkit.ErrNormal
+		default:
+			// handle marshalled errors
+			err := res.dec.Decode(&e)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		res.initErr = e
+	}
+
+	return res, nil
 }

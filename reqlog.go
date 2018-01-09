@@ -28,13 +28,13 @@ type ReqLog struct {
 	keep     time.Duration
 }
 
-func (rl *ReqLog) Add(req Request) *ReqLogEntry {
+func (rl *ReqLog) Add(req *Request) *ReqLogEntry {
 	rle := &ReqLogEntry{
 		StartTime: time.Now(),
 		Active:    true,
-		Command:   strings.Join(req.Path(), "/"),
-		Options:   req.Options(),
-		Args:      req.StringArguments(),
+		Command:   strings.Join(req.Path, "/"),
+		Options:   req.Options,
+		Args:      req.Arguments,
 		ID:        rl.nextID,
 	}
 

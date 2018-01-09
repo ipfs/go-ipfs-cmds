@@ -1,12 +1,13 @@
 package cmds
 
 import (
+	"context"
 	"io"
 	"testing"
 )
 
 func TestCopy(t *testing.T) {
-	req, err := NewRequest(nil, nil, nil, nil, nil, nil)
+	req, err := NewRequest(context.Background(), nil, nil, nil, nil, &Command{})
 	if err != nil {
 		t.Fatal(err)
 	}
