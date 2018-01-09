@@ -54,10 +54,10 @@ func skipAPIHeader(h string) bool {
 type handler struct {
 	root *cmds.Command
 	cfg  *ServerConfig
-	env  cmds.Environment
+	env  interface{}
 }
 
-func NewHandler(env cmds.Environment, root *cmds.Command, cfg *ServerConfig) http.Handler {
+func NewHandler(env interface{}, root *cmds.Command, cfg *ServerConfig) http.Handler {
 	if cfg == nil {
 		panic("must provide a valid ServerConfig")
 	}
@@ -84,6 +84,10 @@ type requestLogger interface {
 	LogRequest(*cmds.Request) func()
 }
 
+type ContextEnv interface {
+	RootContext() context.Context
+}
+
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Debug("incoming API request: ", r.URL)
 
@@ -95,7 +99,10 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	ctx := h.env.Context()
+	var ctx context.Context
+	if ctxer, ok := h.env.(ContextEnv); ok {
+		ctx = ctxer.RootContext()
+	}
 	if ctx == nil {
 		log.Error("no root context found, using background")
 		ctx = context.Background()

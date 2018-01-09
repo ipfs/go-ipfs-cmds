@@ -72,7 +72,7 @@ func NewClient(address string, opts ...ClientOpt) Client {
 	return c
 }
 
-func (c *client) Execute(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+func (c *client) Execute(req *cmds.Request, re cmds.ResponseEmitter, env interface{}) error {
 	cmd := req.Command
 
 	// If this ResponseEmitter encodes messages (e.g. http, cli or writer - but not chan),
