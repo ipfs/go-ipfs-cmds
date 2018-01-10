@@ -91,8 +91,7 @@ var (
 					})
 				},
 				Encoders: cmds.EncoderMap{
-					cmds.Text: cmds.MakeEncoder(func(req *cmds.Request, w io.Writer, value interface{}) error {
-						v := value.(*VersionOutput)
+					cmds.Text: cmds.MakeTypedEncoder(func(req *cmds.Request, w io.Writer, v *VersionOutput) error {
 
 						if repo, ok := req.Options["repo"].(bool); ok && repo {
 							_, err := fmt.Fprintf(w, "%v\n", v.Repo)
