@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"reflect"
 )
 
 // Encoder encodes values onto e.g. an io.Writer. Examples are json.Encoder and xml.Encoder.
@@ -70,6 +71,40 @@ func MakeEncoder(f func(*Request, io.Writer, interface{}) error) func(*Request) 
 	return func(req *Request) func(io.Writer) Encoder {
 		return func(w io.Writer) Encoder { return &genericEncoder{f: f, w: w, req: req} }
 	}
+}
+
+func MakeTypedEncoder(f interface{}) func(*Request) func(io.Writer) Encoder {
+	val := reflect.ValueOf(f)
+	t := val.Type()
+	if t.Kind() != reflect.Func || t.NumIn() != 3 {
+		panic("MakeTypedEncoder must receive a function with three parameters")
+	}
+
+	errorInterface := reflect.TypeOf((*error)(nil)).Elem()
+	if t.NumOut() != 1 || !t.Out(0).Implements(errorInterface) {
+		panic("MakeTypedEncoder must return an error")
+	}
+
+	writerInt := reflect.TypeOf((*io.Writer)(nil)).Elem()
+	if t.In(0) != reflect.TypeOf(&Request{}) || !t.In(1).Implements(writerInt) {
+		panic("MakeTypedEncoder must receive a function matching func(*Request, io.Writer, ...)")
+	}
+
+	valType := t.In(2)
+
+	return MakeEncoder(func(req *Request, w io.Writer, i interface{}) error {
+		if reflect.TypeOf(i) != valType {
+			return fmt.Errorf("unexpected type: %T", i)
+		}
+
+		out := val.Call([]reflect.Value{
+			reflect.ValueOf(req),
+			reflect.ValueOf(w),
+			reflect.ValueOf(i),
+		})
+
+		return out[0].Interface().(error)
+	})
 }
 
 type genericEncoder struct {
