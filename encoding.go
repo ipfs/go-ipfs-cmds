@@ -85,6 +85,11 @@ func MakeTypedEncoder(f interface{}) func(*Request) func(io.Writer) Encoder {
 		panic("MakeTypedEncoder must return an error")
 	}
 
+	writerInt := reflect.TypeOf((*io.Writer)(nil)).Elem()
+	if t.In(0) != reflect.TypeOf(&Request{}) || !t.In(1).Implements(writerInt) {
+		panic("MakeTypedEncoder must receive a function matching func(*Request, io.Writer, ...)")
+	}
+
 	valType := t.In(2)
 
 	return MakeEncoder(func(req *Request, w io.Writer, i interface{}) error {
