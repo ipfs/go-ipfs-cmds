@@ -168,6 +168,8 @@ func (c *client) Send(req *cmds.Request) (cmds.Response, error) {
 			return nil, err
 		}
 		req.Context, reqCancel = context.WithTimeout(req.Context, timeout)
+	} else {
+		req.Context, reqCancel = context.WithCancel(req.Context)
 	}
 
 	httpReq = httpReq.WithContext(req.Context)
