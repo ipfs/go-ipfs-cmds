@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"runtime/debug"
 	"sync"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
@@ -88,14 +87,12 @@ func (re *responseEmitter) isClosed() bool {
 }
 
 func (re *responseEmitter) Close() error {
-	if re.isClosed() {
-		return errors.New("closing closed responseemitter")
-	}
-
-	log.Debugf("err=%v exit=%v\nStack:\n%s", re.err, re.exit, debug.Stack())
-
 	re.wLock.Lock()
 	defer re.wLock.Unlock()
+
+	if re.closed {
+		return errors.New("closing closed responseemitter")
+	}
 
 	re.ch <- re.exit
 	close(re.ch)
@@ -172,7 +169,6 @@ func (re *responseEmitter) Emit(v interface{}) error {
 	}
 
 	if err, ok := v.(cmdkit.Error); ok {
-		log.Warningf("fixerr %s", debug.Stack())
 		v = &err
 	}
 
