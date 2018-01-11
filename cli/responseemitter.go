@@ -87,12 +87,12 @@ func (re *responseEmitter) isClosed() bool {
 }
 
 func (re *responseEmitter) Close() error {
-	if re.isClosed() {
-		return errors.New("closing closed responseemitter")
-	}
-
 	re.wLock.Lock()
 	defer re.wLock.Unlock()
+
+	if re.closed {
+		return errors.New("closing closed responseemitter")
+	}
 
 	re.ch <- re.exit
 	close(re.ch)
