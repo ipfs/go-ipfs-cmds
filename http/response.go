@@ -29,9 +29,6 @@ type Response struct {
 	dec cmds.Decoder
 
 	initErr *cmdkit.Error
-
-	// request context cancel function. might be nil, but we need to call it when we're done
-	reqCancel func()
 }
 
 func (res *Response) Request() *cmds.Request {
@@ -60,9 +57,6 @@ func (res *Response) RawNext() (interface{}, error) {
 	// but only do that once
 	if res.dec == nil {
 		if res.rr == nil {
-			if res.reqCancel != nil {
-				res.reqCancel()
-			}
 			return nil, io.EOF
 		} else {
 			rr := res.rr
@@ -77,9 +71,6 @@ func (res *Response) RawNext() (interface{}, error) {
 	// last error was sent as value, now we get the same error from the headers. ignore and EOF!
 	if err != nil && res.err != nil && err.Error() == res.err.Error() {
 		err = io.EOF
-		if res.reqCancel != nil {
-			res.reqCancel()
-		}
 	}
 
 	return m.Get(), err

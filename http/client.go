@@ -73,6 +73,23 @@ func NewClient(address string, opts ...ClientOpt) Client {
 }
 
 func (c *client) Execute(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+	if req.Context == nil {
+		log.Warningf("no context set in request")
+		req.Context = context.Background()
+	}
+
+	var cancel func()
+	if timeoutStr, ok := req.Options[cmds.TimeoutOpt]; ok {
+		timeout, err := time.ParseDuration(timeoutStr.(string))
+		if err != nil {
+			return err
+		}
+		req.Context, cancel = context.WithTimeout(req.Context, timeout)
+	} else {
+		req.Context, cancel = context.WithCancel(req.Context)
+	}
+	defer cancel()
+
 	cmd := req.Command
 
 	// If this ResponseEmitter encodes messages (e.g. http, cli or writer - but not chan),
@@ -161,34 +178,19 @@ func (c *client) Send(req *cmds.Request) (cmds.Response, error) {
 	}
 	httpReq.Header.Set(uaHeader, c.ua)
 
-	var reqCancel func()
-	if timeoutStr, ok := req.Options[cmds.TimeoutOpt]; ok {
-		timeout, err := time.ParseDuration(timeoutStr.(string))
-		if err != nil {
-			return nil, err
-		}
-		req.Context, reqCancel = context.WithTimeout(req.Context, timeout)
-	} else {
-		req.Context, reqCancel = context.WithCancel(req.Context)
-	}
-
 	httpReq = httpReq.WithContext(req.Context)
 	httpReq.Close = true
 
 	httpRes, err := c.httpClient.Do(httpReq)
 	if err != nil {
-		reqCancel()
 		return nil, err
 	}
 
 	// using the overridden JSON encoding in request
 	res, err := parseResponse(httpRes, req)
 	if err != nil {
-		reqCancel()
 		return nil, err
 	}
-
-	res.(*Response).reqCancel = reqCancel
 
 	if found && len(previousUserProvidedEncoding) > 0 {
 		// reset to user provided encoding after sending request
