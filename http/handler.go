@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"runtime/debug"
 	"strings"
+	"time"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 	cmds "github.com/ipfs/go-ipfs-cmds"
@@ -101,21 +102,6 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ctx = context.Background()
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	ctx = logging.ContextWithLoggable(ctx, loggables.Uuid("requestId"))
-	if cn, ok := w.(http.CloseNotifier); ok {
-		clientGone := cn.CloseNotify()
-		go func() {
-			select {
-			case <-clientGone:
-			case <-ctx.Done():
-			}
-			cancel()
-		}()
-	}
-
 	if !allowOrigin(r, h.cfg) || !allowReferer(r, h.cfg) {
 		w.WriteHeader(http.StatusForbidden)
 		w.Write([]byte("403 - Forbidden"))
@@ -132,6 +118,31 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Write([]byte(err.Error()))
 		return
+	}
+
+	// Handle the timeout up front.
+	var cancel func()
+	if timeoutStr, ok := req.Options[cmds.TimeoutOpt]; ok {
+		timeout, err := time.ParseDuration(timeoutStr.(string))
+		if err != nil {
+			return
+		}
+		req.Context, cancel = context.WithTimeout(req.Context, timeout)
+	} else {
+		req.Context, cancel = context.WithCancel(req.Context)
+	}
+	defer cancel()
+
+	req.Context = logging.ContextWithLoggable(req.Context, loggables.Uuid("requestId"))
+	if cn, ok := w.(http.CloseNotifier); ok {
+		clientGone := cn.CloseNotify()
+		go func() {
+			select {
+			case <-clientGone:
+			case <-req.Context.Done():
+			}
+			cancel()
+		}()
 	}
 
 	if reqLogger, ok := h.env.(requestLogger); ok {

@@ -2,7 +2,6 @@ package cmds
 
 import (
 	"context"
-	"time"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 )
@@ -69,16 +68,6 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) (e
 			log.Errorf("unknown encoding %q, using json", encType)
 			ee.SetEncoder(Encoders[JSON](req))
 		}
-	}
-
-	if timeoutStr, ok := req.Options[TimeoutOpt]; ok {
-		timeout, err := time.ParseDuration(timeoutStr.(string))
-		if err != nil {
-			return err
-		}
-		var cancel func()
-		req.Context, cancel = context.WithTimeout(req.Context, timeout)
-		defer cancel()
 	}
 
 	if cmd.PreRun != nil {

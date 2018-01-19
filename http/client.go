@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-cmdkit/files"
@@ -161,34 +160,19 @@ func (c *client) Send(req *cmds.Request) (cmds.Response, error) {
 	}
 	httpReq.Header.Set(uaHeader, c.ua)
 
-	var reqCancel func()
-	if timeoutStr, ok := req.Options[cmds.TimeoutOpt]; ok {
-		timeout, err := time.ParseDuration(timeoutStr.(string))
-		if err != nil {
-			return nil, err
-		}
-		req.Context, reqCancel = context.WithTimeout(req.Context, timeout)
-	} else {
-		req.Context, reqCancel = context.WithCancel(req.Context)
-	}
-
 	httpReq = httpReq.WithContext(req.Context)
 	httpReq.Close = true
 
 	httpRes, err := c.httpClient.Do(httpReq)
 	if err != nil {
-		reqCancel()
 		return nil, err
 	}
 
 	// using the overridden JSON encoding in request
 	res, err := parseResponse(httpRes, req)
 	if err != nil {
-		reqCancel()
 		return nil, err
 	}
-
-	res.(*Response).reqCancel = reqCancel
 
 	if found && len(previousUserProvidedEncoding) > 0 {
 		// reset to user provided encoding after sending request
