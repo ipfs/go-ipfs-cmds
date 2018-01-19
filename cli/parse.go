@@ -22,6 +22,8 @@ var log = logging.Logger("cmds/cli")
 
 // Parse parses the input commandline string (cmd, flags, and args).
 // returns the corresponding command Request object.
+//
+// This function never returns nil, even on error.
 func Parse(ctx context.Context, input []string, stdin *os.File, root *cmds.Command) (*cmds.Request, error) {
 	req := &cmds.Request{Context: ctx}
 

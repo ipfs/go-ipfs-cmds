@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 	cmds "github.com/ipfs/go-ipfs-cmds"
@@ -24,6 +25,19 @@ func Run(ctx context.Context, root *cmds.Command,
 	}
 
 	req, errParse := Parse(ctx, cmdline[1:], stdin, root)
+
+	// Handle the timeout up front.
+	var cancel func()
+	if timeoutStr, ok := req.Options[cmds.TimeoutOpt]; ok {
+		timeout, err := time.ParseDuration(timeoutStr.(string))
+		if err != nil {
+			return err
+		}
+		req.Context, cancel = context.WithTimeout(req.Context, timeout)
+	} else {
+		req.Context, cancel = context.WithCancel(req.Context)
+	}
+	defer cancel()
 
 	// this is a message to tell the user how to get the help text
 	printMetaHelp := func(w io.Writer) {
@@ -79,7 +93,7 @@ func Run(ctx context.Context, root *cmds.Command,
 
 	cmd := req.Command
 
-	env, err := buildEnv(ctx, req)
+	env, err := buildEnv(req.Context, req)
 	if err != nil {
 		printErr(err)
 		return err
