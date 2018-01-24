@@ -132,7 +132,12 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer cancel()
 
-	req.Context = logging.ContextWithLoggable(req.Context, loggables.Uuid("requestId"))
+	req.Context = log.EventBeginInContext(req.Context, "ServeHTTP",
+		loggables.Uuid("requestId"), logging.LoggableMap{
+			"httpUrl":    r.URL.String(),
+			"httpMethod": r.Method,
+		})
+
 	if cn, ok := w.(http.CloseNotifier); ok {
 		clientGone := cn.CloseNotify()
 		go func() {
@@ -140,6 +145,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			case <-clientGone:
 			case <-req.Context.Done():
 			}
+			logging.MaybeFinishEvent(req.Context)
 			cancel()
 		}()
 	}
