@@ -103,7 +103,11 @@ func MakeTypedEncoder(f interface{}) func(*Request) func(io.Writer) Encoder {
 			reflect.ValueOf(i),
 		})
 
-		return out[0].Interface().(error)
+		err, ok := out[0].Interface().(error)
+		if ok {
+			return err
+		}
+		return nil
 	})
 }
 
