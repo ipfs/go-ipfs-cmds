@@ -76,6 +76,10 @@ func (r *readerResponse) RawNext() (interface{}, error) {
 	r.once.Do(func() { close(r.emitted) })
 
 	v := m.Get()
+	// because working with pointers to arrays is annoying
+	if t := reflect.TypeOf(v); t.Kind() == reflect.Ptr && t.Elem().Kind() == reflect.Slice {
+		v = reflect.ValueOf(v).Elem().Interface()
+	}
 	return v, nil
 }
 
