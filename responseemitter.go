@@ -72,6 +72,10 @@ func Copy(re ResponseEmitter, res Response) error {
 			return err
 		}
 
+		if err, ok := v.(cmdkit.Error); ok {
+			return err
+		}
+
 		err = re.Emit(v)
 		if err != nil {
 			return err
