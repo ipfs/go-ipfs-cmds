@@ -4,6 +4,8 @@ import (
 	"context"
 	"io"
 	"testing"
+
+	"github.com/ipfs/go-ipfs-cmdkit"
 )
 
 func TestCopy(t *testing.T) {
@@ -46,5 +48,66 @@ func TestCopy(t *testing.T) {
 	_, err = res2.Next()
 	if err != io.EOF {
 		t.Fatalf("expected EOF but got err=%v", err)
+	}
+}
+
+func TestError(t *testing.T) {
+	req, err := NewRequest(context.Background(), nil, nil, nil, nil, &Command{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	re, res := NewChanResponsePair(req)
+
+	go func() {
+		err := re.Emit("value1")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = re.Emit(cmdkit.Error{Message: "foo"})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = re.Emit(&cmdkit.Error{Message: "bar"})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = re.Emit("value2")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = re.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	v, err := res.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v.(string) != "value1" {
+		t.Errorf("expected string %#v but got %#v", "value1", v)
+	}
+
+	v, err = res.Next()
+	if err == nil {
+		t.Errorf("expected error, got %#v", v)
+	}
+	v, err = res.Next()
+	if err == nil {
+		t.Errorf("expected error, got %#v", v)
+	}
+
+	v, err = res.Next()
+	if err != nil {
+		t.Error(err)
+	}
+	if v.(string) != "value2" {
+		t.Errorf("expected string %#v but got %#v", "value1", v)
 	}
 }
