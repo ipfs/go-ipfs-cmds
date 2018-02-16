@@ -26,10 +26,6 @@ var (
 	}
 )
 
-type Doner interface {
-	Done() <-chan struct{}
-}
-
 // NewResponeEmitter returns a new ResponseEmitter.
 func NewResponseEmitter(w http.ResponseWriter, method string, req *cmds.Request) ResponseEmitter {
 	encType := cmds.GetEncoding(req)
@@ -41,12 +37,11 @@ func NewResponseEmitter(w http.ResponseWriter, method string, req *cmds.Request)
 	}
 
 	re := &responseEmitter{
-		w:         w,
-		encType:   encType,
-		enc:       enc,
-		method:    method,
-		req:       req,
-		closeWait: make(chan struct{}),
+		w:       w,
+		encType: encType,
+		enc:     enc,
+		method:  method,
+		req:     req,
 	}
 	return re
 }
@@ -69,9 +64,6 @@ type responseEmitter struct {
 	streaming bool
 	once      sync.Once
 	method    string
-
-	closeOnce sync.Once
-	closeWait chan struct{}
 }
 
 func (re *responseEmitter) Emit(value interface{}) error {
@@ -143,10 +135,6 @@ func (re *responseEmitter) Emit(value interface{}) error {
 	return err
 }
 
-func (re *responseEmitter) Done() <-chan struct{} {
-	return re.closeWait
-}
-
 func (re *responseEmitter) SetLength(l uint64) {
 	h := re.w.Header()
 	h.Set("X-Content-Length", strconv.FormatUint(l, 10))
@@ -156,8 +144,6 @@ func (re *responseEmitter) SetLength(l uint64) {
 
 func (re *responseEmitter) Close() error {
 	re.once.Do(func() { re.preamble(nil) })
-	re.closeOnce.Do(func() { close(re.closeWait) })
-
 	return nil
 }
 
@@ -173,14 +159,9 @@ func (re *responseEmitter) SetError(v interface{}, errType cmdkit.ErrorType) {
 func (re *responseEmitter) Flush() {
 	re.once.Do(func() { re.preamble(nil) })
 
-	select {
-	case <-re.closeWait:
-		log.Error("flush after close")
-		return
-	default:
+	if flusher, ok := re.w.(http.Flusher); ok {
+		flusher.Flush()
 	}
-
-	re.w.(http.Flusher).Flush()
 }
 
 func (re *responseEmitter) preamble(value interface{}) {

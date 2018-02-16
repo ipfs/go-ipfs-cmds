@@ -66,27 +66,26 @@ var ErrNoFormatter = ClientError("This command cannot be formatted to plain text
 var ErrIncorrectType = errors.New("The command returned a value with a different type than expected")
 
 // Call invokes the command for the given Request
-func (c *Command) Call(req *Request, re ResponseEmitter, env Environment) (err error) {
+func (c *Command) Call(req *Request, re ResponseEmitter, env Environment) {
 	// we need the named return parameter so we can change the value from defer()
-	defer func() {
-		if err == nil {
-			re.Close()
-		}
-	}()
+	defer re.Close()
 
 	var cmd *Command
-	cmd, err = c.Get(req.Path)
+	cmd, err := c.Get(req.Path)
 	if err != nil {
-		return err
+		re.SetError(err, cmdkit.ErrFatal)
+		return
 	}
 
 	if cmd.Run == nil {
-		return ErrNotCallable
+		re.SetError(ErrNotCallable, cmdkit.ErrFatal)
+		return
 	}
 
 	err = cmd.CheckArguments(req)
 	if err != nil {
-		return err
+		re.SetError(err, cmdkit.ErrFatal)
+		return
 	}
 
 	// If this ResponseEmitter encodes messages (e.g. http, cli or writer - but not chan),
@@ -104,23 +103,7 @@ func (c *Command) Call(req *Request, re ResponseEmitter, env Environment) (err e
 		}
 	}
 
-	defer func() {
-		/*
-			// catch panics (esp. from re.SetError)
-			if v := recover(); v != nil {
-				// if they are errors
-				if e, ok := v.(error); ok {
-					// use them as return error
-					err = e
-				}
-				// otherwise keep panicking.
-				panic(v)
-			}
-		*/
-	}()
 	cmd.Run(req, re, env)
-
-	return err
 }
 
 // Resolve returns the subcommands at the given path
