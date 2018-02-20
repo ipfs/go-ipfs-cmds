@@ -1,7 +1,6 @@
 package cmds
 
 import (
-	"bytes"
 	"context"
 	"io"
 	"testing"
@@ -15,12 +14,23 @@ type nopCloser struct{}
 
 func (c nopCloser) Close() error { return nil }
 
-// newBufferResponseEmitter returns a ResponseEmitter that writes
-// into a bytes.Buffer
-func newBufferResponseEmitter() ResponseEmitter {
-	buf := bytes.NewBuffer(nil)
-	wc := writecloser{Writer: buf, Closer: nopCloser{}}
-	return NewWriterResponseEmitter(wc, nil, Encoders[Text])
+type testEmitter testing.T
+
+func (s *testEmitter) Close() error {
+	return nil
+}
+
+func (s *testEmitter) SetLength(_ uint64) {}
+func (s *testEmitter) SetError(err interface{}, code cmdkit.ErrorType) {
+	(*testing.T)(s).Error(err)
+}
+func (s *testEmitter) Emit(value interface{}) error {
+	return nil
+}
+
+// newTestEmitter fails the test if it receives an error.
+func newTestEmitter(t *testing.T) *testEmitter {
+	return (*testEmitter)(t)
 }
 
 // noop does nothing and can be used as a noop Run function
@@ -43,7 +53,7 @@ func TestOptionValidation(t *testing.T) {
 		Run: noop,
 	}
 
-	re := newBufferResponseEmitter()
+	re := newTestEmitter(t)
 	req, err := NewRequest(context.Background(), nil, map[string]interface{}{
 		"beep": true,
 	}, nil, nil, cmd)
@@ -51,19 +61,16 @@ func TestOptionValidation(t *testing.T) {
 		t.Error("Should have failed (incorrect type)")
 	}
 
-	re = newBufferResponseEmitter()
+	re = newTestEmitter(t)
 	req, err = NewRequest(context.Background(), nil, map[string]interface{}{
 		"beep": 5,
 	}, nil, nil, cmd)
 	if err != nil {
 		t.Error(err, "Should have passed")
 	}
-	err = cmd.Call(req, re, nil)
-	if err != nil {
-		t.Error(err, "Should have passed")
-	}
+	cmd.Call(req, re, nil)
 
-	re = newBufferResponseEmitter()
+	re = newTestEmitter(t)
 	req, err = NewRequest(context.Background(), nil, map[string]interface{}{
 		"beep": 5,
 		"boop": "test",
@@ -72,12 +79,9 @@ func TestOptionValidation(t *testing.T) {
 		t.Error("Should have passed")
 	}
 
-	err = cmd.Call(req, re, nil)
-	if err != nil {
-		t.Error("Should have passed")
-	}
+	cmd.Call(req, re, nil)
 
-	re = newBufferResponseEmitter()
+	re = newTestEmitter(t)
 	req, err = NewRequest(context.Background(), nil, map[string]interface{}{
 		"b": 5,
 		"B": "test",
@@ -86,12 +90,9 @@ func TestOptionValidation(t *testing.T) {
 		t.Error("Should have passed")
 	}
 
-	err = cmd.Call(req, re, nil)
-	if err != nil {
-		t.Error("Should have passed")
-	}
+	cmd.Call(req, re, nil)
 
-	re = newBufferResponseEmitter()
+	re = newTestEmitter(t)
 	req, err = NewRequest(context.Background(), nil, map[string]interface{}{
 		"foo": 5,
 	}, nil, nil, cmd)
@@ -99,12 +100,9 @@ func TestOptionValidation(t *testing.T) {
 		t.Error("Should have passed")
 	}
 
-	err = cmd.Call(req, re, nil)
-	if err != nil {
-		t.Error("Should have passed")
-	}
+	cmd.Call(req, re, nil)
 
-	re = newBufferResponseEmitter()
+	re = newTestEmitter(t)
 	req, err = NewRequest(context.Background(), nil, map[string]interface{}{
 		EncLong: "json",
 	}, nil, nil, cmd)
@@ -112,12 +110,9 @@ func TestOptionValidation(t *testing.T) {
 		t.Error("Should have passed")
 	}
 
-	err = cmd.Call(req, re, nil)
-	if err != nil {
-		t.Error("Should have passed")
-	}
+	cmd.Call(req, re, nil)
 
-	re = newBufferResponseEmitter()
+	re = newTestEmitter(t)
 	req, err = NewRequest(context.Background(), nil, map[string]interface{}{
 		"b": "100",
 	}, nil, nil, cmd)
@@ -125,12 +120,9 @@ func TestOptionValidation(t *testing.T) {
 		t.Error("Should have passed")
 	}
 
-	err = cmd.Call(req, re, nil)
-	if err != nil {
-		t.Error("Should have passed")
-	}
+	cmd.Call(req, re, nil)
 
-	re = newBufferResponseEmitter()
+	re = newTestEmitter(t)
 	req, err = NewRequest(context.Background(), nil, map[string]interface{}{
 		"b": ":)",
 	}, nil, nil, cmd)
@@ -337,10 +329,7 @@ func TestPostRun(t *testing.T) {
 		re, res := NewChanResponsePair(req)
 		re = cmd.PostRun[PostRunType(encType)](req, re)
 
-		err = cmd.Call(req, re, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
+		cmd.Call(req, re, nil)
 
 		l := res.Length()
 		if l != tc.finalLength {

@@ -31,10 +31,7 @@ func main() {
 	go func() {
 		defer close(wait)
 
-		err = adder.RootCmd.Call(req, re, nil)
-		if err != nil {
-			panic(err)
-		}
+		adder.RootCmd.Call(req, re, nil)
 	}()
 
 	// wait until command has returned and exit

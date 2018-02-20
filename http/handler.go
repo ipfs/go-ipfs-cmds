@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ipfs/go-ipfs-cmdkit"
 	cmds "github.com/ipfs/go-ipfs-cmds"
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-loggables"
@@ -158,24 +157,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	re := NewResponseEmitter(w, r.Method, req)
-	defer re.Close()
-
-	// call the command
-	err = h.root.Call(req, re, h.env)
-	if err != nil {
-		re.SetError(err, cmdkit.ErrNormal)
-		return
-	}
-
-	d := re.(Doner)
-	select {
-	case <-d.Done():
-	case <-req.Context.Done():
-		log.Errorf("waiting for http.Responseemitter to close but then %s", req.Context.Err())
-		// too late to send an error, just return
-	}
-
-	return
+	h.root.Call(req, re, h.env)
 }
 
 func sanitizedErrStr(err error) string {
