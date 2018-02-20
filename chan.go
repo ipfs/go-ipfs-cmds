@@ -88,6 +88,10 @@ func (r *chanResponse) Next() (interface{}, error) {
 			return nil, io.EOF
 		}
 
+		if err, ok := v.(cmdkit.Error); ok {
+			v = &err
+		}
+
 		switch val := v.(type) {
 		case *cmdkit.Error:
 			r.err = val
