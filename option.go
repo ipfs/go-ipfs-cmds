@@ -93,7 +93,7 @@ var converters = map[reflect.Kind]converter{
 		if err != nil {
 			return nil, err
 		}
-		return int(val), err
+		return uint(val), err
 	},
 	Float: func(v string) (interface{}, error) {
 		return strconv.ParseFloat(v, 64)

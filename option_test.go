@@ -75,7 +75,7 @@ func TestParse(t *testing.T) {
 		{opt: IntOption("int1"), str: "42", v: 42},
 		{opt: IntOption("int1"), str: "fourtytwo", err: `strconv.ParseInt: parsing "fourtytwo": invalid syntax`},
 		{opt: IntOption("int2"), str: "-42", v: -42},
-		{opt: UintOption("uint1"), str: "23", v: 23},
+		{opt: UintOption("uint1"), str: "23", v: uint(23)},
 		{opt: UintOption("uint2"), str: "-23", err: `strconv.ParseUint: parsing "-23": invalid syntax`},
 		{opt: BoolOption("true"), str: "true", v: true},
 		{opt: BoolOption("true"), str: "", v: true},
