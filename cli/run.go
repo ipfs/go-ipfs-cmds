@@ -12,16 +12,17 @@ import (
 	cmds "github.com/ipfs/go-ipfs-cmds"
 )
 
+// Closer is a helper interface to check if the env supports closing
 type Closer interface {
 	Close()
 }
 
 func Run(ctx context.Context, root *cmds.Command,
 	cmdline []string, stdin, stdout, stderr *os.File,
-	buildEnv cmds.MakeEnvironment, makeExecutor cmds.MakeExecutor) error {
+	buildEnv cmds.MakeEnvironment, makeExecutor cmds.MakeExecutor) (int, error) {
 
 	printErr := func(err error) {
-		fmt.Fprintf(stderr, "Error: %s\n", err.Error())
+		fmt.Fprintf(stderr, "%s\n", err)
 	}
 
 	req, errParse := Parse(ctx, cmdline[1:], stdin, root)
@@ -31,7 +32,7 @@ func Run(ctx context.Context, root *cmds.Command,
 	if timeoutStr, ok := req.Options[cmds.TimeoutOpt]; ok {
 		timeout, err := time.ParseDuration(timeoutStr.(string))
 		if err != nil {
-			return err
+			return 1, err
 		}
 		req.Context, cancel = context.WithTimeout(req.Context, timeout)
 	} else {
@@ -56,16 +57,19 @@ func Run(ctx context.Context, root *cmds.Command,
 			path = req.Path
 		}
 
-		helpFunc(cmdline[0], root, path, w)
+		if err := helpFunc(cmdline[0], root, path, w); err != nil {
+			// This should not happen
+			panic(err)
+		}
 	}
 
 	// BEFORE handling the parse error, if we have enough information
 	// AND the user requested help, print it out and exit
 	err := HandleHelp(cmdline[0], req, stdout)
 	if err == nil {
-		return nil
+		return 0, nil
 	} else if err != ErrNoHelpRequested {
-		return err
+		return 1, err
 	}
 	// no help requested, continue.
 
@@ -80,7 +84,7 @@ func Run(ctx context.Context, root *cmds.Command,
 			printHelp(false, stderr)
 		}
 
-		return err
+		return 1, err
 	}
 
 	// here we handle the cases where
@@ -88,7 +92,7 @@ func Run(ctx context.Context, root *cmds.Command,
 	// - the main command is invoked.
 	if req == nil || req.Command == nil || req.Command.Run == nil {
 		printHelp(false, stdout)
-		return nil
+		return 0, nil
 	}
 
 	cmd := req.Command
@@ -96,7 +100,7 @@ func Run(ctx context.Context, root *cmds.Command,
 	env, err := buildEnv(req.Context, req)
 	if err != nil {
 		printErr(err)
-		return err
+		return 1, err
 	}
 	if c, ok := env.(Closer); ok {
 		defer c.Close()
@@ -105,7 +109,7 @@ func Run(ctx context.Context, root *cmds.Command,
 	exctr, err := makeExecutor(req, env)
 	if err != nil {
 		printErr(err)
-		return err
+		return 1, err
 	}
 
 	var (
@@ -127,7 +131,7 @@ func Run(ctx context.Context, root *cmds.Command,
 	} else if enc, ok := cmds.Encoders[encType]; ok {
 		re, exitCh = NewResponseEmitter(stdout, stderr, enc, req)
 	} else {
-		return fmt.Errorf("could not find matching encoder for enctype %#v", encType)
+		return 1, fmt.Errorf("could not find matching encoder for enctype %#v", encType)
 	}
 
 	errCh := make(chan error, 1)
@@ -149,19 +153,13 @@ func Run(ctx context.Context, root *cmds.Command,
 			printMetaHelp(stderr)
 		}
 
-		return err
+		return 1, err
 
 	case code := <-exitCh:
 		if code != 0 {
-			return exitErr(code)
+			return code, nil
 		}
 	}
 
-	return nil
-}
-
-type exitErr int
-
-func (e exitErr) Error() string {
-	return fmt.Sprint("exit code", int(e))
+	return 0, nil
 }
