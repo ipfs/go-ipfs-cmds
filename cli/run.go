@@ -12,6 +12,14 @@ import (
 	cmds "github.com/ipfs/go-ipfs-cmds"
 )
 
+// ExitError is the error used when a specific exit code needs to be returned.
+type ExitError int
+
+func (e ExitError) Error() string {
+	return fmt.Sprintf("exit code %d", int(e))
+}
+
+// Closer is a helper interface to check if the env supports closing
 type Closer interface {
 	Close()
 }
@@ -21,7 +29,7 @@ func Run(ctx context.Context, root *cmds.Command,
 	buildEnv cmds.MakeEnvironment, makeExecutor cmds.MakeExecutor) error {
 
 	printErr := func(err error) {
-		fmt.Fprintf(stderr, "Error: %s\n", err.Error())
+		fmt.Fprintf(stderr, "%s\n", err)
 	}
 
 	req, errParse := Parse(ctx, cmdline[1:], stdin, root)
@@ -56,7 +64,10 @@ func Run(ctx context.Context, root *cmds.Command,
 			path = req.Path
 		}
 
-		helpFunc(cmdline[0], root, path, w)
+		if err := helpFunc(cmdline[0], root, path, w); err != nil {
+			// This should not happen
+			panic(err)
+		}
 	}
 
 	// BEFORE handling the parse error, if we have enough information
@@ -153,15 +164,9 @@ func Run(ctx context.Context, root *cmds.Command,
 
 	case code := <-exitCh:
 		if code != 0 {
-			return exitErr(code)
+			return ExitError(code)
 		}
 	}
 
 	return nil
-}
-
-type exitErr int
-
-func (e exitErr) Error() string {
-	return fmt.Sprint("exit code", int(e))
 }
