@@ -40,6 +40,12 @@
       "hash": "QmTVvctiHWZzSDZdyU5wdnXh7VF3kprHSyQFwVChos5qKu",
       "name": "golang-levenshtein",
       "version": "1.0.0"
+    },
+    {
+      "author": "Kubuxu",
+      "hash": "QmXuBJ7DR6k3rmUEKtvVMhwjmXDuJgXXPUt4LQXKBMsU93",
+      "name": "go-os-helper",
+      "version": "0.0.0"
     }
   ],
   "gxVersion": "0.10.0",

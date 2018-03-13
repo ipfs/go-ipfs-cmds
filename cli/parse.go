@@ -7,18 +7,25 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-cmdkit/files"
 	"github.com/ipfs/go-ipfs-cmds"
-
 	logging "github.com/ipfs/go-log"
+
+	osh "gx/ipfs/QmXuBJ7DR6k3rmUEKtvVMhwjmXDuJgXXPUt4LQXKBMsU93/go-os-helper"
 )
 
 var log = logging.Logger("cmds/cli")
+var msgStdinInfo = "ipfs: Reading from %s; send Ctrl-d to stop."
+
+func init() {
+	if osh.IsWindows() {
+		msgStdinInfo = "ipfs: Reading from %s; send Ctrl-z to stop."
+	}
+}
 
 // Parse parses the input commandline string (cmd, flags, and args).
 // returns the corresponding command Request object.
@@ -184,11 +191,6 @@ L:
 }
 
 func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
-	// ignore stdin on Windows
-	if runtime.GOOS == "windows" {
-		stdin = nil
-	}
-
 	argDefs := req.Command.Arguments
 
 	// count required argument definitions
@@ -424,9 +426,6 @@ func (st *parseState) parseLongOpt(optDefs map[string]cmdkit.Option) (string, in
 	optval, err := parseOpt(k, v, optDefs)
 	return k, optval, err
 }
-
-const msgStdinInfo = "ipfs: Reading from %s; send Ctrl-d to stop."
-
 func filesMapToSortedArr(fs map[string]files.File) []files.File {
 	var names []string
 	for name, _ := range fs {
