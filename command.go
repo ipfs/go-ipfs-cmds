@@ -225,7 +225,7 @@ func (c *Command) CheckArguments(req *Request) error {
 	}
 
 	lastArg := c.Arguments[len(c.Arguments)-1]
-	if req.bodyArgs == nil &&
+	if req.bodyArgs == nil && // check this as we can end up calling CheckArguments multiple times. See #80.
 		lastArg.SupportsStdin &&
 		lastArg.Type == cmdkit.ArgString &&
 		req.Files != nil {
