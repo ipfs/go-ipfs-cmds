@@ -164,6 +164,59 @@ func (c *Command) GetOptions(path []string) (map[string]cmdkit.Option, error) {
 	return optionsMap, nil
 }
 
+// DebugValidate checks if the command tree is well-formed.
+//
+// This operation is slow and should be called from tests only.
+func (c *Command) DebugValidate() map[string][]error {
+	errs := make(map[string][]error)
+	var visit func(path string, cm *Command)
+
+	liveOptions := make(map[string]struct{})
+	visit = func(path string, cm *Command) {
+		expectOptional := false
+		for i, argDef := range cm.Arguments {
+			// No required arguments after optional arguments.
+			if argDef.Required {
+				if expectOptional {
+					errs[path] = append(errs[path], fmt.Errorf("required argument %s after optional arguments", argDef.Name))
+					return
+				}
+			} else {
+				expectOptional = true
+			}
+
+			// variadic arguments and those supporting stdin must be last
+			if (argDef.Variadic || argDef.SupportsStdin) && i != len(cm.Arguments)-1 {
+				errs[path] = append(errs[path], fmt.Errorf("variadic and/or optional argument %s must be last", argDef.Name))
+			}
+		}
+
+		var goodOptions []string
+		for _, option := range cm.Options {
+			for _, name := range option.Names() {
+				if _, ok := liveOptions[name]; ok {
+					errs[path] = append(errs[path], fmt.Errorf("duplicate option name %s", name))
+				} else {
+					goodOptions = append(goodOptions, name)
+					liveOptions[name] = struct{}{}
+				}
+			}
+		}
+		for scName, sc := range cm.Subcommands {
+			visit(fmt.Sprintf("%s/%s", path, scName), sc)
+		}
+
+		for _, name := range goodOptions {
+			delete(liveOptions, name)
+		}
+	}
+	visit("", c)
+	if len(errs) == 0 {
+		errs = nil
+	}
+	return errs
+}
+
 // CheckArguments checks that we have all the required string arguments, loading
 // any from stdin if necessary.
 func (c *Command) CheckArguments(req *Request) error {
