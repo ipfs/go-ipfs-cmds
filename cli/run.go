@@ -29,7 +29,7 @@ func Run(ctx context.Context, root *cmds.Command,
 	buildEnv cmds.MakeEnvironment, makeExecutor cmds.MakeExecutor) error {
 
 	printErr := func(err error) {
-		fmt.Fprintf(stderr, "%s\n", err)
+		fmt.Fprintf(stderr, "Error: %s\n", err)
 	}
 
 	req, errParse := Parse(ctx, cmdline[1:], stdin, root)
