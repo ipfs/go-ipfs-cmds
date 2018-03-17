@@ -9,8 +9,10 @@ output to the user, including text, JSON, and XML marshallers.
 package cmds
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
@@ -162,55 +164,67 @@ func (c *Command) GetOptions(path []string) (map[string]cmdkit.Option, error) {
 	return optionsMap, nil
 }
 
+// CheckArguments checks that we have all the required string arguments, loading
+// any from stdin if necessary.
 func (c *Command) CheckArguments(req *Request) error {
-	args := req.Arguments
+	if len(c.Arguments) == 0 {
+		return nil
+	}
 
-	// count required argument definitions
-	numRequired := 0
-	for _, argDef := range c.Arguments {
-		if argDef.Required {
-			numRequired++
+	lastArg := c.Arguments[len(c.Arguments)-1]
+	if req.bodyArgs == nil &&
+		lastArg.SupportsStdin &&
+		lastArg.Type == cmdkit.ArgString &&
+		req.Files != nil {
+
+		fi, err := req.Files.NextFile()
+		switch err {
+		case io.EOF:
+		case nil:
+			req.bodyArgs = bufio.NewScanner(fi)
+			// Can't pass files and stdin arguments.
+			req.Files = nil
+		default:
+			// io error.
+			return err
 		}
 	}
 
 	// iterate over the arg definitions
 	valueIndex := 0 // the index of the current value (in `args`)
-	for i, argDef := range c.Arguments {
-		// skip optional argument definitions if there aren't
-		// sufficient remaining values
-		if len(args)-valueIndex <= numRequired && !argDef.Required ||
-			argDef.Type == cmdkit.ArgFile {
+	for _, argDef := range req.Command.Arguments {
+		// Is this a string?
+		if argDef.Type != cmdkit.ArgString {
+			// No, skip it.
 			continue
 		}
 
-		// the value for this argument definition. can be nil if it
-		// wasn't provided by the caller
-		v, found := "", false
-		if valueIndex < len(args) {
-			v = args[valueIndex]
-			found = true
-			valueIndex++
+		// No more required arguments?
+		if !argDef.Required {
+			// Yes, we're all done.
+			break
 		}
 
-		// in the case of a non-variadic required argument that supports stdin
-		if !found && len(c.Arguments)-1 == i && argDef.SupportsStdin {
-			found = true
+		// Do we have this required string argument?
+		if valueIndex < len(req.Arguments) {
+			// all good
+			continue
 		}
 
-		err := checkArgValue(v, found, argDef)
-		if err != nil {
-			return err
-		}
-
-		// any additional values are for the variadic arg definition
-		if argDef.Variadic && valueIndex < len(args)-1 {
-			for _, val := range args[valueIndex:] {
-				err := checkArgValue(val, true, argDef)
-				if err != nil {
-					return err
-				}
+		// Can we get it from stdin?
+		if argDef.SupportsStdin && req.bodyArgs != nil {
+			if req.bodyArgs.Scan() {
+				// Found it!
+				req.Arguments = append(req.Arguments, req.bodyArgs.Text())
+				continue
 			}
+			// Nope! Maybe we had a read error?
+			if err := req.bodyArgs.Err(); err != nil {
+				return err
+			}
+			// No, just missing.
 		}
+		return fmt.Errorf("argument %q is required", argDef.Name)
 	}
 
 	return nil
@@ -233,20 +247,6 @@ func (c *Command) ProcessHelp() {
 			ht.LongDescription = ht.ShortDescription
 		}
 	})
-}
-
-// checkArgValue returns an error if a given arg value is not valid for the
-// given Argument
-func checkArgValue(v string, found bool, def cmdkit.Argument) error {
-	if def.Variadic && def.SupportsStdin {
-		return nil
-	}
-
-	if !found && def.Required {
-		return fmt.Errorf("argument %q is required", def.Name)
-	}
-
-	return nil
 }
 
 func ClientError(msg string) error {
