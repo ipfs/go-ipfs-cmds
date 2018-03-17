@@ -295,6 +295,18 @@ func TestBodyArgs(t *testing.T) {
 					cmdkit.StringArg("b", false, false, "another arg"),
 				},
 			},
+			"optionalstdin": {
+				Arguments: []cmdkit.Argument{
+					cmdkit.StringArg("a", true, false, "some arg"),
+					cmdkit.StringArg("b", false, false, "another arg").EnableStdin(),
+				},
+			},
+			"optionalvariadicstdin": {
+				Arguments: []cmdkit.Argument{
+					cmdkit.StringArg("a", true, false, "some arg"),
+					cmdkit.StringArg("b", false, true, "another arg").EnableStdin(),
+				},
+			},
 		},
 	}
 
@@ -317,115 +329,146 @@ func TestBodyArgs(t *testing.T) {
 	fstdin123 := fileToSimulateStdin(t, "stdin1\nstdin2\nstdin3")
 
 	var tcs = []struct {
-		cmd                   words
-		f                     *os.File
-		posArgs, varArgs      words
-		parseErr, bodyArgsErr error
+		cmd              words
+		f                *os.File
+		posArgs, varArgs words
+		parseErr         error
+		bodyArgs         bool
 	}{
 		{
 			cmd: words{"stdinenabled", "value1", "value2"}, f: nil,
 			posArgs: words{"value1", "value2"}, varArgs: nil,
-			parseErr: nil, bodyArgsErr: fmt.Errorf("all arguments covered by positional arguments"),
+			parseErr: nil, bodyArgs: false,
 		},
 		{
 			cmd: words{"stdinenabled"}, f: fstdin1,
-			posArgs: words{}, varArgs: words{"stdin1"},
-			parseErr: nil, bodyArgsErr: nil,
+			posArgs: words{"stdin1"}, varArgs: words{},
+			parseErr: nil, bodyArgs: true,
 		},
 		{
 			cmd: words{"stdinenabled", "value1"}, f: fstdin1,
 			posArgs: words{"value1"}, varArgs: words{},
-			parseErr: nil, bodyArgsErr: fmt.Errorf("all arguments covered by positional arguments"),
+			parseErr: nil, bodyArgs: false,
 		},
 		{
 			cmd: words{"stdinenabled", "value1", "value2"}, f: fstdin1,
 			posArgs: words{"value1", "value2"}, varArgs: words{},
-			parseErr: nil, bodyArgsErr: fmt.Errorf("all arguments covered by positional arguments"),
+			parseErr: nil, bodyArgs: false,
 		},
 		{
 			cmd: words{"stdinenabled"}, f: fstdin12,
-			posArgs: words{}, varArgs: words{"stdin1", "stdin2"},
-			parseErr: nil, bodyArgsErr: nil,
+			posArgs: words{"stdin1"}, varArgs: words{"stdin2"},
+			parseErr: nil, bodyArgs: true,
 		},
 		{
 			cmd: words{"stdinenabled"}, f: fstdin123,
-			posArgs: words{}, varArgs: words{"stdin1", "stdin2", "stdin3"},
-			parseErr: nil, bodyArgsErr: nil,
+			posArgs: words{"stdin1"}, varArgs: words{"stdin2", "stdin3"},
+			parseErr: nil, bodyArgs: true,
 		},
 		{
 			cmd: words{"stdinenabled2args", "value1", "value2"}, f: nil,
 			posArgs: words{"value1", "value2"}, varArgs: words{},
-			parseErr: nil, bodyArgsErr: fmt.Errorf("all arguments covered by positional arguments"),
+			parseErr: nil, bodyArgs: false,
 		},
 		{
 			cmd: words{"stdinenabled2args", "value1"}, f: fstdin1,
-			posArgs: words{"value1"}, varArgs: words{"stdin1"},
-			parseErr: nil, bodyArgsErr: nil,
+			posArgs: words{"value1", "stdin1"}, varArgs: words{},
+			parseErr: nil, bodyArgs: true,
 		},
 		{
 			cmd: words{"stdinenabled2args", "value1", "value2"}, f: fstdin1,
 			posArgs: words{"value1", "value2"}, varArgs: words{},
-			parseErr: nil, bodyArgsErr: fmt.Errorf("all arguments covered by positional arguments"),
+			parseErr: nil, bodyArgs: false,
 		},
 		{
 			cmd: words{"stdinenabled2args", "value1", "value2", "value3"}, f: fstdin1,
 			posArgs: words{"value1", "value2", "value3"}, varArgs: words{},
-			parseErr: nil, bodyArgsErr: fmt.Errorf("all arguments covered by positional arguments"),
+			parseErr: nil, bodyArgs: false,
 		},
 		{
 			cmd: words{"stdinenabled2args", "value1"}, f: fstdin12,
-			posArgs: words{"value1"}, varArgs: words{"stdin1", "stdin2"},
-			parseErr: nil, bodyArgsErr: nil,
+			posArgs: words{"value1", "stdin1"}, varArgs: words{"stdin2"},
+			parseErr: nil, bodyArgs: true,
 		},
 		{
 			cmd: words{"stdinenablednotvariadic", "value1"}, f: nil,
 			posArgs: words{"value1"}, varArgs: words{},
-			parseErr: nil, bodyArgsErr: fmt.Errorf("all arguments covered by positional arguments"),
+			parseErr: nil, bodyArgs: false,
 		},
 		{
 			cmd: words{"stdinenablednotvariadic"}, f: fstdin1,
-			posArgs: words{}, varArgs: words{"stdin1"},
-			parseErr: nil, bodyArgsErr: nil,
+			posArgs: words{"stdin1"}, varArgs: words{},
+			parseErr: nil, bodyArgs: true,
 		},
 		{
 			cmd: words{"stdinenablednotvariadic", "value1"}, f: fstdin1,
 			posArgs: words{"value1"}, varArgs: words{"value1"},
-			parseErr: nil, bodyArgsErr: fmt.Errorf("all arguments covered by positional arguments"),
+			parseErr: nil, bodyArgs: false,
 		},
 		{
 			cmd: words{"stdinenablednotvariadic2args", "value1", "value2"}, f: nil,
 			posArgs: words{"value1", "value2"}, varArgs: words{},
-			parseErr: nil, bodyArgsErr: fmt.Errorf("all arguments covered by positional arguments"),
+			parseErr: nil, bodyArgs: false,
 		},
 		{
 			cmd: words{"stdinenablednotvariadic2args", "value1"}, f: fstdin1,
-			posArgs: words{"value1"}, varArgs: words{"stdin1"},
-			parseErr: nil, bodyArgsErr: nil,
+			posArgs: words{"value1", "stdin1"}, varArgs: words{},
+			parseErr: nil, bodyArgs: true,
 		},
 		{
 			cmd: words{"stdinenablednotvariadic2args", "value1", "value2"}, f: fstdin1,
 			posArgs: words{"value1", "value2"}, varArgs: words{},
-			parseErr: nil, bodyArgsErr: fmt.Errorf("all arguments covered by positional arguments"),
+			parseErr: nil, bodyArgs: false,
 		},
 		{
 			cmd: words{"stdinenablednotvariadic2args"}, f: fstdin1,
 			posArgs: words{}, varArgs: words{},
-			parseErr: fmt.Errorf(`argument %q is required`, "a"), bodyArgsErr: nil,
+			parseErr: fmt.Errorf(`argument %q is required`, "a"), bodyArgs: true,
 		},
 		{
 			cmd: words{"stdinenablednotvariadic2args", "value1"}, f: nil,
 			posArgs: words{"value1"}, varArgs: words{},
-			parseErr: fmt.Errorf(`argument %q is required`, "b"), bodyArgsErr: nil,
+			parseErr: fmt.Errorf(`argument %q is required`, "b"), bodyArgs: true,
 		},
 		{
 			cmd: words{"noarg"}, f: fstdin1,
 			posArgs: words{}, varArgs: words{},
-			parseErr: nil, bodyArgsErr: fmt.Errorf("all arguments covered by positional arguments"),
+			parseErr: nil, bodyArgs: false,
 		},
 		{
 			cmd: words{"optionalsecond", "value1", "value2"}, f: fstdin1,
 			posArgs: words{"value1", "value2"}, varArgs: words{},
-			parseErr: nil, bodyArgsErr: fmt.Errorf("all arguments covered by positional arguments"),
+			parseErr: nil, bodyArgs: false,
+		},
+		{
+			cmd: words{"optionalstdin", "value1"}, f: fstdin1,
+			posArgs: words{"value1"}, varArgs: words{"stdin1"},
+			parseErr: nil, bodyArgs: true,
+		},
+		{
+			cmd: words{"optionalstdin", "value1"}, f: nil,
+			posArgs: words{"value1"}, varArgs: words{},
+			parseErr: nil, bodyArgs: false,
+		},
+		{
+			cmd: words{"optionalstdin"}, f: fstdin1,
+			posArgs: words{"value1"}, varArgs: words{},
+			parseErr: fmt.Errorf(`argument %q is required`, "a"), bodyArgs: false,
+		},
+		{
+			cmd: words{"optionalvariadicstdin", "value1"}, f: nil,
+			posArgs: words{"value1"}, varArgs: words{},
+			parseErr: nil, bodyArgs: false,
+		},
+		{
+			cmd: words{"optionalvariadicstdin", "value1"}, f: fstdin1,
+			posArgs: words{"value1"}, varArgs: words{"stdin1"},
+			parseErr: nil, bodyArgs: true,
+		},
+		{
+			cmd: words{"optionalvariadicstdin", "value1"}, f: fstdin12,
+			posArgs: words{"value1"}, varArgs: words{"stdin1", "stdin2"},
+			parseErr: nil, bodyArgs: true,
 		},
 	}
 
@@ -448,16 +491,15 @@ func TestBodyArgs(t *testing.T) {
 			t.Errorf("Arguments parsed from %v are %v instead of %v", tc.cmd, req.Arguments, tc.posArgs)
 		}
 
-		s, err := req.BodyArgs()
-		if !errEq(err, tc.bodyArgsErr) {
-			t.Fatalf("calling BodyArgs() for cmd %q: expected error %q, got %q", tc.cmd, tc.bodyArgsErr, err)
-		}
-		if err != nil {
+		s := req.BodyArgs()
+		if !tc.bodyArgs {
+			if s != nil {
+				t.Fatalf("expected no BodyArgs for cmd %q", tc.cmd)
+			}
 			continue
 		}
-
 		if s == nil {
-			t.Fatal("scanner is nil, abort")
+			t.Fatalf("expected BodyArgs for cmd %q", tc.cmd)
 		}
 
 		var bodyArgs words

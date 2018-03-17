@@ -20,6 +20,8 @@ type Request struct {
 	Options   cmdkit.OptMap
 
 	Files files.File
+
+	bodyArgs *bufio.Scanner
 }
 
 // NewRequest returns a request initialized with given arguments
@@ -47,56 +49,15 @@ func NewRequest(ctx context.Context, path []string, opts cmdkit.OptMap, args []s
 	return req, req.convertOptions(root)
 }
 
-type allArgsCovered struct{}
-
-func (allArgsCovered) Error() string            { return "all arguments covered by positional arguments" }
-func (allArgsCovered) ArgsAlreadyCovered() bool { return true }
-
-type moreArgsExpected struct{}
-
-func (moreArgsExpected) Error() string          { return "expected more arguments from stdin" }
-func (moreArgsExpected) MoreArgsExpected() bool { return true }
-
 // BodyArgs returns a scanner that returns arguments passed in the body as tokens.
-func (req *Request) BodyArgs() (*bufio.Scanner, error) {
-	if len(req.Arguments) >= len(req.Command.Arguments) {
-		return nil, allArgsCovered{}
-	}
-
-	if req.Files == nil {
-		return nil, moreArgsExpected{}
-	}
-
-	fi, err := req.Files.NextFile()
-	if err != nil {
-		return nil, err
-	}
-
-	return bufio.NewScanner(fi), nil
-}
-
-type argsAlreadyCovereder interface {
-	ArgsAlreadyCovered() bool
-}
-
-func IsAllArgsAlreadyCovered(err error) bool {
-	argsErr, ok := err.(argsAlreadyCovereder)
-	return ok && argsErr.ArgsAlreadyCovered()
-}
-
-type moreArgsExpecteder interface {
-	MoreArgsExpected() bool
-}
-
-func IsMoreArgumentsExpected(err error) bool {
-	argsErr, ok := err.(moreArgsExpecteder)
-	return ok && argsErr.MoreArgsExpected()
+func (req *Request) BodyArgs() *bufio.Scanner {
+	return req.bodyArgs
 }
 
 func (req *Request) ParseBodyArgs() error {
-	s, err := req.BodyArgs()
-	if err != nil {
-		return err
+	s := req.BodyArgs()
+	if s == nil {
+		return nil
 	}
 
 	for s.Scan() {
