@@ -295,6 +295,18 @@ func TestBodyArgs(t *testing.T) {
 					cmdkit.StringArg("b", false, false, "another arg"),
 				},
 			},
+			"optionalstdin": {
+				Arguments: []cmdkit.Argument{
+					cmdkit.StringArg("a", true, false, "some arg"),
+					cmdkit.StringArg("b", false, false, "another arg").EnableStdin(),
+				},
+			},
+			"optionalvariadicstdin": {
+				Arguments: []cmdkit.Argument{
+					cmdkit.StringArg("a", true, false, "some arg"),
+					cmdkit.StringArg("b", false, true, "another arg").EnableStdin(),
+				},
+			},
 		},
 	}
 
@@ -360,7 +372,7 @@ func TestBodyArgs(t *testing.T) {
 		},
 		{
 			cmd: words{"stdinenabled2args", "value1"}, f: fstdin1,
-			posArgs: words{"value1"}, varArgs: words{"stdin1"},
+			posArgs: words{"value1", "stdin1"}, varArgs: words{},
 			parseErr: nil, bodyArgs: true,
 		},
 		{
@@ -375,7 +387,7 @@ func TestBodyArgs(t *testing.T) {
 		},
 		{
 			cmd: words{"stdinenabled2args", "value1"}, f: fstdin12,
-			posArgs: words{"value1"}, varArgs: words{"stdin1", "stdin2"},
+			posArgs: words{"value1", "stdin1"}, varArgs: words{"stdin2"},
 			parseErr: nil, bodyArgs: true,
 		},
 		{
@@ -400,7 +412,7 @@ func TestBodyArgs(t *testing.T) {
 		},
 		{
 			cmd: words{"stdinenablednotvariadic2args", "value1"}, f: fstdin1,
-			posArgs: words{"value1"}, varArgs: words{"stdin1"},
+			posArgs: words{"value1", "stdin1"}, varArgs: words{},
 			parseErr: nil, bodyArgs: true,
 		},
 		{
@@ -427,6 +439,36 @@ func TestBodyArgs(t *testing.T) {
 			cmd: words{"optionalsecond", "value1", "value2"}, f: fstdin1,
 			posArgs: words{"value1", "value2"}, varArgs: words{},
 			parseErr: nil, bodyArgs: false,
+		},
+		{
+			cmd: words{"optionalstdin", "value1"}, f: fstdin1,
+			posArgs: words{"value1"}, varArgs: words{"stdin1"},
+			parseErr: nil, bodyArgs: true,
+		},
+		{
+			cmd: words{"optionalstdin", "value1"}, f: nil,
+			posArgs: words{"value1"}, varArgs: words{},
+			parseErr: nil, bodyArgs: false,
+		},
+		{
+			cmd: words{"optionalstdin"}, f: fstdin1,
+			posArgs: words{"value1"}, varArgs: words{},
+			parseErr: fmt.Errorf(`argument %q is required`, "a"), bodyArgs: false,
+		},
+		{
+			cmd: words{"optionalvariadicstdin", "value1"}, f: nil,
+			posArgs: words{"value1"}, varArgs: words{},
+			parseErr: nil, bodyArgs: false,
+		},
+		{
+			cmd: words{"optionalvariadicstdin", "value1"}, f: fstdin1,
+			posArgs: words{"value1"}, varArgs: words{"stdin1"},
+			parseErr: nil, bodyArgs: true,
+		},
+		{
+			cmd: words{"optionalvariadicstdin", "value1"}, f: fstdin12,
+			posArgs: words{"value1"}, varArgs: words{"stdin1", "stdin2"},
+			parseErr: nil, bodyArgs: true,
 		},
 	}
 

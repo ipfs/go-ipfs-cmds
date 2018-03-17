@@ -244,7 +244,7 @@ func (c *Command) CheckArguments(req *Request) error {
 	}
 
 	// iterate over the arg definitions
-	valueIndex := 0 // the index of the current value (in `args`)
+	requiredStringArgs := 0 // number of required string arguments
 	for _, argDef := range req.Command.Arguments {
 		// Is this a string?
 		if argDef.Type != cmdkit.ArgString {
@@ -257,9 +257,10 @@ func (c *Command) CheckArguments(req *Request) error {
 			// Yes, we're all done.
 			break
 		}
+		requiredStringArgs++
 
-		// Do we have this required string argument?
-		if valueIndex < len(req.Arguments) {
+		// Do we have enough string arguments?
+		if requiredStringArgs <= len(req.Arguments) {
 			// all good
 			continue
 		}
