@@ -383,9 +383,10 @@ func TestCancel(t *testing.T) {
 	go func() {
 		err := re.Emit("abc")
 		if err != context.Canceled {
-			t.Fatalf("re:  expected context.Canceled but got %v", err)
+			t.Errorf("re:  expected context.Canceled but got %v", err)
+		} else {
+			t.Log("re.Emit err:", err)
 		}
-		t.Log("re.Emit err:", err)
 		re.Close()
 		close(wait)
 	}()
@@ -394,8 +395,9 @@ func TestCancel(t *testing.T) {
 
 	_, err = res.Next()
 	if err != context.Canceled {
-		t.Fatalf("res: expected context.Canceled but got %v", err)
+		t.Errorf("res: expected context.Canceled but got %v", err)
+	} else {
+		t.Log("res.Emit err:", err)
 	}
-	t.Log("res.Emit err:", err)
 	<-wait
 }
