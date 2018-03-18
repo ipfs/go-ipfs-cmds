@@ -3,7 +3,6 @@ package cmds
 import (
 	"context"
 	"fmt"
-	"io"
 	"reflect"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
@@ -69,16 +68,10 @@ func (req *Request) ParseBodyArgs() error {
 		return nil
 	}
 
-	for {
-		next, err := s.Next()
-		if err != nil {
-			if err == io.EOF {
-				return nil
-			}
-			return err
-		}
-		req.Arguments = append(req.Arguments, next)
+	for s.Scan() {
+		req.Arguments = append(req.Arguments, s.Argument())
 	}
+	return s.Err()
 }
 
 func (req *Request) SetOption(name string, value interface{}) {

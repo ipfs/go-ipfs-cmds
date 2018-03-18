@@ -266,13 +266,12 @@ func (c *Command) CheckArguments(req *Request) error {
 
 		// Can we get it from stdin?
 		if argDef.SupportsStdin && req.bodyArgs != nil {
-			next, err := req.bodyArgs.Next()
-			if err == nil {
+			if req.bodyArgs.Scan() {
 				// Found it!
-				req.Arguments = append(req.Arguments, next)
+				req.Arguments = append(req.Arguments, req.bodyArgs.Argument())
 				continue
 			}
-			if err != io.EOF {
+			if err := req.bodyArgs.Err(); err != nil {
 				return err
 			}
 			// No, just missing.
