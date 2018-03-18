@@ -138,8 +138,14 @@ func (c *client) Send(req *cmds.Request) (cmds.Response, error) {
 
 	var fileReader *files.MultiFileReader
 	var reader io.Reader
-
-	if req.Files != nil {
+	if bodyArgs := req.BodyArgs(); bodyArgs != nil {
+		// In the end, this wraps a file reader in a file reader.
+		// However, such is life.
+		fileReader = files.NewMultiFileReader(files.NewSliceFile("", "", []files.File{
+			files.NewReaderFile("stdin", "", bodyArgs, nil),
+		}), true)
+		reader = fileReader
+	} else if req.Files != nil {
 		fileReader = files.NewMultiFileReader(req.Files, true)
 		reader = fileReader
 	}
