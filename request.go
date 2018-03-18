@@ -1,9 +1,9 @@
 package cmds
 
 import (
-	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"reflect"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
@@ -21,7 +21,7 @@ type Request struct {
 
 	Files files.File
 
-	bodyArgs *bufio.Scanner
+	bodyArgs *arguments
 }
 
 // NewRequest returns a request initialized with given arguments
@@ -50,8 +50,17 @@ func NewRequest(ctx context.Context, path []string, opts cmdkit.OptMap, args []s
 }
 
 // BodyArgs returns a scanner that returns arguments passed in the body as tokens.
-func (req *Request) BodyArgs() *bufio.Scanner {
-	return req.bodyArgs
+//
+// Returns nil if there are no arguments to be consumed via stdin.
+func (req *Request) BodyArgs() StdinArguments {
+	// dance to make sure we return an *untyped* nil.
+	// DO NOT just return `req.bodyArgs`.
+	// If you'd like to complain, go to
+	// https://github.com/golang/go/issues/.
+	if req.bodyArgs != nil {
+		return req.bodyArgs
+	}
+	return nil
 }
 
 func (req *Request) ParseBodyArgs() error {
@@ -60,11 +69,16 @@ func (req *Request) ParseBodyArgs() error {
 		return nil
 	}
 
-	for s.Scan() {
-		req.Arguments = append(req.Arguments, s.Text())
+	for {
+		next, err := s.Next()
+		if err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			return err
+		}
+		req.Arguments = append(req.Arguments, next)
 	}
-
-	return s.Err()
 }
 
 func (req *Request) SetOption(name string, value interface{}) {

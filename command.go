@@ -9,7 +9,6 @@ output to the user, including text, JSON, and XML marshallers.
 package cmds
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -234,7 +233,7 @@ func (c *Command) CheckArguments(req *Request) error {
 		switch err {
 		case io.EOF:
 		case nil:
-			req.bodyArgs = bufio.NewScanner(fi)
+			req.bodyArgs = newArguments(fi)
 			// Can't pass files and stdin arguments.
 			req.Files = nil
 		default:
@@ -267,13 +266,13 @@ func (c *Command) CheckArguments(req *Request) error {
 
 		// Can we get it from stdin?
 		if argDef.SupportsStdin && req.bodyArgs != nil {
-			if req.bodyArgs.Scan() {
+			next, err := req.bodyArgs.Next()
+			if err == nil {
 				// Found it!
-				req.Arguments = append(req.Arguments, req.bodyArgs.Text())
+				req.Arguments = append(req.Arguments, next)
 				continue
 			}
-			// Nope! Maybe we had a read error?
-			if err := req.bodyArgs.Err(); err != nil {
+			if err != io.EOF {
 				return err
 			}
 			// No, just missing.

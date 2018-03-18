@@ -503,8 +503,14 @@ func TestBodyArgs(t *testing.T) {
 		}
 
 		var bodyArgs words
-		for s.Scan() {
-			bodyArgs = append(bodyArgs, s.Text())
+		for {
+			next, err := s.Next()
+			if err == io.EOF {
+				break
+			} else if err != nil {
+				t.Fatal(err)
+			}
+			bodyArgs = append(bodyArgs, next)
 		}
 
 		if !sameWords(bodyArgs, tc.varArgs) {
