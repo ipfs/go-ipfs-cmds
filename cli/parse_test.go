@@ -480,6 +480,9 @@ func TestBodyArgs(t *testing.T) {
 		}
 
 		req, err := Parse(context.Background(), tc.cmd, tc.f, rootCmd)
+		if err == nil {
+			err = req.Command.CheckArguments(req)
+		}
 		if !errEq(err, tc.parseErr) {
 			t.Fatalf("parsing request for cmd %q: expected error %q, got %q", tc.cmd, tc.parseErr, err)
 		}
