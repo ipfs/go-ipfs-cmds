@@ -49,10 +49,6 @@ func Parse(ctx context.Context, input []string, stdin *os.File, root *cmds.Comma
 		return req, err
 	}
 
-	if err := req.Command.CheckArguments(req); err != nil {
-		return req, err
-	}
-
 	// if no encoding was specified by user, default to plaintext encoding
 	// (if command doesn't support plaintext, use JSON instead)
 	if enc := req.Options[cmds.EncLong]; enc == "" {
