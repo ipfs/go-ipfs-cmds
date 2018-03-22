@@ -35,7 +35,6 @@ var RootCmd = &cmds.Command{
 				for i, str := range req.Arguments {
 					num, err := strconv.Atoi(str)
 					if err != nil {
-						re.SetError(err, cmdkit.ErrNormal)
 						return err
 					}
 
@@ -58,7 +57,6 @@ var RootCmd = &cmds.Command{
 				for i, str := range req.Arguments {
 					num, err := strconv.Atoi(str)
 					if err != nil {
-						re.SetError(err, cmdkit.ErrNormal)
 						return err
 					}
 
@@ -102,7 +100,6 @@ var RootCmd = &cmds.Command{
 				for i, str := range req.Arguments {
 					num, err := strconv.Atoi(str)
 					if err != nil {
-						re.SetError(err, cmdkit.ErrNormal)
 						return err
 					}
 
@@ -168,7 +165,6 @@ var RootCmd = &cmds.Command{
 				for i, str := range req.Arguments {
 					num, err := strconv.Atoi(str)
 					if err != nil {
-						re.SetError(err, cmdkit.ErrNormal)
 						return err
 					}
 
