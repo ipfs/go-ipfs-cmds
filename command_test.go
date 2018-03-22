@@ -2,6 +2,7 @@ package cmds
 
 import (
 	"context"
+	"errors"
 	"io"
 	"testing"
 	"time"
@@ -34,7 +35,7 @@ func newTestEmitter(t *testing.T) *testEmitter {
 }
 
 // noop does nothing and can be used as a noop Run function
-func noop(req *Request, re ResponseEmitter, env Environment) {}
+func noop(req *Request, re ResponseEmitter, env Environment) error { return nil }
 
 // writecloser implements io.WriteCloser by embedding
 // an io.Writer and an io.Closer
@@ -281,7 +282,7 @@ func TestPostRun(t *testing.T) {
 
 	for _, tc := range testcases {
 		cmd := &Command{
-			Run: func(req *Request, re ResponseEmitter, env Environment) {
+			Run: func(req *Request, re ResponseEmitter, env Environment) error {
 				re.SetLength(tc.length)
 
 				for _, v := range tc.emit {
@@ -294,6 +295,7 @@ func TestPostRun(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
+				return nil
 			},
 			PostRun: PostRunMap{
 				CLI: tc.postRun,
@@ -400,4 +402,45 @@ func TestCancel(t *testing.T) {
 		t.Log("res.Emit err:", err)
 	}
 	<-wait
+}
+
+type testEmitterWithError struct{ errorCount int }
+
+func (s *testEmitterWithError) Close() error {
+	return nil
+}
+
+func (s *testEmitterWithError) SetLength(_ uint64) {}
+
+func (s *testEmitterWithError) SetError(err interface{}, code cmdkit.ErrorType) {
+	s.errorCount++
+}
+
+func (s *testEmitterWithError) Emit(value interface{}) error {
+	return nil
+}
+
+func TestEmitterExpectError(t *testing.T) {
+	cmd := &Command{
+		Run: func(req *Request, re ResponseEmitter, env Environment) error {
+			return errors.New("an error occurred")
+		},
+	}
+
+	re := &testEmitterWithError{}
+	req, err := NewRequest(context.Background(), nil, nil, nil, nil, cmd)
+
+	if err != nil {
+		t.Error("Should have passed")
+	}
+
+	cmd.Call(req, re, nil)
+
+	switch re.errorCount {
+	case 0:
+		t.Errorf("expected SetError to be called")
+	case 1:
+	default:
+		t.Errorf("expected SetError to be called once, but was called %d times", re.errorCount)
+	}
 }
