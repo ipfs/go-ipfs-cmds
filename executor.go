@@ -107,7 +107,7 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) (e
 	}()
 	err = cmd.Run(req, re, env)
 	if err != nil {
-		re.SetError(err, cmdkit.ErrNormal)
+		SetErrorWithDefaultType(re, err)
 	}
 	return nil
 }

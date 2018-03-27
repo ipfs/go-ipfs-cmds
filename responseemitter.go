@@ -78,3 +78,12 @@ func Copy(re ResponseEmitter, res Response) error {
 		}
 	}
 }
+
+func SetErrorWithDefaultType(re ResponseEmitter, err error) {
+	switch err := err.(type) {
+	case cmdkit.Error:
+		re.SetError(err, err.Code)
+	default:
+		re.SetError(err, cmdkit.ErrNormal)
+	}
+}
