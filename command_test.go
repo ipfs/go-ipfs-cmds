@@ -404,7 +404,10 @@ func TestCancel(t *testing.T) {
 	<-wait
 }
 
-type testEmitterWithError struct{ errorCount int }
+type testEmitterWithError struct {
+	error bool
+	code  cmdkit.ErrorType
+}
 
 func (s *testEmitterWithError) Close() error {
 	return nil
@@ -413,7 +416,8 @@ func (s *testEmitterWithError) Close() error {
 func (s *testEmitterWithError) SetLength(_ uint64) {}
 
 func (s *testEmitterWithError) SetError(err interface{}, code cmdkit.ErrorType) {
-	s.errorCount++
+	s.error = true
+	s.code = code
 }
 
 func (s *testEmitterWithError) Emit(value interface{}) error {
@@ -421,26 +425,54 @@ func (s *testEmitterWithError) Emit(value interface{}) error {
 }
 
 func TestEmitterExpectError(t *testing.T) {
-	cmd := &Command{
-		Run: func(req *Request, re ResponseEmitter, env Environment) error {
-			return errors.New("an error occurred")
-		},
+	type testcase struct {
+		shouldErr bool
+		dflt      bool
+		code      cmdkit.ErrorType
+		expect    cmdkit.ErrorType
 	}
-
-	re := &testEmitterWithError{}
-	req, err := NewRequest(context.Background(), nil, nil, nil, nil, cmd)
-
-	if err != nil {
-		t.Error("Should have passed")
+	tcs := []testcase{
+		{shouldErr: true, dflt: true, expect: cmdkit.ErrNormal},
+		{shouldErr: true, code: cmdkit.ErrNormal, expect: cmdkit.ErrNormal},
+		{shouldErr: true, code: cmdkit.ErrNotFound, expect: cmdkit.ErrNotFound},
+		{shouldErr: false},
 	}
+	for _, tc := range tcs {
+		cmd := &Command{
+			Run: func(req *Request, re ResponseEmitter, env Environment) error {
+				if !tc.shouldErr {
+					return nil
+				}
+				if !tc.dflt {
+					return cmdkit.Error{
+						Message: "a specific error code occurred",
+						Code:    tc.code,
+					}
+				}
+				return errors.New("an error occurred")
+			},
+		}
 
-	cmd.Call(req, re, nil)
+		re := &testEmitterWithError{}
+		req, err := NewRequest(context.Background(), nil, nil, nil, nil, cmd)
 
-	switch re.errorCount {
-	case 0:
-		t.Errorf("expected SetError to be called")
-	case 1:
-	default:
-		t.Errorf("expected SetError to be called once, but was called %d times", re.errorCount)
+		if err != nil {
+			t.Error("Should have passed")
+		}
+
+		cmd.Call(req, re, nil)
+
+		if tc.shouldErr {
+			if !re.error {
+				t.Error("expected SetError to be called")
+			}
+		} else {
+			if re.error {
+				t.Error("did not expect SetError to be called")
+			}
+			if re.code != tc.code {
+				t.Errorf("SetError code %d, want %d", re.code, tc.code)
+			}
+		}
 	}
 }

@@ -106,7 +106,7 @@ func (c *Command) Call(req *Request, re ResponseEmitter, env Environment) {
 
 	err = cmd.Run(req, re, env)
 	if err != nil {
-		re.SetError(err, cmdkit.ErrNormal)
+		SetErrorWithDefaultType(re, err)
 	}
 }
 
