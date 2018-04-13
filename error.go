@@ -3,6 +3,7 @@ package cmdkit
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 )
 
 // ErrorType signfies a category of errors
@@ -22,6 +23,14 @@ const (
 type Error struct {
 	Message string
 	Code    ErrorType
+}
+
+// Errorf returns an Error with the given code and format specification
+func Errorf(code ErrorType, format string, args ...interface{}) Error {
+	return Error{
+		Code: code,
+		Message: fmt.Sprintf(format, args...),
+	}
 }
 
 func (e Error) Error() string {
