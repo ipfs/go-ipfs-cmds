@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/ipfs/go-ipfs-cmds/examples/adder"
@@ -23,7 +24,19 @@ func main() {
 	re, retCh := cli.NewResponseEmitter(os.Stdout, os.Stderr, req.Command.Encoders["Text"], req)
 
 	if pr, ok := req.Command.PostRun[cmds.CLI]; ok {
-		re = pr(req, re)
+		var (
+			res   cmds.Response
+			lower = re
+		)
+
+		re, res = cmds.NewChanResponsePair(req)
+
+		go func() {
+			err := pr(res, lower)
+			if err != nil {
+				fmt.Println("error: ", err)
+			}
+		}()
 	}
 
 	wait := make(chan struct{})

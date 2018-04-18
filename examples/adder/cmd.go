@@ -117,42 +117,34 @@ var RootCmd = &cmds.Command{
 			},
 			Type: &AddStatus{},
 			PostRun: cmds.PostRunMap{
-				cmds.CLI: func(req *cmds.Request, re cmds.ResponseEmitter) cmds.ResponseEmitter {
-					reNext, res := cmds.NewChanResponsePair(req)
+				cmds.CLI: func(res cmds.Response, re cmds.ResponseEmitter) error {
+					defer re.Close()
+					defer fmt.Println()
 
-					go func() {
-						defer re.Close()
-						defer fmt.Println()
+					// length of line at last iteration
+					var lastLen int
 
-						// length of line at last iteration
-						var lastLen int
-
-						for {
-							v, err := res.Next()
-							if err == io.EOF {
-								return
-							}
-							if err == cmds.ErrRcvdError {
-								fmt.Println("\nreceived error:", res.Error())
-								return
-							}
-							if err != nil {
-								fmt.Println("\nerror:", err)
-								return
-							}
-
-							fmt.Print("\r" + strings.Repeat(" ", lastLen))
-
-							s := v.(*AddStatus)
-							if s.Left > 0 {
-								lastLen, _ = fmt.Printf("\rcalculation sum... current: %d; left: %d", s.Current, s.Left)
-							} else {
-								lastLen, _ = fmt.Printf("\rsum is %d.", s.Current)
-							}
+					for {
+						v, err := res.Next()
+						if err == io.EOF {
+							return nil
 						}
-					}()
+						if err == cmds.ErrRcvdError {
+							return res.Error()
+						}
+						if err != nil {
+							return err
+						}
 
-					return reNext
+						fmt.Print("\r" + strings.Repeat(" ", lastLen))
+
+						s := v.(*AddStatus)
+						if s.Left > 0 {
+							lastLen, _ = fmt.Printf("\rcalculation sum... current: %d; left: %d", s.Current, s.Left)
+						} else {
+							lastLen, _ = fmt.Printf("\rsum is %d.", s.Current)
+						}
+					}
 				},
 			},
 		},
@@ -183,50 +175,42 @@ var RootCmd = &cmds.Command{
 			},
 			Type: &AddStatus{},
 			PostRun: cmds.PostRunMap{
-				cmds.CLI: func(req *cmds.Request, re cmds.ResponseEmitter) cmds.ResponseEmitter {
-					reNext, res := cmds.NewChanResponsePair(req)
+				cmds.CLI: func(res cmds.Response, re cmds.ResponseEmitter) error {
 					clire := re.(cli.ResponseEmitter)
 
-					go func() {
-						defer re.Close()
-						defer fmt.Println()
+					defer re.Close()
+					defer fmt.Println()
 
-						// length of line at last iteration
-						var lastLen int
+					// length of line at last iteration
+					var lastLen int
 
-						var exit int
-						defer func() {
-							clire.Exit(exit)
-						}()
-
-						for {
-							v, err := res.Next()
-							if err == io.EOF {
-								return
-							}
-							if err == cmds.ErrRcvdError {
-								fmt.Println("\nreceived error:", res.Error())
-								break
-							}
-							if err != nil {
-								fmt.Println("\nerror:", err)
-								break
-							}
-
-							fmt.Print("\r" + strings.Repeat(" ", lastLen))
-
-							s := v.(*AddStatus)
-							if s.Left > 0 {
-								lastLen, _ = fmt.Printf("\rcalculation sum... current: %d; left: %d", s.Current, s.Left)
-							} else {
-								lastLen, _ = fmt.Printf("\rsum is %d.", s.Current)
-								exit = s.Current
-							}
-						}
-
+					var exit int
+					defer func() {
+						clire.Exit(exit)
 					}()
 
-					return reNext
+					for {
+						v, err := res.Next()
+						if err == io.EOF {
+							return nil
+						}
+						if err == cmds.ErrRcvdError {
+							return res.Error()
+						}
+						if err != nil {
+							return err
+						}
+
+						fmt.Print("\r" + strings.Repeat(" ", lastLen))
+
+						s := v.(*AddStatus)
+						if s.Left > 0 {
+							lastLen, _ = fmt.Printf("\rcalculation sum... current: %d; left: %d", s.Current, s.Left)
+						} else {
+							lastLen, _ = fmt.Printf("\rsum is %d.", s.Current)
+							exit = s.Current
+						}
+					}
 				},
 			},
 		},
