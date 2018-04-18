@@ -229,7 +229,7 @@ type postRunTestCase struct {
 	length      uint64
 	err         *cmdkit.Error
 	emit        []interface{}
-	postRun     func(*Request, ResponseEmitter) ResponseEmitter
+	postRun     func(Response, ResponseEmitter) error
 	next        []interface{}
 	finalLength uint64
 }
@@ -246,36 +246,28 @@ func TestPostRun(t *testing.T) {
 			emit:        []interface{}{7},
 			finalLength: 4,
 			next:        []interface{}{14},
-			postRun: func(req *Request, re ResponseEmitter) ResponseEmitter {
-				re_, res := NewChanResponsePair(req)
+			postRun: func(res Response, re ResponseEmitter) error {
+				defer re.Close()
+				l := res.Length()
+				re.SetLength(l + 1)
 
-				go func() {
-					defer re.Close()
-					l := res.Length()
-					re.SetLength(l + 1)
-
-					for {
-						v, err := res.Next()
-						if err == io.EOF {
-							return
-						}
-						if err != nil {
-							re.SetError(err, cmdkit.ErrNormal)
-							t.Fatal(err)
-							return
-						}
-
-						i := v.(int)
-
-						err = re.Emit(2 * i)
-						if err != nil {
-							re.SetError(err, cmdkit.ErrNormal)
-							return
-						}
+				for {
+					v, err := res.Next()
+					if err == io.EOF {
+						return nil
 					}
-				}()
+					if err != nil {
+						t.Error(err) // TODO keks: should this go?
+						return err
+					}
 
-				return re_
+					i := v.(int)
+
+					err = re.Emit(2 * i)
+					if err != nil {
+						return err
+					}
+				}
 			},
 		},
 	}
@@ -328,8 +320,15 @@ func TestPostRun(t *testing.T) {
 			t.Fatal("wrong encoding type")
 		}
 
-		re, res := NewChanResponsePair(req)
-		re = cmd.PostRun[PostRunType(encType)](req, re)
+		postre, res := NewChanResponsePair(req)
+		re, postres := NewChanResponsePair(req)
+
+		go func() {
+			err := cmd.PostRun[PostRunType(encType)](postres, postre)
+			if err != nil {
+				t.Error("error in PostRun: ", err)
+			}
+		}()
 
 		cmd.Call(req, re, nil)
 
