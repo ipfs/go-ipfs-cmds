@@ -6,7 +6,7 @@ import (
 
 	"github.com/ipfs/go-ipfs-cmds/examples/adder"
 
-	cmdkit "github.com/ipfs/go-ipfs-cmdkit"
+	//cmdkit "github.com/ipfs/go-ipfs-cmdkit"
 	cmds "github.com/ipfs/go-ipfs-cmds"
 	cli "github.com/ipfs/go-ipfs-cmds/cli"
 	http "github.com/ipfs/go-ipfs-cmds/http"
@@ -44,7 +44,7 @@ func main() {
 			err = cmds.Copy(re, res)
 		}
 		if err != nil {
-			re.SetError(err, cmdkit.ErrNormal|cmdkit.ErrFatal)
+			re.CloseWithError(err)
 		}
 		close(wait)
 	}()

@@ -71,7 +71,7 @@ func TestMarshalling(t *testing.T) {
 func TestHandleError_Error(t *testing.T) {
 	var (
 		out []string
-		exp = []string{"1", "2", "received command error"}
+		exp = []string{"1", "2", "test errors"}
 	)
 
 	cmd := &Command{}
@@ -82,23 +82,16 @@ func TestHandleError_Error(t *testing.T) {
 	}
 
 	re, res := NewChanResponsePair(req)
-	reFwd, resFwd := NewChanResponsePair(req)
 
 	go func() {
 		re.Emit(1)
 		re.Emit(2)
-		re.Emit(&cmdkit.Error{Message: "test errors", Code: cmdkit.ErrNormal})
-		re.Close()
-	}()
-
-	go func() {
-		for v, err := resFwd.Next(); err != io.EOF; {
-			t.Logf("received forwarded value %#v, error  %#v", v, err)
-		}
+		re.CloseWithError(&cmdkit.Error{Message: "test errors"})
 	}()
 
 	for {
 		v, err := res.Next()
+		fmt.Println(v, err)
 
 		if err == nil {
 			t.Log("err == nil")
@@ -106,9 +99,6 @@ func TestHandleError_Error(t *testing.T) {
 		} else {
 			t.Log("err != nil")
 			out = append(out, fmt.Sprint(err))
-		}
-
-		if !HandleError(err, res, reFwd) {
 			break
 		}
 	}

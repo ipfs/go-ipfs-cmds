@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime/debug"
 	"sync"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
@@ -12,10 +13,6 @@ import (
 )
 
 var _ ResponseEmitter = &responseEmitter{}
-
-type ErrSet struct {
-	error
-}
 
 func NewResponseEmitter(stdout, stderr io.Writer, enc func(*cmds.Request) func(io.Writer) cmds.Encoder, req *cmds.Request) (cmds.ResponseEmitter, <-chan int) {
 	ch := make(chan int)
@@ -29,7 +26,13 @@ func NewResponseEmitter(stdout, stderr io.Writer, enc func(*cmds.Request) func(i
 		}
 	}
 
-	return &responseEmitter{stdout: stdout, stderr: stderr, encType: encType, enc: enc(req)(stdout), ch: ch}, ch
+	return &responseEmitter{
+		stdout:  stdout,
+		stderr:  stderr,
+		encType: encType,
+		enc:     enc(req)(stdout),
+		ch:      ch,
+	}, ch
 }
 
 // ResponseEmitter extends cmds.ResponseEmitter to give better control over the command line
@@ -42,12 +45,12 @@ type ResponseEmitter interface {
 }
 
 type responseEmitter struct {
-	wLock  sync.Mutex
+	l      sync.Mutex
 	stdout io.Writer
 	stderr io.Writer
 
 	length  uint64
-	err     *cmdkit.Error
+	err     *cmdkit.Error // TODO do we really need this?
 	enc     cmds.Encoder
 	encType cmds.EncodingType
 	exit    int
@@ -70,26 +73,44 @@ func (re *responseEmitter) SetEncoder(enc func(io.Writer) cmds.Encoder) {
 	re.enc = enc(re.stdout)
 }
 
-func (re *responseEmitter) SetError(v interface{}, errType cmdkit.ErrorType) {
-	re.errOccurred = true
-
-	err := re.Emit(&cmdkit.Error{Message: fmt.Sprint(v), Code: errType})
-	if err != nil {
-		panic(err)
+func (re *responseEmitter) CloseWithError(err error) error {
+	e, ok := err.(*cmdkit.Error)
+	if !ok {
+		e = &cmdkit.Error{
+			Message: err.Error(),
+		}
 	}
+
+	re.l.Lock()
+	defer re.l.Unlock()
+
+	re.errOccurred = true
+	re.exit = 1 // TODO we could let err carry an exit code
+	re.err = e
+
+	_, err = fmt.Fprintln(re.stderr, "Error:", e.Message)
+	if err != nil {
+		return err
+	}
+
+	return re.close()
 }
 
 func (re *responseEmitter) isClosed() bool {
-	re.wLock.Lock()
-	defer re.wLock.Unlock()
+	re.l.Lock()
+	defer re.l.Unlock()
 
 	return re.closed
 }
 
 func (re *responseEmitter) Close() error {
-	re.wLock.Lock()
-	defer re.wLock.Unlock()
+	re.l.Lock()
+	defer re.l.Unlock()
 
+	return re.close()
+}
+
+func (re *responseEmitter) close() error {
 	if re.closed {
 		return errors.New("closing closed responseemitter")
 	}
@@ -102,10 +123,6 @@ func (re *responseEmitter) Close() error {
 		re.stderr = nil
 		re.closed = true
 	}()
-
-	if re.stdout == nil || re.stderr == nil {
-		log.Warning("more than one call to RespEm.Close!")
-	}
 
 	if f, ok := re.stderr.(*os.File); ok {
 		err := f.Sync()
@@ -126,6 +143,7 @@ func (re *responseEmitter) Close() error {
 // Head returns the current head.
 // TODO: maybe it makes sense to make these pointers to shared memory?
 //   might not be so clever though...concurrency and stuff
+// TODO: can we maybe drop this function? Then we could also remove the err struct field
 func (re *responseEmitter) Head() cmds.Head {
 	return cmds.Head{
 		Len: re.length,
@@ -168,29 +186,15 @@ func (re *responseEmitter) Emit(v interface{}) error {
 		return io.ErrClosedPipe
 	}
 
-	if err, ok := v.(cmdkit.Error); ok {
-		v = &err
-	}
-
 	var err error
 
 	switch t := v.(type) {
 	case *cmdkit.Error:
-		_, err = fmt.Fprintln(re.stderr, "Error:", t.Message)
-		if t.Code == cmdkit.ErrFatal {
-			defer re.Close()
-		}
-		re.wLock.Lock()
-		defer re.wLock.Unlock()
-		re.exit = 1
-
-		return nil
-
+		log.Errorf("got an error: %v\n%s", err, debug.Stack())
 	case io.Reader:
 		_, err = io.Copy(re.stdout, t)
 		if err != nil {
-			re.SetError(err, cmdkit.ErrNormal)
-			err = nil
+			return err
 		}
 	default:
 		if re.enc != nil {
@@ -217,7 +221,7 @@ func (re *responseEmitter) Stdout() io.Writer {
 func (re *responseEmitter) Exit(code int) {
 	defer re.Close()
 
-	re.wLock.Lock()
-	defer re.wLock.Unlock()
+	re.l.Lock()
+	defer re.l.Unlock()
 	re.exit = code
 }

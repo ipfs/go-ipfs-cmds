@@ -35,16 +35,17 @@ var RootCmd = &cmds.Command{
 				for i, str := range req.Arguments {
 					num, err := strconv.Atoi(str)
 					if err != nil {
-						re.SetError(err, cmdkit.ErrNormal)
 						return err
 					}
 
 					sum += num
-					re.Emit(fmt.Sprintf("intermediate result: %d; %d left", sum, len(req.Arguments)-i-1))
+					err = re.Emit(fmt.Sprintf("intermediate result: %d; %d left", sum, len(req.Arguments)-i-1))
+					if err != nil {
+						return err
+					}
 				}
 
-				re.Emit(fmt.Sprintf("total: %d", sum))
-				return nil
+				return re.Emit(fmt.Sprintf("total: %d", sum))
 			},
 		},
 		// a bit more sophisticated
@@ -58,15 +59,18 @@ var RootCmd = &cmds.Command{
 				for i, str := range req.Arguments {
 					num, err := strconv.Atoi(str)
 					if err != nil {
-						re.SetError(err, cmdkit.ErrNormal)
 						return err
 					}
 
 					sum += num
-					re.Emit(&AddStatus{
+					err = re.Emit(&AddStatus{
 						Current: sum,
 						Left:    len(req.Arguments) - i - 1,
 					})
+					if err != nil {
+						return err
+					}
+
 					time.Sleep(200 * time.Millisecond)
 				}
 				return nil
@@ -102,15 +106,18 @@ var RootCmd = &cmds.Command{
 				for i, str := range req.Arguments {
 					num, err := strconv.Atoi(str)
 					if err != nil {
-						re.SetError(err, cmdkit.ErrNormal)
 						return err
 					}
 
 					sum += num
-					re.Emit(&AddStatus{
+					err = re.Emit(&AddStatus{
 						Current: sum,
 						Left:    len(req.Arguments) - i - 1,
 					})
+					if err != nil {
+						return err
+					}
+
 					time.Sleep(200 * time.Millisecond)
 				}
 				return nil
@@ -160,15 +167,18 @@ var RootCmd = &cmds.Command{
 				for i, str := range req.Arguments {
 					num, err := strconv.Atoi(str)
 					if err != nil {
-						re.SetError(err, cmdkit.ErrNormal)
 						return err
 					}
 
 					sum += num
-					re.Emit(&AddStatus{
+					err = re.Emit(&AddStatus{
 						Current: sum,
 						Left:    len(req.Arguments) - i - 1,
 					})
+					if err != nil {
+						return err
+					}
+
 					time.Sleep(200 * time.Millisecond)
 				}
 				return nil
