@@ -109,8 +109,10 @@ func (c *Command) Call(req *Request, re ResponseEmitter, env Environment) {
 		if cmderr, ok := err.(cmdkit.Error); ok {
 			err = re.Emit(cmderr)
 			if err != nil {
-				log.Error("error emitting cmd error:", err)
+				log.Error("error %q emitting cmd error %q on request %#v", err, cmderr, req)
 			}
+
+			return
 		}
 		re.SetError(err, cmdkit.ErrNormal)
 	}
