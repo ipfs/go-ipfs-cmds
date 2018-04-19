@@ -121,6 +121,19 @@ func (re *WriterResponseEmitter) SetEncoder(mkEnc func(io.Writer) Encoder) {
 	re.enc = mkEnc(re.w)
 }
 
+func (re *WriterResponseEmitter) CloseWithError(err error) error {
+	if err == nil {
+		return re.Close()
+	}
+
+	_, ok := err.(*cmdkit.Error)
+	if ok {
+		return re.Emit(err)
+	}
+
+	return re.Emit(&cmdkit.Error{Message: err.Error(), Code: cmdkit.ErrNormal})
+}
+
 func (re *WriterResponseEmitter) SetError(v interface{}, errType cmdkit.ErrorType) {
 	err := re.Emit(&cmdkit.Error{Message: fmt.Sprint(v), Code: errType})
 	if err != nil {

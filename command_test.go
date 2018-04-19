@@ -22,8 +22,9 @@ func (s *testEmitter) Close() error {
 }
 
 func (s *testEmitter) SetLength(_ uint64) {}
-func (s *testEmitter) SetError(err interface{}, code cmdkit.ErrorType) {
+func (s *testEmitter) CloseWithError(err error) error {
 	(*testing.T)(s).Error(err)
+	return nil
 }
 func (s *testEmitter) Emit(value interface{}) error {
 	return nil
@@ -411,8 +412,9 @@ func (s *testEmitterWithError) Close() error {
 
 func (s *testEmitterWithError) SetLength(_ uint64) {}
 
-func (s *testEmitterWithError) SetError(err interface{}, code cmdkit.ErrorType) {
+func (s *testEmitterWithError) CloseWithError(err error) error {
 	s.errorCount++
+	return nil
 }
 
 func (s *testEmitterWithError) Emit(value interface{}) error {
