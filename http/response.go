@@ -8,6 +8,7 @@ import (
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-cmds"
+	"reflect"
 )
 
 var (
@@ -65,7 +66,8 @@ func (res *Response) RawNext() (interface{}, error) {
 		}
 	}
 
-	m := &cmds.MaybeError{Value: res.req.Command.Type}
+	value := reflect.New(reflect.TypeOf(res.req.Command.Type).Elem()).Interface()
+	m := &cmds.MaybeError{Value: value}
 	err := res.dec.Decode(m)
 
 	// last error was sent as value, now we get the same error from the headers. ignore and EOF!
