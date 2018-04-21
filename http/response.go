@@ -66,7 +66,11 @@ func (res *Response) RawNext() (interface{}, error) {
 		}
 	}
 
-	value := reflect.New(reflect.TypeOf(res.req.Command.Type).Elem()).Interface()
+	valueType := reflect.TypeOf(res.req.Command.Type)
+	if valueType.Kind() == reflect.Ptr {
+		valueType = valueType.Elem()
+	}
+	value := reflect.New(valueType).Interface()
 	m := &cmds.MaybeError{Value: value}
 	err := res.dec.Decode(m)
 

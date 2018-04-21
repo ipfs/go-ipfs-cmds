@@ -72,7 +72,7 @@ func TestRawNextDecodesIntoNewStruct(t *testing.T) {
 	}
 
 	tv2 := v2.(*testResponseType)
-	if tv2.a != 4 {
+	if tv2.a != 3 {
 		t.Errorf("tv2.a is %#v, expected 3", tv2.a)
 	}
 	if tv2.b != 0 {
