@@ -59,11 +59,10 @@ func (res *Response) RawNext() (interface{}, error) {
 	if res.dec == nil {
 		if res.rr == nil {
 			return nil, io.EOF
-		} else {
-			rr := res.rr
-			res.rr = nil
-			return rr, nil
 		}
+		rr := res.rr
+		res.rr = nil
+		return rr, nil
 	}
 
 	var value interface{}
