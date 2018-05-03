@@ -26,9 +26,9 @@ func NewChanResponsePair(req *Request) (ResponseEmitter, Response) {
 	wait := make(chan struct{})
 
 	r := &chanResponse{
-		req:  req,
-		ch:   ch,
-		wait: wait,
+		req:    req,
+		ch:     ch,
+		wait:   wait,
 		closed: make(chan struct{}),
 	}
 
@@ -54,7 +54,7 @@ type chanResponse struct {
 	length  uint64
 
 	closeOnce sync.Once
-	closed chan struct{}
+	closed    chan struct{}
 }
 
 func (r *chanResponse) Request() *Request {
@@ -76,7 +76,7 @@ func (r *chanResponse) Error() *cmdkit.Error {
 		log.Warning("chan emitter error is nil after close; undefined state! returning EOF")
 		return &cmdkit.Error{Message: "EOF"}
 	}
-	
+
 	if e, ok := r.err.(cmdkit.Error); ok {
 		return &e
 	}
@@ -256,16 +256,16 @@ func (re *chanResponseEmitter) CloseWithError(err error) error {
 func (re *chanResponseEmitter) closeWithError(err error) error {
 	fmt.Printf("close called %p with error %v\n", re, err)
 
-	if e, ok := err.(cmdkit.Error);ok {
+	if e, ok := err.(cmdkit.Error); ok {
 		err = &e
 	}
 
-/*
-	e, ok := err.(*cmdkit.Error)
-	if !ok {
-		e = &cmdkit.Error{Message: err.Error()}
-	}
-*/
+	/*
+		e, ok := err.(*cmdkit.Error)
+		if !ok {
+			e = &cmdkit.Error{Message: err.Error()}
+		}
+	*/
 	re.closeOnce.Do(func() {
 		re.err = err
 		close(re.ch)
