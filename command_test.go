@@ -2,6 +2,7 @@ package cmds
 
 import (
 	"context"
+	"errors"
 	"io"
 	"testing"
 	"time"
@@ -21,8 +22,9 @@ func (s *testEmitter) Close() error {
 }
 
 func (s *testEmitter) SetLength(_ uint64) {}
-func (s *testEmitter) SetError(err interface{}, code cmdkit.ErrorType) {
+func (s *testEmitter) CloseWithError(err error) error {
 	(*testing.T)(s).Error(err)
+	return nil
 }
 func (s *testEmitter) Emit(value interface{}) error {
 	return nil
@@ -34,7 +36,7 @@ func newTestEmitter(t *testing.T) *testEmitter {
 }
 
 // noop does nothing and can be used as a noop Run function
-func noop(req *Request, re ResponseEmitter, env Environment) {}
+func noop(req *Request, re ResponseEmitter, env Environment) error { return nil }
 
 // writecloser implements io.WriteCloser by embedding
 // an io.Writer and an io.Closer
@@ -228,7 +230,7 @@ type postRunTestCase struct {
 	length      uint64
 	err         *cmdkit.Error
 	emit        []interface{}
-	postRun     func(*Request, ResponseEmitter) ResponseEmitter
+	postRun     func(Response, ResponseEmitter) error
 	next        []interface{}
 	finalLength uint64
 }
@@ -245,43 +247,35 @@ func TestPostRun(t *testing.T) {
 			emit:        []interface{}{7},
 			finalLength: 4,
 			next:        []interface{}{14},
-			postRun: func(req *Request, re ResponseEmitter) ResponseEmitter {
-				re_, res := NewChanResponsePair(req)
+			postRun: func(res Response, re ResponseEmitter) error {
+				defer re.Close()
+				l := res.Length()
+				re.SetLength(l + 1)
 
-				go func() {
-					defer re.Close()
-					l := res.Length()
-					re.SetLength(l + 1)
-
-					for {
-						v, err := res.Next()
-						if err == io.EOF {
-							return
-						}
-						if err != nil {
-							re.SetError(err, cmdkit.ErrNormal)
-							t.Fatal(err)
-							return
-						}
-
-						i := v.(int)
-
-						err = re.Emit(2 * i)
-						if err != nil {
-							re.SetError(err, cmdkit.ErrNormal)
-							return
-						}
+				for {
+					v, err := res.Next()
+					if err == io.EOF {
+						return nil
 					}
-				}()
+					if err != nil {
+						t.Error(err) // TODO keks: should this go?
+						return err
+					}
 
-				return re_
+					i := v.(int)
+
+					err = re.Emit(2 * i)
+					if err != nil {
+						return err
+					}
+				}
 			},
 		},
 	}
 
 	for _, tc := range testcases {
 		cmd := &Command{
-			Run: func(req *Request, re ResponseEmitter, env Environment) {
+			Run: func(req *Request, re ResponseEmitter, env Environment) error {
 				re.SetLength(tc.length)
 
 				for _, v := range tc.emit {
@@ -294,6 +288,7 @@ func TestPostRun(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
+				return nil
 			},
 			PostRun: PostRunMap{
 				CLI: tc.postRun,
@@ -326,8 +321,15 @@ func TestPostRun(t *testing.T) {
 			t.Fatal("wrong encoding type")
 		}
 
-		re, res := NewChanResponsePair(req)
-		re = cmd.PostRun[PostRunType(encType)](req, re)
+		postre, res := NewChanResponsePair(req)
+		re, postres := NewChanResponsePair(req)
+
+		go func() {
+			err := cmd.PostRun[PostRunType(encType)](postres, postre)
+			if err != nil {
+				t.Error("error in PostRun: ", err)
+			}
+		}()
 
 		cmd.Call(req, re, nil)
 
@@ -400,4 +402,46 @@ func TestCancel(t *testing.T) {
 		t.Log("res.Emit err:", err)
 	}
 	<-wait
+}
+
+type testEmitterWithError struct{ errorCount int }
+
+func (s *testEmitterWithError) Close() error {
+	return nil
+}
+
+func (s *testEmitterWithError) SetLength(_ uint64) {}
+
+func (s *testEmitterWithError) CloseWithError(err error) error {
+	s.errorCount++
+	return nil
+}
+
+func (s *testEmitterWithError) Emit(value interface{}) error {
+	return nil
+}
+
+func TestEmitterExpectError(t *testing.T) {
+	cmd := &Command{
+		Run: func(req *Request, re ResponseEmitter, env Environment) error {
+			return errors.New("an error occurred")
+		},
+	}
+
+	re := &testEmitterWithError{}
+	req, err := NewRequest(context.Background(), nil, nil, nil, nil, cmd)
+
+	if err != nil {
+		t.Error("Should have passed")
+	}
+
+	cmd.Call(req, re, nil)
+
+	switch re.errorCount {
+	case 0:
+		t.Errorf("expected SetError to be called")
+	case 1:
+	default:
+		t.Errorf("expected SetError to be called once, but was called %d times", re.errorCount)
+	}
 }

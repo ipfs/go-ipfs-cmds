@@ -4,42 +4,57 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"runtime/debug"
+	"sync"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 )
 
+func EmitChan(re ResponseEmitter, ch <-chan interface{}) error {
+	for v := range ch {
+		err := re.Emit(v)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func NewChanResponsePair(req *Request) (ResponseEmitter, Response) {
 	ch := make(chan interface{})
 	wait := make(chan struct{})
-	done := make(chan struct{})
 
 	r := &chanResponse{
-		req:  req,
-		ch:   ch,
-		wait: wait,
-		done: done,
+		req:    req,
+		ch:     ch,
+		wait:   wait,
+		closed: make(chan struct{}),
 	}
 
-	re := &chanResponseEmitter{
-		ch:     ch,
-		length: &r.length,
-		wait:   wait,
-		done:   done,
-	}
+	re := (*chanResponseEmitter)(r)
 
 	return re, r
 }
 
 type chanResponse struct {
+	l   sync.Mutex
 	req *Request
-
-	err    *cmdkit.Error
-	length uint64
 
 	// wait makes header requests block until the body is sent
 	wait chan struct{}
-	ch   <-chan interface{}
-	done chan<- struct{}
+	// waitOnce makes sure we only close wait once
+	waitOnce sync.Once
+
+	// ch is used to send values from emitter to response
+	ch chan interface{}
+
+	emitted bool
+	err     error
+	length  uint64
+
+	closeOnce sync.Once
+	closed    chan struct{}
 }
 
 func (r *chanResponse) Request() *Request {
@@ -57,7 +72,20 @@ func (r *chanResponse) Error() *cmdkit.Error {
 		return nil
 	}
 
-	return r.err
+	if r.err == nil {
+		log.Warning("chan emitter error is nil after close; undefined state! returning EOF")
+		return &cmdkit.Error{Message: "EOF"}
+	}
+
+	if e, ok := r.err.(cmdkit.Error); ok {
+		return &e
+	}
+
+	if e, ok := r.err.(*cmdkit.Error); ok {
+		return e
+	}
+
+	return &cmdkit.Error{Message: r.err.Error()}
 }
 
 func (r *chanResponse) Length() uint64 {
@@ -70,8 +98,30 @@ func (r *chanResponse) Length() uint64 {
 	return r.length
 }
 
+func (re *chanResponse) Head() Head {
+	<-re.wait
+
+	if err, ok := re.err.(cmdkit.Error); ok {
+		re.err = &err
+	}
+
+	err, ok := re.err.(*cmdkit.Error)
+	if !ok {
+		err = &cmdkit.Error{Message: re.err.Error()}
+	}
+
+	return Head{
+		Len: re.length,
+		Err: err,
+	}
+}
+
 func (r *chanResponse) Next() (interface{}, error) {
 	if r == nil {
+		if r.err != nil {
+			return nil, r.err
+		}
+
 		return nil, io.EOF
 	}
 
@@ -83,26 +133,33 @@ func (r *chanResponse) Next() (interface{}, error) {
 	}
 
 	select {
+	case <-r.closed:
+		return nil, r.err
 	case v, ok := <-r.ch:
 		if !ok {
+			r.ch = nil
+			if r.err != nil {
+				return nil, r.err
+			}
+
 			return nil, io.EOF
 		}
 
-		if err, ok := v.(cmdkit.Error); ok {
+		if err, ok := v.(*cmdkit.Error); ok {
 			v = &err
 		}
 
 		switch val := v.(type) {
 		case *cmdkit.Error:
-			r.err = val
-			return nil, ErrRcvdError
+			// TODO keks remove logging
+			log.Error("unexpected error value:", val)
+			return val, nil
 		case Single:
 			return val.Value, nil
 		default:
 			return v, nil
 		}
 	case <-ctx.Done():
-		close(r.done)
 		return nil, ctx.Err()
 	}
 
@@ -128,92 +185,99 @@ func (r *chanResponse) RawNext() (interface{}, error) {
 
 		return nil, io.EOF
 	case <-ctx.Done():
-		close(r.done)
 		return nil, ctx.Err()
 	}
 
 }
 
-type chanResponseEmitter struct {
-	ch   chan<- interface{}
-	wait chan struct{}
-	done <-chan struct{}
-
-	length *uint64
-	err    **cmdkit.Error
-
-	emitted bool
-}
+type chanResponseEmitter chanResponse
 
 func (re *chanResponseEmitter) Emit(v interface{}) error {
+	if e, ok := v.(*cmdkit.Error); ok {
+		log.Errorf("unexpected error value emitted: %s at\n%s", e.Error(), debug.Stack())
+	}
+
+	// channel emission iteration
+	// TODO maybe remove this and use EmitChan instead of calling Emit directly?
 	if ch, ok := v.(chan interface{}); ok {
 		v = (<-chan interface{})(ch)
 	}
-
 	if ch, isChan := v.(<-chan interface{}); isChan {
-		for v = range ch {
-			err := re.Emit(v)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
+		return EmitChan(re, ch)
 	}
 
-	re.emitted = true
-	if re.wait != nil {
+	// unblock Length(), Error() and Head()
+	re.waitOnce.Do(func() {
 		close(re.wait)
-		re.wait = nil
-	}
+	})
+
+	re.l.Lock()
+	defer re.l.Unlock()
 
 	if re.ch == nil {
 		return fmt.Errorf("emitter closed")
 	}
 
 	if _, ok := v.(Single); ok {
-		defer re.Close()
+		defer re.closeWithError(io.EOF)
 	}
+
+	ctx := re.req.Context
+
+	fmt.Println("emitting", re.ch == nil)
 
 	select {
 	case re.ch <- v:
 		return nil
-	case <-re.done:
-		return context.Canceled
-	}
-}
-
-func (re *chanResponseEmitter) SetError(v interface{}, errType cmdkit.ErrorType) {
-	err := re.Emit(&cmdkit.Error{Message: fmt.Sprint(v), Code: errType})
-	if err != nil {
-		panic(err)
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 }
 
 func (re *chanResponseEmitter) SetLength(l uint64) {
+	re.l.Lock()
+	defer re.l.Unlock()
+
 	// don't change value after emitting
 	if re.emitted {
 		return
 	}
 
-	*re.length = l
+	re.length = l
 }
 
-func (re *chanResponseEmitter) Head() Head {
-	<-re.wait
+func (re *chanResponseEmitter) CloseWithError(err error) error {
+	re.l.Lock()
+	defer re.l.Unlock()
 
-	return Head{
-		Len: *re.length,
-		Err: *re.err,
+	return re.closeWithError(err)
+}
+
+func (re *chanResponseEmitter) closeWithError(err error) error {
+	fmt.Printf("close called %p with error %v\n", re, err)
+
+	if e, ok := err.(cmdkit.Error); ok {
+		err = &e
 	}
+
+	/*
+		e, ok := err.(*cmdkit.Error)
+		if !ok {
+			e = &cmdkit.Error{Message: err.Error()}
+		}
+	*/
+	re.closeOnce.Do(func() {
+		re.err = err
+		close(re.ch)
+		close(re.closed)
+	})
+
+	return nil
 }
 
 func (re *chanResponseEmitter) Close() error {
-	if re.ch == nil {
-		return nil
-	}
+	re.l.Lock()
+	defer re.l.Unlock()
 
-	close(re.ch)
-	re.ch = nil
-
-	return nil
+	return re.closeWithError(io.EOF)
 }

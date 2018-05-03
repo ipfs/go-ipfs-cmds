@@ -66,20 +66,20 @@ var (
 					cmdkit.BoolOption("repo", "Show repo version."),
 					cmdkit.BoolOption("all", "Show all version information"),
 				},
-				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) {
+				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
 					version, ok := getVersion(env)
 					if !ok {
-						re.SetError("couldn't get version", cmdkit.ErrNormal)
+						return cmdkit.Errorf(cmdkit.ErrNormal, "couldn't get version")
 					}
 
 					repoVersion, ok := getRepoVersion(env)
 					if !ok {
-						re.SetError("couldn't get repo version", cmdkit.ErrNormal)
+						return cmdkit.Errorf(cmdkit.ErrNormal, "couldn't get repo version")
 					}
 
 					commit, ok := getCommit(env)
 					if !ok {
-						re.SetError("couldn't get commit info", cmdkit.ErrNormal)
+						return cmdkit.Errorf(cmdkit.ErrNormal, "couldn't get commit info")
 					}
 
 					re.Emit(&VersionOutput{
@@ -89,6 +89,7 @@ var (
 						System:  runtime.GOARCH + "/" + runtime.GOOS, //TODO: Precise version here
 						Golang:  runtime.Version(),
 					})
+					return nil
 				},
 				Encoders: cmds.EncoderMap{
 					cmds.Text: cmds.MakeTypedEncoder(func(req *cmds.Request, w io.Writer, v *VersionOutput) error {

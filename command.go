@@ -25,10 +25,10 @@ var log = logging.Logger("cmds")
 
 // Function is the type of function that Commands use.
 // It reads from the Request, and writes results to the ResponseEmitter.
-type Function func(*Request, ResponseEmitter, Environment)
+type Function func(*Request, ResponseEmitter, Environment) error
 
 // PostRunMap is the map used in Command.PostRun.
-type PostRunMap map[PostRunType]func(*Request, ResponseEmitter) ResponseEmitter
+type PostRunMap map[PostRunType]func(Response, ResponseEmitter) error
 
 // Command is a runnable command, with input arguments and options (flags).
 // It can also have Subcommands, to group units of work into sets.
@@ -68,24 +68,40 @@ var ErrIncorrectType = errors.New("The command returned a value with a different
 
 // Call invokes the command for the given Request
 func (c *Command) Call(req *Request, re ResponseEmitter, env Environment) {
-	// we need the named return parameter so we can change the value from defer()
-	defer re.Close()
+	var err error
+
+	defer func() {
+		var closeErr error
+		if err == nil {
+			closeErr = re.Close()
+		} else {
+			if _, ok := err.(cmdkit.Error); !ok {
+				err = cmdkit.Error{Message: err.Error(), Code: cmdkit.ErrFatal}
+			}
+
+			closeErr = re.CloseWithError(err)
+		}
+
+		if closeErr != nil {
+			log.Errorf("error closing connection: %s", closeErr)
+			if err != nil {
+				log.Errorf("close caused by error: %s", err)
+			}
+		}
+	}()
 
 	var cmd *Command
-	cmd, err := c.Get(req.Path)
+	cmd, err = c.Get(req.Path)
 	if err != nil {
-		re.SetError(err, cmdkit.ErrFatal)
 		return
 	}
 
 	if cmd.Run == nil {
-		re.SetError(ErrNotCallable, cmdkit.ErrFatal)
 		return
 	}
 
 	err = cmd.CheckArguments(req)
 	if err != nil {
-		re.SetError(err, cmdkit.ErrFatal)
 		return
 	}
 
@@ -104,7 +120,27 @@ func (c *Command) Call(req *Request, re ResponseEmitter, env Environment) {
 		}
 	}
 
-	cmd.Run(req, re, env)
+	err = cmd.Run(req, re, env)
+	if err != nil {
+		if cmderr, ok := err.(cmdkit.Error); ok {
+			err = &cmderr
+		}
+
+		if cmderr, ok := err.(*cmdkit.Error); ok {
+			err = re.Emit(cmderr)
+			if err != nil {
+				log.Error("error %q emitting cmd error %q on request %#v", err, cmderr, req)
+			}
+
+			return
+		}
+
+		cmderr := err
+		err = re.CloseWithError(err)
+		if err != nil {
+			log.Error("error %q closing emitter %q on request %#v", err, cmderr, req)
+		}
+	}
 }
 
 // Resolve returns the subcommands at the given path
