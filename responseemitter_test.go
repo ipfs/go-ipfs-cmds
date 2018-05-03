@@ -65,22 +65,12 @@ func TestError(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		err = re.Emit(cmdkit.Error{Message: "foo"})
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		err = re.Emit(&cmdkit.Error{Message: "bar"})
-		if err != nil {
-			t.Fatal(err)
-		}
-
 		err = re.Emit("value2")
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		err = re.Close()
+		err = re.CloseWithError(&cmdkit.Error{Message: "foo"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -95,19 +85,29 @@ func TestError(t *testing.T) {
 	}
 
 	v, err = res.Next()
-	if err == nil {
-		t.Errorf("expected error, got %#v", v)
-	}
-	v, err = res.Next()
-	if err == nil {
-		t.Errorf("expected error, got %#v", v)
-	}
-
-	v, err = res.Next()
 	if err != nil {
 		t.Error(err)
 	}
 	if v.(string) != "value2" {
 		t.Errorf("expected string %#v but got %#v", "value1", v)
+	}
+
+	v, err = res.Next()
+	if v != nil {
+		t.Errorf("expected nil value, got %#v", v)
+
+	}
+	e, ok := err.(*cmdkit.Error)
+	if !ok {
+		t.Errorf("expected error to be %T, got %T", e, v)
+	} else {
+		expMsg := "foo"
+		if e.Message != expMsg {
+			t.Errorf("expected error message to be %q, got %q", expMsg, e.Message)
+		}
+
+		if e.Code != 0 {
+			t.Errorf("expected error code 0(ErrNormal), got %v", e.Code)
+		}
 	}
 }

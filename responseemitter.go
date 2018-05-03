@@ -3,8 +3,7 @@ package cmds
 import (
 	"fmt"
 	"io"
-
-	"github.com/ipfs/go-ipfs-cmdkit"
+	//"github.com/ipfs/go-ipfs-cmdkit"
 )
 
 // Single can be used to signal to any ResponseEmitter that only one value will be emitted.
@@ -29,20 +28,20 @@ func EmitOnce(re ResponseEmitter, v interface{}) error {
 // ResponseEmitter encodes and sends the command code's output to the client.
 // It is all a command can write to.
 type ResponseEmitter interface {
-	// closes http conn or channel
-	io.Closer
+	// Close closes the underlying transport.
+	Close() error
+
+	// CloseWithError closes the underlying transport and makes subsequent read
+	// calls return the passed error.
+	CloseWithError(error) error
 
 	// SetLength sets the length of the output
 	// err is an interface{} so we don't have to manually convert to error.
 	SetLength(length uint64)
 
-	// SetError sets the response error
-	// err is an interface{} so we don't have to manually convert to error.
-	SetError(err interface{}, code cmdkit.ErrorType)
-
-	// Emit sends a value
-	// if value is io.Reader we just copy that to the connection
-	// other values are marshalled
+	// Emit sends a value.
+	// If value is io.Reader we just copy that to the connection
+	// other values are marshalled.
 	Emit(value interface{}) error
 }
 

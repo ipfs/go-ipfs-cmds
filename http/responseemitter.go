@@ -58,6 +58,7 @@ type responseEmitter struct {
 	encType cmds.EncodingType
 	req     *cmds.Request
 
+	l      sync.Mutex
 	length uint64
 	err    *cmdkit.Error
 
@@ -82,9 +83,12 @@ func (re *responseEmitter) Emit(value interface{}) error {
 		return nil
 	}
 
-	var err error
-
 	re.once.Do(func() { re.preamble(value) })
+
+	re.l.Lock()
+	defer re.l.Unlock()
+
+	var err error
 
 	// return immediately if this is a head request
 	if re.method == "HEAD" {
@@ -136,6 +140,9 @@ func (re *responseEmitter) Emit(value interface{}) error {
 }
 
 func (re *responseEmitter) SetLength(l uint64) {
+	re.l.Lock()
+	defer re.l.Unlock()
+
 	h := re.w.Header()
 	h.Set("X-Content-Length", strconv.FormatUint(l, 10))
 
@@ -147,12 +154,28 @@ func (re *responseEmitter) Close() error {
 	return nil
 }
 
-func (re *responseEmitter) SetError(v interface{}, errType cmdkit.ErrorType) {
-	err := re.Emit(&cmdkit.Error{Message: fmt.Sprint(v), Code: errType})
-	if err != nil {
-		log.Debug("http.SetError err=", err)
-		panic(err)
+func (re *responseEmitter) CloseWithError(err error) error {
+	re.once.Do(func() { re.preamble(nil) })
+
+	re.l.Lock()
+	defer re.l.Unlock()
+
+	e, ok := err.(*cmdkit.Error)
+	if !ok {
+		e = &cmdkit.Error{Message: err.Error()}
 	}
+
+	if re.streaming || e.Code == cmdkit.ErrFatal {
+		// abort by sending an error trailer
+		re.w.Header().Add(StreamErrHeader, err.Error())
+	} else {
+		err = re.enc.Encode(e)
+		if err != nil {
+			return err
+		}
+	}
+
+	return re.Close()
 }
 
 // Flush the http connection
@@ -165,6 +188,9 @@ func (re *responseEmitter) Flush() {
 }
 
 func (re *responseEmitter) preamble(value interface{}) {
+	re.l.Lock()
+	defer re.l.Unlock()
+
 	status := http.StatusOK
 	h := re.w.Header()
 

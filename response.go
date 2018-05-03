@@ -3,6 +3,7 @@ package cmds
 import (
 	"fmt"
 	"io"
+	"runtime/debug"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 )
@@ -51,10 +52,9 @@ func HandleError(err error, res Response, re ResponseEmitter) bool {
 			err = res.Error()
 		}
 
-		if e, ok := err.(*cmdkit.Error); ok {
-			re.SetError(e.Message, e.Code)
-		} else {
-			re.SetError(err, cmdkit.ErrNormal)
+		closeErr := re.CloseWithError(err)
+		if err != nil {
+			log.Errorf("error closing with error: %v at %s when closing with error %v", closeErr, debug.Stack(), err)
 		}
 		return false
 	}
