@@ -135,7 +135,11 @@ func (c *Command) Call(req *Request, re ResponseEmitter, env Environment) {
 			return
 		}
 
-		re.SetError(err, cmdkit.ErrNormal)
+		cmderr := err
+		err = re.CloseWithError(err)
+		if err != nil {
+			log.Error("error %q closing emitter %q on request %#v", err, cmderr, req)
+		}
 	}
 }
 

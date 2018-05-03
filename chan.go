@@ -10,7 +10,7 @@ import (
 	"github.com/ipfs/go-ipfs-cmdkit"
 )
 
-func EmitChan(re ResponseEmitter, ch chan interface{}) error {
+func EmitChan(re ResponseEmitter, ch <-chan interface{}) error {
 	for v := range ch {
 		err := re.Emit(v)
 		if err != nil {
@@ -29,6 +29,7 @@ func NewChanResponsePair(req *Request) (ResponseEmitter, Response) {
 		req:  req,
 		ch:   ch,
 		wait: wait,
+		closed: make(chan struct{}),
 	}
 
 	re := (*chanResponseEmitter)(r)
@@ -49,8 +50,11 @@ type chanResponse struct {
 	ch chan interface{}
 
 	emitted bool
-	err     *cmdkit.Error
+	err     error
 	length  uint64
+
+	closeOnce sync.Once
+	closed chan struct{}
 }
 
 func (r *chanResponse) Request() *Request {
@@ -68,7 +72,20 @@ func (r *chanResponse) Error() *cmdkit.Error {
 		return nil
 	}
 
-	return r.err
+	if r.err == nil {
+		log.Warning("chan emitter error is nil after close; undefined state! returning EOF")
+		return &cmdkit.Error{Message: "EOF"}
+	}
+	
+	if e, ok := r.err.(cmdkit.Error); ok {
+		return &e
+	}
+
+	if e, ok := r.err.(*cmdkit.Error); ok {
+		return e
+	}
+
+	return &cmdkit.Error{Message: r.err.Error()}
 }
 
 func (r *chanResponse) Length() uint64 {
@@ -84,9 +101,18 @@ func (r *chanResponse) Length() uint64 {
 func (re *chanResponse) Head() Head {
 	<-re.wait
 
+	if err, ok := re.err.(cmdkit.Error); ok {
+		re.err = &err
+	}
+
+	err, ok := re.err.(*cmdkit.Error)
+	if !ok {
+		err = &cmdkit.Error{Message: re.err.Error()}
+	}
+
 	return Head{
 		Len: re.length,
-		Err: re.err,
+		Err: err,
 	}
 }
 
@@ -106,20 +132,12 @@ func (r *chanResponse) Next() (interface{}, error) {
 		ctx = context.Background()
 	}
 
-	err := func() error {
-		if r.ch == nil {
-			return io.EOF
-		}
-
-		return nil
-	}()
-	if err != nil {
-		return nil, err
-	}
-
 	select {
+	case <-r.closed:
+		return nil, r.err
 	case v, ok := <-r.ch:
 		if !ok {
+			r.ch = nil
 			if r.err != nil {
 				return nil, r.err
 			}
@@ -180,18 +198,12 @@ func (re *chanResponseEmitter) Emit(v interface{}) error {
 	}
 
 	// channel emission iteration
-	// TODO remove this
+	// TODO maybe remove this and use EmitChan instead of calling Emit directly?
 	if ch, ok := v.(chan interface{}); ok {
 		v = (<-chan interface{})(ch)
 	}
 	if ch, isChan := v.(<-chan interface{}); isChan {
-		for v = range ch {
-			err := re.Emit(v)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
+		return EmitChan(re, ch)
 	}
 
 	// unblock Length(), Error() and Head()
@@ -207,7 +219,7 @@ func (re *chanResponseEmitter) Emit(v interface{}) error {
 	}
 
 	if _, ok := v.(Single); ok {
-		defer re.close()
+		defer re.closeWithError(io.EOF)
 	}
 
 	ctx := re.req.Context
@@ -222,19 +234,6 @@ func (re *chanResponseEmitter) Emit(v interface{}) error {
 	}
 }
 
-func (re *chanResponseEmitter) CloseWithError(err error) error {
-	re.l.Lock()
-	defer re.l.Unlock()
-
-	e, ok := err.(*cmdkit.Error)
-	if !ok {
-		e = &cmdkit.Error{Message: err.Error()}
-	}
-
-	re.err = e
-	return re.close()
-}
-
 func (re *chanResponseEmitter) SetLength(l uint64) {
 	re.l.Lock()
 	defer re.l.Unlock()
@@ -247,14 +246,31 @@ func (re *chanResponseEmitter) SetLength(l uint64) {
 	re.length = l
 }
 
-func (re *chanResponseEmitter) close() error {
-	fmt.Printf("close called %p\n", re)
-	if re.ch == nil {
-		return nil
+func (re *chanResponseEmitter) CloseWithError(err error) error {
+	re.l.Lock()
+	defer re.l.Unlock()
+
+	return re.closeWithError(err)
+}
+
+func (re *chanResponseEmitter) closeWithError(err error) error {
+	fmt.Printf("close called %p with error %v\n", re, err)
+
+	if e, ok := err.(cmdkit.Error);ok {
+		err = &e
 	}
 
-	close(re.ch)
-	re.ch = nil
+/*
+	e, ok := err.(*cmdkit.Error)
+	if !ok {
+		e = &cmdkit.Error{Message: err.Error()}
+	}
+*/
+	re.closeOnce.Do(func() {
+		re.err = err
+		close(re.ch)
+		close(re.closed)
+	})
 
 	return nil
 }
@@ -263,5 +279,5 @@ func (re *chanResponseEmitter) Close() error {
 	re.l.Lock()
 	defer re.l.Unlock()
 
-	return re.close()
+	return re.closeWithError(io.EOF)
 }
