@@ -15,7 +15,7 @@ import (
 	"github.com/ipfs/go-ipfs-cmds"
 	logging "github.com/ipfs/go-log"
 
-	osh "gx/ipfs/QmXuBJ7DR6k3rmUEKtvVMhwjmXDuJgXXPUt4LQXKBMsU93/go-os-helper"
+	osh "github.com/Kubuxu/go-os-helper"
 )
 
 var log = logging.Logger("cmds/cli")
