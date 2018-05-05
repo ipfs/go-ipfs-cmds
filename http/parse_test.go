@@ -2,6 +2,7 @@ package http
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -196,6 +197,15 @@ func TestParseResponse(t *testing.T) {
 					Repo:    "4",
 				},
 			},
+		},
+		{
+			status: 500,
+			header: http.Header{
+				contentTypeHeader: []string{"evil/bad"},
+				channelHeader:     []string{"1"},
+			},
+			body: mkbuf("test error"),
+			err:  fmt.Errorf("unknown error content type: %s", "evil/bad"),
 		},
 	}
 
