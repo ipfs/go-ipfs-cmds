@@ -75,10 +75,6 @@ func (c *Command) Call(req *Request, re ResponseEmitter, env Environment) {
 		if err == nil {
 			closeErr = re.Close()
 		} else {
-			if _, ok := err.(cmdkit.Error); !ok {
-				err = cmdkit.Error{Message: err.Error(), Code: cmdkit.ErrFatal}
-			}
-
 			closeErr = re.CloseWithError(err)
 		}
 
@@ -93,15 +89,18 @@ func (c *Command) Call(req *Request, re ResponseEmitter, env Environment) {
 	var cmd *Command
 	cmd, err = c.Get(req.Path)
 	if err != nil {
+		log.Errorf("could not get cmd from path %q: %q", req.Path, err)
 		return
 	}
 
 	if cmd.Run == nil {
+		log.Errorf("returned command has nil Run function")
 		return
 	}
 
 	err = cmd.CheckArguments(req)
 	if err != nil {
+		log.Errorf("CheckArguments returned an error for path %q: %q", req.Path, err)
 		return
 	}
 
@@ -121,26 +120,6 @@ func (c *Command) Call(req *Request, re ResponseEmitter, env Environment) {
 	}
 
 	err = cmd.Run(req, re, env)
-	if err != nil {
-		if cmderr, ok := err.(cmdkit.Error); ok {
-			err = &cmderr
-		}
-
-		if cmderr, ok := err.(*cmdkit.Error); ok {
-			err = re.Emit(cmderr)
-			if err != nil {
-				log.Error("error %q emitting cmd error %q on request %#v", err, cmderr, req)
-			}
-
-			return
-		}
-
-		cmderr := err
-		err = re.CloseWithError(err)
-		if err != nil {
-			log.Error("error %q closing emitter %q on request %#v", err, cmderr, req)
-		}
-	}
 }
 
 // Resolve returns the subcommands at the given path

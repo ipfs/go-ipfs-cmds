@@ -136,9 +136,6 @@ var RootCmd = &cmds.Command{
 						if err == io.EOF {
 							return nil
 						}
-						if err == cmds.ErrRcvdError {
-							return res.Error()
-						}
 						if err != nil {
 							return err
 						}
@@ -203,9 +200,6 @@ var RootCmd = &cmds.Command{
 						v, err := res.Next()
 						if err == io.EOF {
 							return nil
-						}
-						if err == cmds.ErrRcvdError {
-							return res.Error()
 						}
 						if err != nil {
 							return err

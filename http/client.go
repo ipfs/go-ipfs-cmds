@@ -109,7 +109,12 @@ func (c *client) Execute(req *cmds.Request, re cmds.ResponseEmitter, env cmds.En
 		if typer, ok := re.(interface {
 			Type() cmds.PostRunType
 		}); ok && cmd.PostRun[typer.Type()] != nil {
-			return cmd.PostRun[typer.Type()](res, re)
+			err := cmd.PostRun[typer.Type()](res, re)
+			if err != nil {
+				return re.CloseWithError(err)
+			}
+
+			return re.Close()
 		}
 	}
 

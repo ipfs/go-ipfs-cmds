@@ -10,17 +10,6 @@ import (
 	"github.com/ipfs/go-ipfs-cmdkit"
 )
 
-func EmitChan(re ResponseEmitter, ch <-chan interface{}) error {
-	for v := range ch {
-		err := re.Emit(v)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func NewChanResponsePair(req *Request) (ResponseEmitter, Response) {
 	ch := make(chan interface{})
 	wait := make(chan struct{})
@@ -73,8 +62,7 @@ func (r *chanResponse) Error() *cmdkit.Error {
 	}
 
 	if r.err == nil {
-		log.Warning("chan emitter error is nil after close; undefined state! returning EOF")
-		return &cmdkit.Error{Message: "EOF"}
+		return nil
 	}
 
 	if e, ok := r.err.(cmdkit.Error); ok {
@@ -118,11 +106,11 @@ func (re *chanResponse) Head() Head {
 
 func (r *chanResponse) Next() (interface{}, error) {
 	if r == nil {
-		if r.err != nil {
-			return nil, r.err
-		}
-
 		return nil, io.EOF
+	}
+
+	if r.err != nil {
+		return nil, r.err
 	}
 
 	var ctx context.Context
@@ -224,8 +212,6 @@ func (re *chanResponseEmitter) Emit(v interface{}) error {
 
 	ctx := re.req.Context
 
-	fmt.Println("emitting", re.ch == nil)
-
 	select {
 	case re.ch <- v:
 		return nil
@@ -254,22 +240,19 @@ func (re *chanResponseEmitter) CloseWithError(err error) error {
 }
 
 func (re *chanResponseEmitter) closeWithError(err error) error {
-	fmt.Printf("close called %p with error %v\n", re, err)
-
 	if e, ok := err.(cmdkit.Error); ok {
 		err = &e
 	}
 
-	/*
-		e, ok := err.(*cmdkit.Error)
-		if !ok {
-			e = &cmdkit.Error{Message: err.Error()}
-		}
-	*/
 	re.closeOnce.Do(func() {
 		re.err = err
 		close(re.ch)
 		close(re.closed)
+	})
+
+	// unblock Length(), Error() and Head()
+	re.waitOnce.Do(func() {
+		close(re.wait)
 	})
 
 	return nil

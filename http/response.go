@@ -96,7 +96,7 @@ func (res *Response) Next() (interface{}, error) {
 	switch val := v.(type) {
 	case *cmdkit.Error:
 		res.err = val
-		return nil, cmds.ErrRcvdError
+		return nil, val
 	case cmds.Single:
 		return val.Value, nil
 	default:

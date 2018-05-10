@@ -2,8 +2,7 @@ package cmds
 
 import (
 	"context"
-
-	"github.com/ipfs/go-ipfs-cmdkit"
+	"runtime/debug"
 )
 
 type Executor interface {
@@ -89,12 +88,18 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) (e
 			re, res = NewChanResponsePair(req)
 
 			go func() {
+				var closeErr error
 				err := cmd.PostRun[typer.Type()](res, lower)
 				if err != nil {
-					err2 := lower.Emit(cmdkit.Error{err.Error(), cmdkit.ErrNormal})
-					if err2 != nil {
-						log.Errorf("error trying to send error message\ncause:\n\t%serror:\n\t%s",
-							err, err2)
+					closeErr = lower.CloseWithError(err)
+				} else {
+					closeErr = lower.Close()
+				}
+
+				if closeErr != nil {
+					log.Errorf("error closing connection: %s", closeErr)
+					if err != nil {
+						log.Errorf("close caused by error: %s", err)
 					}
 				}
 			}()
@@ -102,17 +107,19 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) (e
 	}
 
 	defer func() {
-		re.Close()
-	}()
-	defer func() {
 		// catch panics in Run (esp. from re.SetError)
 		if v := recover(); v != nil {
+			log.Errorf("panic in command handler at %s", debug.Stack())
+
 			// if they are errors
-			if e, ok := v.(error); ok {
+			if err, ok := v.(error); ok {
 				// use them as return error
-				err = re.Emit(cmdkit.Error{Message: e.Error(), Code: cmdkit.ErrNormal})
-				if err != nil {
-					log.Errorf("recovered from command error %q but failed emitting it: %q", e, err)
+				closeErr := re.CloseWithError(err)
+				if closeErr != nil {
+					log.Errorf("error closing connection: %s", closeErr)
+					if err != nil {
+						log.Errorf("close caused by error: %s", err)
+					}
 				}
 			} else {
 				// otherwise keep panicking.
@@ -122,5 +129,11 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) (e
 
 	}()
 	err = cmd.Run(req, re, env)
+	log.Debugf("cmds.Execute: Run returned %q with response emitter of type %T", err, re)
+	if err == nil {
+		return re.Close()
+	}
+
+
 	return re.CloseWithError(err)
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -68,6 +69,11 @@ type responseEmitter struct {
 }
 
 func (re *responseEmitter) Emit(value interface{}) error {
+	if value == nil {
+		log.Error("emitting nil value")
+		debug.PrintStack()
+	}
+
 	ch, isChan := value.(<-chan interface{})
 	if !isChan {
 		ch, isChan = value.(chan interface{})
@@ -155,7 +161,7 @@ func (re *responseEmitter) Close() error {
 }
 
 func (re *responseEmitter) CloseWithError(err error) error {
-	re.once.Do(func() { re.preamble(nil) })
+	re.once.Do(func() { re.preamble(err) })
 
 	re.l.Lock()
 	defer re.l.Unlock()
@@ -204,6 +210,16 @@ func (re *responseEmitter) preamble(value interface{}) {
 			value = err
 		}
 	}
+
+	if err, isErr := value.(error); isErr {
+		_, isCmdErrPtr := err.(*cmdkit.Error)
+		_, isCmdErr := err.(cmdkit.Error)
+
+		if !isCmdErrPtr && !isCmdErr {
+			value = &cmdkit.Error{Message: err.Error()}
+		}
+	}
+
 
 	var mime string
 

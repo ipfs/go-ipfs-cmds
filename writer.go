@@ -94,11 +94,10 @@ func (r *readerResponse) Next() (interface{}, error) {
 	}
 
 	switch val := v.(type) {
-	case *cmdkit.Error:
-		r.err = val
-		return nil, ErrRcvdError
 	case Single:
 		return val.Value, nil
+	case *cmdkit.Error:
+		return nil, val
 	default:
 		return v, nil
 	}

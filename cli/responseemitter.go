@@ -74,6 +74,10 @@ func (re *responseEmitter) SetEncoder(enc func(io.Writer) cmds.Encoder) {
 }
 
 func (re *responseEmitter) CloseWithError(err error) error {
+	if err == nil {
+		return re.Close()
+	}
+
 	e, ok := err.(*cmdkit.Error)
 	if !ok {
 		e = &cmdkit.Error{
@@ -83,6 +87,10 @@ func (re *responseEmitter) CloseWithError(err error) error {
 
 	re.l.Lock()
 	defer re.l.Unlock()
+
+	if re.closed {
+		return errors.New("closing closed emitter")
+	}
 
 	re.errOccurred = true
 	re.exit = 1 // TODO we could let err carry an exit code

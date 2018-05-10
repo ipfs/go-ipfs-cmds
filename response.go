@@ -1,15 +1,10 @@
 package cmds
 
 import (
-	"fmt"
 	"io"
 	"runtime/debug"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
-)
-
-var (
-	ErrRcvdError = fmt.Errorf("received command error")
 )
 
 // Response is the result of a command request. Response is returned to the client.
@@ -46,10 +41,6 @@ func HandleError(err error, res Response, re ResponseEmitter) bool {
 	if err != nil {
 		if err == io.EOF {
 			return false
-		}
-
-		if err == ErrRcvdError {
-			err = res.Error()
 		}
 
 		closeErr := re.CloseWithError(err)

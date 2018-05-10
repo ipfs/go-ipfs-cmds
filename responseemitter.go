@@ -60,14 +60,17 @@ func Copy(re ResponseEmitter, res Response) error {
 	re.SetLength(res.Length())
 
 	for {
-		v, err := res.RawNext()
-		switch err {
-		case nil:
-			// all good, go on
-		case io.EOF:
-			re.Close()
-			return nil
-		default:
+		v, err := res.Next()
+		if err != nil {
+			if err == io.EOF {
+				return re.Close()
+			}
+
+			closeErr := re.CloseWithError(err)
+			if closeErr != nil {
+				log.Errorf("error closing emitter with error %q: %s", err, closeErr)
+			}
+
 			return err
 		}
 
@@ -76,4 +79,15 @@ func Copy(re ResponseEmitter, res Response) error {
 			return err
 		}
 	}
+}
+
+func EmitChan(re ResponseEmitter, ch <-chan interface{}) error {
+	for v := range ch {
+		err := re.Emit(v)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
