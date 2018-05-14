@@ -61,12 +61,8 @@ func (r *chanResponse) Error() *cmdkit.Error {
 		return nil
 	}
 
-	if r.err == nil {
+	if r.err == nil || r.err == io.EOF {
 		return nil
-	}
-
-	if e, ok := r.err.(cmdkit.Error); ok {
-		return &e
 	}
 
 	if e, ok := r.err.(*cmdkit.Error); ok {
@@ -89,10 +85,6 @@ func (r *chanResponse) Length() uint64 {
 func (re *chanResponse) Head() Head {
 	<-re.wait
 
-	if err, ok := re.err.(cmdkit.Error); ok {
-		re.err = &err
-	}
-
 	err, ok := re.err.(*cmdkit.Error)
 	if !ok {
 		err = &cmdkit.Error{Message: re.err.Error()}
@@ -107,10 +99,6 @@ func (re *chanResponse) Head() Head {
 func (r *chanResponse) Next() (interface{}, error) {
 	if r == nil {
 		return nil, io.EOF
-	}
-
-	if r.err != nil {
-		return nil, r.err
 	}
 
 	var ctx context.Context

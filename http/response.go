@@ -37,9 +37,11 @@ func (res *Response) Request() *cmds.Request {
 }
 
 func (res *Response) Error() *cmdkit.Error {
-	e := res.err
-	res.err = nil
-	return e
+	if res.err == io.EOF {
+		return nil
+	}
+
+	return res.err
 }
 
 func (res *Response) Length() uint64 {
@@ -48,10 +50,11 @@ func (res *Response) Length() uint64 {
 
 func (res *Response) RawNext() (interface{}, error) {
 	if res.initErr != nil {
-		err := res.initErr
-		res.initErr = nil
+		return nil, res.initErr
+	}
 
-		return err, nil
+	if res.err != nil {
+		return nil, res.err
 	}
 
 	// nil decoder means stream not chunks
@@ -80,7 +83,24 @@ func (res *Response) RawNext() (interface{}, error) {
 		err = io.EOF
 	}
 
-	return m.Get(), err
+	if err != nil {
+		if err != io.EOF {
+			res.err = &cmdkit.Error{Message: err.Error()}
+		}
+
+		return nil, err
+	}
+
+	v, err := m.Get()
+	if err != nil {
+		if e, ok := err.(*cmdkit.Error); ok {
+			res.err = e
+		} else {
+			res.err = &cmdkit.Error{Message: err.Error()}
+		}
+	}
+
+	return v, err
 }
 
 func (res *Response) Next() (interface{}, error) {
@@ -97,8 +117,6 @@ func (res *Response) Next() (interface{}, error) {
 	case *cmdkit.Error:
 		res.err = val
 		return nil, val
-	case cmds.Single:
-		return val.Value, nil
 	default:
 		return v, nil
 	}

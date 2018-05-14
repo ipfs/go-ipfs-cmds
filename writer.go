@@ -75,12 +75,13 @@ func (r *readerResponse) RawNext() (interface{}, error) {
 
 	r.once.Do(func() { close(r.emitted) })
 
-	v := m.Get()
+	v, err := m.Get()
+
 	// because working with pointers to arrays is annoying
 	if t := reflect.TypeOf(v); t.Kind() == reflect.Ptr && t.Elem().Kind() == reflect.Slice {
 		v = reflect.ValueOf(v).Elem().Interface()
 	}
-	return v, nil
+	return v, err
 }
 
 func (r *readerResponse) Next() (interface{}, error) {
@@ -185,22 +186,24 @@ func (re *WriterResponseEmitter) Emit(v interface{}) error {
 
 type MaybeError struct {
 	Value interface{} // needs to be a pointer
-	Error cmdkit.Error
+	Error *cmdkit.Error
 
 	isError bool
 }
 
-func (m *MaybeError) Get() interface{} {
+func (m *MaybeError) Get() (interface{}, error) {
 	if m.isError {
-		return m.Error
+		return nil, m.Error
 	}
-	return m.Value
+	return m.Value, nil
 }
 
 func (m *MaybeError) UnmarshalJSON(data []byte) error {
-	err := json.Unmarshal(data, &m.Error)
+	var e cmdkit.Error
+	err := json.Unmarshal(data, &e)
 	if err == nil {
 		m.isError = true
+		m.Error = &e
 		return nil
 	}
 

@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type Foo struct {
@@ -19,11 +21,13 @@ type Bar struct {
 }
 
 type ValueError struct {
-	Error error
-	Value interface{}
+	DecodeError error
+	Error       *cmdkit.Error
+	Value       interface{}
 }
 
 type anyTestCase struct {
+	Name    string
 	Value   interface{}
 	JSON    string
 	Decoded []ValueError
@@ -32,79 +36,88 @@ type anyTestCase struct {
 func TestMaybeError(t *testing.T) {
 	testcases := []anyTestCase{
 		{
+			Name:  "typed-pointer",
 			Value: &Foo{},
 			JSON:  `{"Bar":23}{"Bar":42}{"Message":"some error", "Type": "error"}`,
 			Decoded: []ValueError{
-				ValueError{Error: nil, Value: &Foo{23}},
-				ValueError{Error: nil, Value: &Foo{42}},
-				ValueError{Error: nil, Value: cmdkit.Error{Message: "some error", Code: 0}},
+				ValueError{Value: &Foo{23}},
+				ValueError{Value: &Foo{42}},
+				ValueError{Error: &cmdkit.Error{Message: "some error", Code: 0}},
 			},
 		},
 		{
+			Name:  "typed-value",
 			Value: Foo{},
 			JSON:  `{"Bar":23}{"Bar":42}{"Message":"some error", "Type": "error"}`,
 			Decoded: []ValueError{
-				ValueError{Error: nil, Value: &Foo{23}},
-				ValueError{Error: nil, Value: &Foo{42}},
-				ValueError{Error: nil, Value: cmdkit.Error{Message: "some error", Code: 0}},
+				ValueError{Value: &Foo{23}},
+				ValueError{Value: &Foo{42}},
+				ValueError{Error: &cmdkit.Error{Message: "some error", Code: 0}},
 			},
 		},
 		{
+			Name:  "typed2-pointer",
 			Value: &Bar{},
 			JSON:  `{"Foo":""}{"Foo":"Qmabc"}{"Message":"some error", "Type": "error"}`,
 			Decoded: []ValueError{
-				ValueError{Error: nil, Value: &Bar{""}},
-				ValueError{Error: nil, Value: &Bar{"Qmabc"}},
-				ValueError{Error: nil, Value: cmdkit.Error{Message: "some error", Code: 0}},
+				ValueError{Value: &Bar{""}},
+				ValueError{Value: &Bar{"Qmabc"}},
+				ValueError{Error: &cmdkit.Error{Message: "some error", Code: 0}},
 			},
 		},
 		{
+			Name:  "typed2-value",
 			Value: Bar{},
 			JSON:  `{"Foo":""}{"Foo":"Qmabc"}{"Message":"some error", "Type": "error"}`,
 			Decoded: []ValueError{
-				ValueError{Error: nil, Value: &Bar{""}},
-				ValueError{Error: nil, Value: &Bar{"Qmabc"}},
-				ValueError{Error: nil, Value: cmdkit.Error{Message: "some error", Code: 0}},
+				ValueError{Value: &Bar{""}},
+				ValueError{Value: &Bar{"Qmabc"}},
+				ValueError{Error: &cmdkit.Error{Message: "some error", Code: 0}},
 			},
 		},
 		{
+			Name: "untyped",
 			JSON: `{"Foo":"bar", "i": 4}"some string"5{"Message":"some error", "Type": "error"}`,
 			Decoded: []ValueError{
-				ValueError{Error: nil, Value: map[string]interface{}{"Foo": "bar", "i": 4.0}},
-				ValueError{Error: nil, Value: "some string"},
-				ValueError{Error: nil, Value: 5.0},
-				ValueError{Error: nil, Value: cmdkit.Error{Message: "some error", Code: 0}},
+				ValueError{Value: map[string]interface{}{"Foo": "bar", "i": 4.0}},
+				ValueError{Value: "some string"},
+				ValueError{Value: 5.0},
+				ValueError{Error: &cmdkit.Error{Message: "some error", Code: 0}},
 			},
 		},
 	}
 
 	for _, tc := range testcases {
+		t.Run(tc.Name, func(t *testing.T) {
+			a := assert.New(t)
 
-		r := strings.NewReader(tc.JSON)
-		d := json.NewDecoder(r)
+			r := strings.NewReader(tc.JSON)
+			d := json.NewDecoder(r)
 
-		var err error
+			var err error
 
-		for _, dec := range tc.Decoded {
+			for _, dec := range tc.Decoded {
+				m := &MaybeError{Value: tc.Value}
+
+				err = d.Decode(m)
+				a.Equal(dec.DecodeError, err, "decode error")
+
+				val, err := m.Get()
+
+				if dec.Value != nil {
+					ex := dec.Value
+					if !reflect.DeepEqual(ex, val) {
+						t.Errorf("value is %#v(%T), expected %#v(%T)", val, val, ex, ex)
+					}
+				} else {
+					a.Equal(dec.Error, err, "response error")
+				}
+			}
+
 			m := &MaybeError{Value: tc.Value}
-
 			err = d.Decode(m)
-			if err != dec.Error {
-				t.Fatalf("error is %v, expected %v", err, dec.Error)
-			}
-
-			rx := m.Get()
-			ex := dec.Value
-
-			if !reflect.DeepEqual(ex, rx) {
-				t.Errorf("value is %#v(%T), expected %#v(%T)", rx, rx, ex, ex)
-			}
-		}
-
-		m := &MaybeError{Value: tc.Value}
-		err = d.Decode(m)
-		if err != io.EOF {
-			t.Fatal("data left in decoder:", m.Get())
-		}
+			val, e := m.Get()
+			a.Equal(io.EOF, err, "data left in decoder", val, e)
+		})
 	}
 }

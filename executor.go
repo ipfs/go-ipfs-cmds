@@ -134,6 +134,5 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) (e
 		return re.Close()
 	}
 
-
 	return re.CloseWithError(err)
 }

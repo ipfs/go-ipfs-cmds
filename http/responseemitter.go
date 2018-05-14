@@ -220,7 +220,6 @@ func (re *responseEmitter) preamble(value interface{}) {
 		}
 	}
 
-
 	var mime string
 
 	switch v := value.(type) {
