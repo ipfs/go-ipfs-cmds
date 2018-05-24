@@ -8,9 +8,30 @@ import (
 	"testing"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
-
-	"github.com/stretchr/testify/assert"
 )
+
+func errcmp(t *testing.T, exp, got error, msg string) {
+	if exp == nil && got == nil {
+		return
+	}
+
+	if exp != nil && got != nil {
+		if exp.Error() == got.Error() {
+			return
+		}
+
+		t.Errorf("expected %s to be %q but got %q", msg, exp, got)
+		return
+	}
+
+	if exp == nil {
+		t.Errorf("expected %s to be nil but got %q", msg, got)
+	}
+
+	if got == nil {
+		t.Errorf("expected %s to be %q but got nil", msg, exp)
+	}
+}
 
 type Foo struct {
 	Bar int
@@ -89,8 +110,6 @@ func TestMaybeError(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.Name, func(t *testing.T) {
-			a := assert.New(t)
-
 			r := strings.NewReader(tc.JSON)
 			d := json.NewDecoder(r)
 
@@ -100,8 +119,7 @@ func TestMaybeError(t *testing.T) {
 				m := &MaybeError{Value: tc.Value}
 
 				err = d.Decode(m)
-				a.Equal(dec.DecodeError, err, "decode error")
-
+				errcmp(t, dec.DecodeError, err, "decode error")
 				val, err := m.Get()
 
 				if dec.Value != nil {
@@ -110,14 +128,17 @@ func TestMaybeError(t *testing.T) {
 						t.Errorf("value is %#v(%T), expected %#v(%T)", val, val, ex, ex)
 					}
 				} else {
-					a.Equal(dec.Error, err, "response error")
+					errcmp(t, dec.Error, err, "response error")
 				}
 			}
 
 			m := &MaybeError{Value: tc.Value}
 			err = d.Decode(m)
 			val, e := m.Get()
-			a.Equal(io.EOF, err, "data left in decoder", val, e)
+			if err != io.EOF {
+				t.Log("superflouus data:", val, e)
+				errcmp(t, io.EOF, err, "final decode error")
+			}
 		})
 	}
 }
