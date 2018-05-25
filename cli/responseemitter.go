@@ -7,6 +7,7 @@ import (
 	"os"
 	"runtime/debug"
 	"sync"
+	"syscall"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-cmds"
@@ -132,16 +133,33 @@ func (re *responseEmitter) close() error {
 		re.closed = true
 	}()
 
+	// ignore error if the operating system doesn't support syncing std{out,err}
+	ignoreError := func(err error) bool {
+		if perr, ok := err.(*os.PathError);
+			ok &&
+			perr.Op == "sync" && (
+				perr.Err == syscall.EINVAL ||
+				perr.Err == syscall.ENOTSUP) {
+			return true
+		}
+
+		return false
+	}
+
 	if f, ok := re.stderr.(*os.File); ok {
 		err := f.Sync()
 		if err != nil {
-			return err
+			if !ignoreError(err) {
+				return err
+			}
 		}
 	}
 	if f, ok := re.stdout.(*os.File); ok {
 		err := f.Sync()
 		if err != nil {
-			return err
+			if !ignoreError(err) {
+				return err
+			}
 		}
 	}
 
