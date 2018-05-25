@@ -135,11 +135,9 @@ func (re *responseEmitter) close() error {
 
 	// ignore error if the operating system doesn't support syncing std{out,err}
 	ignoreError := func(err error) bool {
-		if perr, ok := err.(*os.PathError);
-			ok &&
-			perr.Op == "sync" && (
-				perr.Err == syscall.EINVAL ||
-				perr.Err == syscall.ENOTSUP) {
+		if perr, ok := err.(*os.PathError); ok &&
+			perr.Op == "sync" && (perr.Err == syscall.EINVAL ||
+			perr.Err == syscall.ENOTSUP) {
 			return true
 		}
 
