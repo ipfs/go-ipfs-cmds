@@ -165,6 +165,15 @@ func (r *chanResponse) RawNext() (interface{}, error) {
 type chanResponseEmitter chanResponse
 
 func (re *chanResponseEmitter) Emit(v interface{}) error {
+	// Initially this library allowed commands to return errors by sending an
+	// error value along a stream. We removed that in favour of CloseWithError,
+	// so we want to make sure we catch situations where some code still uses the
+	// old error emitting semantics.
+	// Also errors may occur both as pointers and as plain values, so we need to
+	// check both.
+	if e, ok := v.(cmdkit.Error); ok {
+		v = &e
+	}
 	if e, ok := v.(*cmdkit.Error); ok {
 		log.Errorf("unexpected error value emitted: %s at\n%s", e.Error(), debug.Stack())
 	}
