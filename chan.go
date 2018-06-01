@@ -126,10 +126,6 @@ func (r *chanResponse) Next() (interface{}, error) {
 		}
 
 		switch val := v.(type) {
-		case *cmdkit.Error:
-			// TODO keks remove logging
-			log.Error("unexpected error value:", val)
-			return val, nil
 		case Single:
 			return val.Value, nil
 		default:
