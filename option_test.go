@@ -88,11 +88,11 @@ func TestParse(t *testing.T) {
 		if err != nil && err.Error() != tc.err {
 			t.Errorf("unexpected error: %s", err)
 		} else if err == nil && tc.err != "" {
-			t.Errorf("expected error %q but got nil")
+			t.Errorf("expected error %q but got nil", tc.err)
 		}
 
 		if v != tc.v {
-			t.Error("expected %v but got %v", tc.v, v)
+			t.Errorf("expected %v but got %v", tc.v, v)
 		}
 	}
 }

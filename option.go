@@ -106,7 +106,7 @@ var converters = map[reflect.Kind]converter{
 func (o *option) Parse(v string) (interface{}, error) {
 	conv, ok := converters[o.Type()]
 	if !ok {
-		return nil, fmt.Errorf("option %q takes %s arguments, but was passed %q", o, o.Type, v)
+		return nil, fmt.Errorf("option %q takes %s arguments, but was passed %q", o.Name(), o.Type(), v)
 	}
 
 	return conv(v)

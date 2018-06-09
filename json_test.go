@@ -36,7 +36,7 @@ func TestMarshal(t *testing.T) {
 		}
 
 		if len(m) != 3 {
-			t.Errorf("expected three map elements, got ", len(m))
+			t.Errorf("expected three map elements, got %d", len(m))
 		}
 
 		if m["Message"].(string) != tc.msg {
