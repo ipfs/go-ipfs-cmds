@@ -77,18 +77,17 @@ func (res *Response) RawNext() (interface{}, error) {
 	}
 	m := &cmds.MaybeError{Value: value}
 	err := res.dec.Decode(m)
-
-	// last error was sent as value, now we get the same error from the headers. ignore and EOF!
-	if err != nil && res.err != nil && err.Error() == res.err.Error() {
-		err = io.EOF
-	}
-
 	if err != nil {
-		if err != io.EOF {
+		if res.err != nil && err.Error() == res.err.Error() {
+			// last error was sent as value, now we get the same error from the headers. ignore and EOF!
+			err = io.EOF
+		} else if err == io.EOF {
+			// just return EOF errors
+			return nil, err
+		} else {
+			// wrap all other errors
 			res.err = &cmdkit.Error{Message: err.Error()}
 		}
-
-		return nil, err
 	}
 
 	v, err := m.Get()
