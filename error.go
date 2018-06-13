@@ -28,7 +28,7 @@ type Error struct {
 // Errorf returns an Error with the given code and format specification
 func Errorf(code ErrorType, format string, args ...interface{}) Error {
 	return Error{
-		Code: code,
+		Code:    code,
 		Message: fmt.Sprintf(format, args...),
 	}
 }
