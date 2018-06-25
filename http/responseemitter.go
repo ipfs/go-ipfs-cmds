@@ -123,13 +123,6 @@ func (re *responseEmitter) Emit(value interface{}) error {
 	switch v := value.(type) {
 	case io.Reader:
 		err = flushCopy(re.w, v)
-	case *cmdkit.Error:
-		if re.streaming || v.Code == cmdkit.ErrFatal {
-			// abort by sending an error trailer
-			re.w.Header().Add(StreamErrHeader, v.Error())
-		} else {
-			err = re.enc.Encode(value)
-		}
 	default:
 		err = re.enc.Encode(value)
 	}
@@ -156,32 +149,23 @@ func (re *responseEmitter) SetLength(l uint64) {
 }
 
 func (re *responseEmitter) Close() error {
-	re.once.Do(func() { re.preamble(nil) })
-	return nil
+	return re.CloseWithError(nil)
 }
 
 func (re *responseEmitter) CloseWithError(err error) error {
-	re.once.Do(func() { re.preamble(err) })
-
 	re.l.Lock()
 	defer re.l.Unlock()
 
-	e, ok := err.(*cmdkit.Error)
-	if !ok {
-		e = &cmdkit.Error{Message: err.Error()}
-	}
+	return re.closeWithError(err)
+}
 
-	if re.streaming || e.Code == cmdkit.ErrFatal {
+func (re *responseEmitter) closeWithError(err error) error {
+	if err != nil {
 		// abort by sending an error trailer
 		re.w.Header().Add(StreamErrHeader, err.Error())
-	} else {
-		err = re.enc.Encode(e)
-		if err != nil {
-			return err
-		}
 	}
 
-	return re.Close()
+	return nil
 }
 
 // Flush the http connection
@@ -197,47 +181,12 @@ func (re *responseEmitter) preamble(value interface{}) {
 	re.l.Lock()
 	defer re.l.Unlock()
 
-	status := http.StatusOK
-	h := re.w.Header()
+	var (
+		h = re.w.Header()
+		mime string
+	)
 
-	// unpack value if it needs special treatment in the type switch below
-	if s, isSingle := value.(cmds.Single); isSingle {
-		if err, isErr := s.Value.(cmdkit.Error); isErr {
-			value = &err
-		}
-
-		if err, isErr := s.Value.(*cmdkit.Error); isErr {
-			value = err
-		}
-	}
-
-	if err, isErr := value.(error); isErr {
-		_, isCmdErrPtr := err.(*cmdkit.Error)
-		_, isCmdErr := err.(cmdkit.Error)
-
-		if !isCmdErrPtr && !isCmdErr {
-			value = &cmdkit.Error{Message: err.Error()}
-		}
-	}
-
-	var mime string
-
-	switch v := value.(type) {
-	case *cmdkit.Error:
-		err := v
-		if err.Code == cmdkit.ErrClient {
-			status = http.StatusBadRequest
-		} else {
-			status = http.StatusInternalServerError
-		}
-
-		// if this is not a head request, the error will be sent as a trailer or as a value
-		if re.method == "HEAD" {
-			http.Error(re.w, err.Error(), status)
-			re.w = nil
-
-			return
-		}
+	switch value.(type) {
 	case io.Reader:
 		// set streams output type to text to avoid issues with browsers rendering
 		// html pages on priveleged api ports
@@ -246,6 +195,7 @@ func (re *responseEmitter) preamble(value interface{}) {
 
 		mime = "text/plain"
 	case cmds.Single:
+		// don't set stream/channel header
 	case nil:
 		h.Set(channelHeader, "1")
 	default:
@@ -273,7 +223,7 @@ func (re *responseEmitter) preamble(value interface{}) {
 	// expose those headers
 	h.Set("Access-Control-Expose-Headers", AllowedExposedHeaders)
 
-	re.w.WriteHeader(status)
+	re.w.WriteHeader(http.StatusOK)
 }
 
 type responseWriterer interface {

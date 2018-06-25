@@ -21,7 +21,7 @@ var (
 
 type Response struct {
 	length uint64
-	err    *cmdkit.Error
+	err    error
 
 	res *http.Response
 	req *cmds.Request
@@ -41,7 +41,15 @@ func (res *Response) Error() *cmdkit.Error {
 		return nil
 	}
 
-	return res.err
+	switch err := res.err.(type) {
+	case *cmdkit.Error:
+		return err
+	case cmdkit.Error:
+		return &err
+	default:
+		// i.e. is a regular error
+		return &cmdkit.Error{Message: res.err.Error()}
+	}
 }
 
 func (res *Response) Length() uint64 {
@@ -78,15 +86,13 @@ func (res *Response) RawNext() (interface{}, error) {
 	m := &cmds.MaybeError{Value: value}
 	err := res.dec.Decode(m)
 	if err != nil {
-		if res.err != nil && err.Error() == res.err.Error() {
-			// last error was sent as value, now we get the same error from the headers. ignore and EOF!
-			err = io.EOF
-		} else if err == io.EOF {
-			// just return EOF errors
+		if err == io.EOF {
+			res.err = err
 			return nil, err
 		} else {
 			// wrap all other errors
 			res.err = &cmdkit.Error{Message: err.Error()}
+			return nil, res.err
 		}
 	}
 
@@ -103,22 +109,7 @@ func (res *Response) RawNext() (interface{}, error) {
 }
 
 func (res *Response) Next() (interface{}, error) {
-	v, err := res.RawNext()
-	if err != nil {
-		return nil, err
-	}
-
-	if err, ok := v.(cmdkit.Error); ok {
-		v = &err
-	}
-
-	switch val := v.(type) {
-	case *cmdkit.Error:
-		res.err = val
-		return nil, val
-	default:
-		return v, nil
-	}
+	return res.RawNext()
 }
 
 // responseReader reads from the response body, and checks for an error

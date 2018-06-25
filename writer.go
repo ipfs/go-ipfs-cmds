@@ -85,23 +85,7 @@ func (r *readerResponse) RawNext() (interface{}, error) {
 }
 
 func (r *readerResponse) Next() (interface{}, error) {
-	v, err := r.RawNext()
-	if err != nil {
-		return nil, err
-	}
-
-	if err, ok := v.(cmdkit.Error); ok {
-		v = &err
-	}
-
-	switch val := v.(type) {
-	case Single:
-		return val.Value, nil
-	case *cmdkit.Error:
-		return nil, val
-	default:
-		return v, nil
-	}
+	return r.RawNext()
 }
 
 type WriterResponseEmitter struct {
