@@ -57,10 +57,6 @@ func (r *chanResponse) Request() *Request {
 func (r *chanResponse) Error() *cmdkit.Error {
 	<-r.wait
 
-	if r == nil {
-		return nil
-	}
-
 	if r.err == nil || r.err == io.EOF {
 		return nil
 	}
@@ -75,24 +71,25 @@ func (r *chanResponse) Error() *cmdkit.Error {
 func (r *chanResponse) Length() uint64 {
 	<-r.wait
 
-	if r == nil {
-		return 0
-	}
-
 	return r.length
 }
 
 func (re *chanResponse) Head() Head {
 	<-re.wait
 
-	err, ok := re.err.(*cmdkit.Error)
-	if !ok {
-		err = &cmdkit.Error{Message: re.err.Error()}
+	var err error
+	if re.err != io.EOF {
+		err = re.err
+	}
+
+	cmdErr, ok := err.(*cmdkit.Error)
+	if !ok && err != nil {
+		cmdErr = &cmdkit.Error{Message: err.Error()}
 	}
 
 	return Head{
 		Len: re.length,
-		Err: err,
+		Err: cmdErr,
 	}
 }
 
