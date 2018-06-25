@@ -68,40 +68,39 @@ var ErrIncorrectType = errors.New("The command returned a value with a different
 
 // Call invokes the command for the given Request
 func (c *Command) Call(req *Request, re ResponseEmitter, env Environment) {
-	var err error
+	var closeErr error
 
-	defer func() {
-		var closeErr error
-		if err == nil {
-			closeErr = re.Close()
-		} else {
-			closeErr = re.CloseWithError(err)
+	err := c.call(req, re, env)
+	if err == nil {
+		closeErr = re.Close()
+	} else {
+		closeErr = re.CloseWithError(err)
+	}
+
+	if closeErr != nil {
+		log.Errorf("error closing connection: %s", closeErr)
+		if err != nil {
+			log.Errorf("close caused by error: %s", err)
 		}
+	}
+}
 
-		if closeErr != nil {
-			log.Errorf("error closing connection: %s", closeErr)
-			if err != nil {
-				log.Errorf("close caused by error: %s", err)
-			}
-		}
-	}()
-
-	var cmd *Command
-	cmd, err = c.Get(req.Path)
+func (c *Command) call(req *Request, re ResponseEmitter, env Environment) error {
+	cmd, err := c.Get(req.Path)
 	if err != nil {
 		log.Errorf("could not get cmd from path %q: %q", req.Path, err)
-		return
+		return err
 	}
 
 	if cmd.Run == nil {
 		log.Errorf("returned command has nil Run function")
-		return
+		return err
 	}
 
 	err = cmd.CheckArguments(req)
 	if err != nil {
 		log.Errorf("CheckArguments returned an error for path %q: %q", req.Path, err)
-		return
+		return err
 	}
 
 	// If this ResponseEmitter encodes messages (e.g. http, cli or writer - but not chan),
@@ -119,7 +118,7 @@ func (c *Command) Call(req *Request, re ResponseEmitter, env Environment) {
 		}
 	}
 
-	err = cmd.Run(req, re, env)
+	return cmd.Run(req, re, env)
 }
 
 // Resolve returns the subcommands at the given path
