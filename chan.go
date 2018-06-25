@@ -116,11 +116,7 @@ func (r *chanResponse) Next() (interface{}, error) {
 	case v, ok := <-r.ch:
 		if !ok {
 			r.ch = nil
-			if r.err != nil {
-				return nil, r.err
-			}
-
-			return nil, io.EOF
+			return nil, r.err
 		}
 
 		if err, ok := v.(*cmdkit.Error); ok {
@@ -225,6 +221,10 @@ func (re *chanResponseEmitter) SetLength(l uint64) {
 	re.length = l
 }
 
+func (re *chanResponseEmitter) Close() error {
+	return re.CloseWithError(nil)
+}
+
 func (re *chanResponseEmitter) CloseWithError(err error) error {
 	re.wl.Lock()
 	defer re.wl.Unlock()
@@ -233,6 +233,10 @@ func (re *chanResponseEmitter) CloseWithError(err error) error {
 }
 
 func (re *chanResponseEmitter) closeWithError(err error) error {
+	if err == nil {
+		err = io.EOF
+	}
+
 	if e, ok := err.(cmdkit.Error); ok {
 		err = &e
 	}
@@ -249,11 +253,4 @@ func (re *chanResponseEmitter) closeWithError(err error) error {
 	})
 
 	return nil
-}
-
-func (re *chanResponseEmitter) Close() error {
-	re.wl.Lock()
-	defer re.wl.Unlock()
-
-	return re.closeWithError(io.EOF)
 }
