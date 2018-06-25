@@ -27,7 +27,8 @@ func NewChanResponsePair(req *Request) (ResponseEmitter, Response) {
 }
 
 type chanResponse struct {
-	l   sync.Mutex
+	wl  sync.Mutex // lock for writing calls, i.e. Emit et al.
+	rl  sync.Mutex // lock for reading calls, i.e. Next
 	req *Request
 
 	// wait makes header requests block until the body is sent
@@ -104,6 +105,10 @@ func (r *chanResponse) Next() (interface{}, error) {
 	} else {
 		ctx = context.Background()
 	}
+
+	// to avoid races by setting r.ch to nil
+	r.rl.Lock()
+	defer r.rl.Unlock()
 
 	select {
 	case <-r.closed:
@@ -189,12 +194,8 @@ func (re *chanResponseEmitter) Emit(v interface{}) error {
 		close(re.wait)
 	})
 
-	re.l.Lock()
-	defer re.l.Unlock()
-
-	if re.ch == nil {
-		return fmt.Errorf("emitter closed")
-	}
+	re.wl.Lock()
+	defer re.wl.Unlock()
 
 	if _, ok := v.(Single); ok {
 		defer re.closeWithError(io.EOF)
@@ -203,6 +204,8 @@ func (re *chanResponseEmitter) Emit(v interface{}) error {
 	ctx := re.req.Context
 
 	select {
+	case <-re.closed:
+		return fmt.Errorf("emitter closed")
 	case re.ch <- v:
 		return nil
 	case <-ctx.Done():
@@ -211,8 +214,8 @@ func (re *chanResponseEmitter) Emit(v interface{}) error {
 }
 
 func (re *chanResponseEmitter) SetLength(l uint64) {
-	re.l.Lock()
-	defer re.l.Unlock()
+	re.wl.Lock()
+	defer re.wl.Unlock()
 
 	// don't change value after emitting
 	if re.emitted {
@@ -223,8 +226,8 @@ func (re *chanResponseEmitter) SetLength(l uint64) {
 }
 
 func (re *chanResponseEmitter) CloseWithError(err error) error {
-	re.l.Lock()
-	defer re.l.Unlock()
+	re.wl.Lock()
+	defer re.wl.Unlock()
 
 	return re.closeWithError(err)
 }
@@ -249,8 +252,8 @@ func (re *chanResponseEmitter) closeWithError(err error) error {
 }
 
 func (re *chanResponseEmitter) Close() error {
-	re.l.Lock()
-	defer re.l.Unlock()
+	re.wl.Lock()
+	defer re.wl.Unlock()
 
 	return re.closeWithError(io.EOF)
 }
