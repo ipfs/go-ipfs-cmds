@@ -3,10 +3,8 @@ package cli
 import (
 	"bytes"
 	"fmt"
-	//"io"
 	"testing"
 
-	//"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-cmds"
 )
 
