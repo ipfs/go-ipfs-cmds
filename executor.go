@@ -76,6 +76,8 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) (e
 		}
 	}
 
+	errCh := make(chan error)
+
 	if cmd.PostRun != nil {
 		if typer, ok := re.(interface {
 			Type() PostRunType
@@ -89,21 +91,24 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) (e
 
 			go func() {
 				var closeErr error
+
+				defer close(errCh)
+
 				err := cmd.PostRun[typer.Type()](res, lower)
 				if err != nil {
 					closeErr = lower.CloseWithError(err)
-				} else {
-					closeErr = lower.Close()
+					errCh <- closeErr
 				}
 
-				if closeErr != nil {
+				if closeErr != nil && err != nil {
 					log.Errorf("error closing connection: %s", closeErr)
-					if err != nil {
-						log.Errorf("close caused by error: %s", err)
-					}
+					log.Errorf("close caused by error: %s", err)
 				}
 			}()
 		}
+	} else {
+		// not using this channel today
+		close(errCh)
 	}
 
 	defer func() {
@@ -130,9 +135,11 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) (e
 	}()
 	err = cmd.Run(req, re, env)
 	log.Debugf("cmds.Execute: Run returned %q with response emitter of type %T", err, re)
-	if err == nil {
-		return re.Close()
+	closeErr := re.CloseWithError(err)
+	if closeErr != nil {
+		return err
 	}
 
-	return re.CloseWithError(err)
+	// return error from the PostRun Close
+	return <-errCh
 }
