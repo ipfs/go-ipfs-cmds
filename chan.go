@@ -119,7 +119,7 @@ func (r *chanResponse) Next() (interface{}, error) {
 			return nil, r.err
 		}
 
-		if err, ok := v.(*cmdkit.Error); ok {
+		if err, ok := v.(cmdkit.Error); ok {
 			v = &err
 		}
 
