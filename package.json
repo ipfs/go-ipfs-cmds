@@ -31,9 +31,9 @@
     },
     {
       "author": "whyrusleeping",
-      "hash": "Qmb3WWGVSrvhkDmuajyQWfvNdURCa1q9TVuj6giAGuq3Bk",
+      "hash": "QmRPkGkHLB72caXgdDYnoaWigXNWx95BcYDKV1n3KTEpaG",
       "name": "go-libp2p-loggables",
-      "version": "1.1.17"
+      "version": "1.1.18"
     },
     {
       "author": "texttheater",
@@ -53,6 +53,6 @@
   "license": "MIT",
   "name": "go-ipfs-cmds",
   "releaseCmd": "git commit -a -m \"gx publish $VERSION\"",
-  "version": "1.0.17"
+  "version": "1.0.18"
 }
 
