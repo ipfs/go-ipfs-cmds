@@ -116,7 +116,7 @@ func (req *Request) convertOptions(root *Command) error {
 					if len(str) == 0 {
 						value = "empty value"
 					}
-					return fmt.Errorf("Could not convert %q to type %q (for option %q)",
+					return fmt.Errorf("Could not convert %s to type %q (for option %q)",
 						value, opt.Type().String(), "-"+k)
 				}
 				req.Options[k] = val

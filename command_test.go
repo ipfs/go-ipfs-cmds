@@ -3,6 +3,7 @@ package cmds
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"testing"
 	"time"
@@ -22,81 +23,50 @@ func TestOptionValidation(t *testing.T) {
 		Run: noop,
 	}
 
-	re := newTestEmitter(t)
-	req, err := NewRequest(context.Background(), nil, map[string]interface{}{
-		"beep": true,
-	}, nil, nil, cmd)
-	if err == nil {
-		t.Error("Should have failed (incorrect type)")
+	type testcase struct {
+		opts            map[string]interface{}
+		NewRequestError string
 	}
 
-	re = newTestEmitter(t)
-	req, err = NewRequest(context.Background(), nil, map[string]interface{}{
-		"beep": 5,
-	}, nil, nil, cmd)
-	if err != nil {
-		t.Error(err, "Should have passed")
-	}
-	cmd.Call(req, re, nil)
+	mkTest := func(tc testcase) func(*testing.T) {
+		return func(t *testing.T) {
+			re := newTestEmitter(t)
+			req, err := NewRequest(context.Background(), nil, tc.opts, nil, nil, cmd)
+			if tc.NewRequestError == "" {
+				if err != nil {
+					t.Errorf("unexpected error %q", err)
+				}
 
-	re = newTestEmitter(t)
-	req, err = NewRequest(context.Background(), nil, map[string]interface{}{
-		"beep": 5,
-		"boop": "test",
-	}, nil, nil, cmd)
-	if err != nil {
-		t.Error("Should have passed")
-	}
-
-	cmd.Call(req, re, nil)
-
-	re = newTestEmitter(t)
-	req, err = NewRequest(context.Background(), nil, map[string]interface{}{
-		"b": 5,
-		"B": "test",
-	}, nil, nil, cmd)
-	if err != nil {
-		t.Error("Should have passed")
+				cmd.Call(req, re, nil)
+			} else {
+				if err == nil {
+					t.Errorf("Should have failed with error %q", tc.NewRequestError)
+				} else if err.Error() != tc.NewRequestError {
+					t.Errorf("expected error %q, got %q", tc.NewRequestError, err)
+				}
+			}
+		}
 	}
 
-	cmd.Call(req, re, nil)
-
-	re = newTestEmitter(t)
-	req, err = NewRequest(context.Background(), nil, map[string]interface{}{
-		"foo": 5,
-	}, nil, nil, cmd)
-	if err != nil {
-		t.Error("Should have passed")
+	tcs := []testcase{
+		{
+			opts:            map[string]interface{}{"boop": true},
+			NewRequestError: `Option "boop" should be type "string", but got type "bool"`,
+		},
+		{opts: map[string]interface{}{"beep": 5}},
+		{opts: map[string]interface{}{"beep": 5, "boop": "test"}},
+		{opts: map[string]interface{}{"b": 5, "B": "test"}},
+		{opts: map[string]interface{}{"foo": 5}},
+		{opts: map[string]interface{}{EncLong: "json"}},
+		{opts: map[string]interface{}{"beep": "100"}},
+		{
+			opts:            map[string]interface{}{"beep": ":)"},
+			NewRequestError: `Could not convert value ":)" to type "int" (for option "-beep")`,
+		},
 	}
 
-	cmd.Call(req, re, nil)
-
-	re = newTestEmitter(t)
-	req, err = NewRequest(context.Background(), nil, map[string]interface{}{
-		EncLong: "json",
-	}, nil, nil, cmd)
-	if err != nil {
-		t.Error("Should have passed")
-	}
-
-	cmd.Call(req, re, nil)
-
-	re = newTestEmitter(t)
-	req, err = NewRequest(context.Background(), nil, map[string]interface{}{
-		"b": "100",
-	}, nil, nil, cmd)
-	if err != nil {
-		t.Error("Should have passed")
-	}
-
-	cmd.Call(req, re, nil)
-
-	re = newTestEmitter(t)
-	req, err = NewRequest(context.Background(), nil, map[string]interface{}{
-		"b": ":)",
-	}, nil, nil, cmd)
-	if err == nil {
-		t.Error("Should have failed (string value not convertible to int)")
+	for i, tc := range tcs {
+		t.Run(fmt.Sprint(i), mkTest(tc))
 	}
 }
 
