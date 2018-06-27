@@ -37,7 +37,7 @@ func (res *Response) Request() *cmds.Request {
 }
 
 func (res *Response) Error() *cmdkit.Error {
-	if res.err == io.EOF {
+	if res.err == io.EOF || res.err == nil {
 		return nil
 	}
 

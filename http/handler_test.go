@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http/httptest"
@@ -54,6 +55,11 @@ var (
 		},
 
 		Subcommands: map[string]*cmds.Command{
+			"error": &cmds.Command{
+				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+					return errors.New("an error occurred")
+				},
+			},
 			"version": &cmds.Command{
 				Helptext: cmdkit.HelpText{
 					Tagline:          "Show ipfs version information.",

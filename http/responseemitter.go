@@ -103,7 +103,7 @@ func (re *responseEmitter) Emit(value interface{}) error {
 
 	if single, ok := value.(cmds.Single); ok {
 		value = single.Value
-		defer re.Close()
+		defer re.closeWithError(nil)
 	}
 
 	if re.w == nil {
@@ -115,9 +115,12 @@ func (re *responseEmitter) Emit(value interface{}) error {
 		return nil
 	}
 
-	if _, ok := value.(cmdkit.Error); ok {
-		log.Warning("fixme: got Error not *Error: ", value)
-		value = &value
+	if err, ok := value.(cmdkit.Error); ok {
+		panic("fixme: got a cmdkit.Error: " + err.Error())
+	}
+
+	if err, ok := value.(*cmdkit.Error); ok {
+		panic("fixme: got a *cmdkit.Error: " + err.Error())
 	}
 
 	switch v := value.(type) {
@@ -160,9 +163,12 @@ func (re *responseEmitter) CloseWithError(err error) error {
 }
 
 func (re *responseEmitter) closeWithError(err error) error {
-	if err != nil {
+	// use preamble directly, we're already in critical section
+	re.once.Do(func() { re.doPreamble(nil) })
+
+	if err != nil && err != io.EOF {
 		// abort by sending an error trailer
-		re.w.Header().Add(StreamErrHeader, err.Error())
+		re.w.Header().Set(StreamErrHeader, err.Error())
 	}
 
 	return nil
@@ -181,12 +187,17 @@ func (re *responseEmitter) preamble(value interface{}) {
 	re.l.Lock()
 	defer re.l.Unlock()
 
+	re.doPreamble(value)
+}
+
+func (re *responseEmitter) doPreamble(value interface{}) {
 	var (
-		h    = re.w.Header()
-		mime string
+		h      = re.w.Header()
+		status = http.StatusOK
+		mime   string
 	)
 
-	switch value.(type) {
+	switch v := value.(type) {
 	case io.Reader:
 		// set streams output type to text to avoid issues with browsers rendering
 		// html pages on priveleged api ports
@@ -196,8 +207,15 @@ func (re *responseEmitter) preamble(value interface{}) {
 		mime = "text/plain"
 	case cmds.Single:
 		// don't set stream/channel header
-	case nil:
-		h.Set(channelHeader, "1")
+	case *cmdkit.Error:
+		err := v
+		if err.Code == cmdkit.ErrClient {
+			status = http.StatusBadRequest
+		} else {
+			status = http.StatusInternalServerError
+		}
+	case error:
+		status = http.StatusInternalServerError
 	default:
 		h.Set(channelHeader, "1")
 	}
@@ -223,7 +241,7 @@ func (re *responseEmitter) preamble(value interface{}) {
 	// expose those headers
 	h.Set("Access-Control-Expose-Headers", AllowedExposedHeaders)
 
-	re.w.WriteHeader(http.StatusOK)
+	re.w.WriteHeader(status)
 }
 
 type responseWriterer interface {
