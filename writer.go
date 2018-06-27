@@ -66,7 +66,7 @@ func (r *readerResponse) Length() uint64 {
 	return r.length
 }
 
-func (r *readerResponse) RawNext() (interface{}, error) {
+func (r *readerResponse) Next() (interface{}, error) {
 	m := &MaybeError{Value: r.req.Command.Type}
 	err := r.dec.Decode(m)
 	if err != nil {
@@ -82,10 +82,6 @@ func (r *readerResponse) RawNext() (interface{}, error) {
 		v = reflect.ValueOf(v).Elem().Interface()
 	}
 	return v, err
-}
-
-func (r *readerResponse) Next() (interface{}, error) {
-	return r.RawNext()
 }
 
 type WriterResponseEmitter struct {

@@ -56,7 +56,7 @@ func (res *Response) Length() uint64 {
 	return res.length
 }
 
-func (res *Response) RawNext() (interface{}, error) {
+func (res *Response) Next() (interface{}, error) {
 	if res.initErr != nil {
 		return nil, res.initErr
 	}
@@ -106,10 +106,6 @@ func (res *Response) RawNext() (interface{}, error) {
 	}
 
 	return v, err
-}
-
-func (res *Response) Next() (interface{}, error) {
-	return res.RawNext()
 }
 
 // responseReader reads from the response body, and checks for an error

@@ -19,7 +19,6 @@ type Response interface {
 	// The error can also be ErrRcvdError if an error has been emitted.
 	// In this case the emitted error can be accessed using the Error() method.
 	Next() (interface{}, error)
-	RawNext() (interface{}, error)
 }
 
 type Head struct {

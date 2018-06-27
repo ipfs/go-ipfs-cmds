@@ -132,32 +132,6 @@ func (r *chanResponse) Next() (interface{}, error) {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
-
-}
-
-func (r *chanResponse) RawNext() (interface{}, error) {
-	if r == nil {
-		return nil, io.EOF
-	}
-
-	var ctx context.Context
-	if rctx := r.req.Context; rctx != nil {
-		ctx = rctx
-	} else {
-		ctx = context.Background()
-	}
-
-	select {
-	case v, ok := <-r.ch:
-		if ok {
-			return v, nil
-		}
-
-		return nil, io.EOF
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	}
-
 }
 
 type chanResponseEmitter chanResponse
