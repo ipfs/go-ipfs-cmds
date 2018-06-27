@@ -110,11 +110,7 @@ func (c *client) Execute(req *cmds.Request, re cmds.ResponseEmitter, env cmds.En
 			Type() cmds.PostRunType
 		}); ok && cmd.PostRun[typer.Type()] != nil {
 			err := cmd.PostRun[typer.Type()](res, re)
-			if err != nil {
-				return re.CloseWithError(err)
-			}
-
-			return re.Close()
+			return re.CloseWithError(err)
 		}
 	}
 

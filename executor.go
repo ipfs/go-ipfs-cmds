@@ -95,10 +95,8 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) (e
 				defer close(errCh)
 
 				err := cmd.PostRun[typer.Type()](res, lower)
-				if err != nil {
-					closeErr = lower.CloseWithError(err)
-					errCh <- closeErr
-				}
+				closeErr = lower.CloseWithError(err)
+				errCh <- closeErr
 
 				if closeErr != nil && err != nil {
 					log.Errorf("error closing connection: %s", closeErr)
