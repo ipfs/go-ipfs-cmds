@@ -182,7 +182,7 @@ func (re *responseEmitter) preamble(value interface{}) {
 	defer re.l.Unlock()
 
 	var (
-		h = re.w.Header()
+		h    = re.w.Header()
 		mime string
 	)
 
