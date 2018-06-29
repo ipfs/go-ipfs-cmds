@@ -12,8 +12,8 @@ import (
 	"github.com/ipfs/go-ipfs-cmds/debug"
 )
 
-func NewWriterResponseEmitter(w io.WriteCloser, req *Request, enc func(*Request) func(io.Writer) Encoder) *WriterResponseEmitter {
-	re := &WriterResponseEmitter{
+func NewWriterResponseEmitter(w io.WriteCloser, req *Request, enc func(*Request) func(io.Writer) Encoder) ResponseEmitter {
+	re := &writerResponseEmitter{
 		w:   w,
 		c:   w,
 		req: req,
@@ -88,7 +88,7 @@ func (r *readerResponse) Next() (interface{}, error) {
 	return v, err
 }
 
-type WriterResponseEmitter struct {
+type writerResponseEmitter struct {
 	// TODO maybe make those public?
 	w   io.Writer
 	c   io.Closer
@@ -101,11 +101,11 @@ type WriterResponseEmitter struct {
 	emitted bool
 }
 
-func (re *WriterResponseEmitter) SetEncoder(mkEnc func(io.Writer) Encoder) {
+func (re *writerResponseEmitter) SetEncoder(mkEnc func(io.Writer) Encoder) {
 	re.enc = mkEnc(re.w)
 }
 
-func (re *WriterResponseEmitter) CloseWithError(err error) error {
+func (re *writerResponseEmitter) CloseWithError(err error) error {
 	cwe, ok := re.c.(interface{ CloseWithError(error) error })
 	if ok {
 		return cwe.CloseWithError(err)
@@ -118,14 +118,14 @@ func (re *WriterResponseEmitter) CloseWithError(err error) error {
 	return errors.New("provided closer does not support CloseWithError")
 }
 
-func (re *WriterResponseEmitter) SetError(v interface{}, errType cmdkit.ErrorType) {
+func (re *writerResponseEmitter) SetError(v interface{}, errType cmdkit.ErrorType) {
 	err := re.Emit(&cmdkit.Error{Message: fmt.Sprint(v), Code: errType})
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (re *WriterResponseEmitter) SetLength(length uint64) {
+func (re *writerResponseEmitter) SetLength(length uint64) {
 	if re.emitted {
 		return
 	}
@@ -133,11 +133,11 @@ func (re *WriterResponseEmitter) SetLength(length uint64) {
 	*re.length = length
 }
 
-func (re *WriterResponseEmitter) Close() error {
+func (re *writerResponseEmitter) Close() error {
 	return re.c.Close()
 }
 
-func (re *WriterResponseEmitter) Emit(v interface{}) error {
+func (re *writerResponseEmitter) Emit(v interface{}) error {
 	// channel emission iteration
 	if ch, ok := v.(chan interface{}); ok {
 		v = (<-chan interface{})(ch)
