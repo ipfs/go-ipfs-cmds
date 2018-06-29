@@ -59,12 +59,16 @@ type Command struct {
 	Subcommands map[string]*Command
 }
 
-// ErrNotCallable signals a command that cannot be called.
-var ErrNotCallable = ClientError("This command can't be called directly. Try one of its subcommands.")
+var (
+	// ErrNotCallable signals a command that cannot be called.
+	ErrNotCallable = ClientError("This command can't be called directly. Try one of its subcommands.")
 
-var ErrNoFormatter = ClientError("This command cannot be formatted to plain text")
+	// ErrNoFormatter signals that the command can not be formatted.
+	ErrNoFormatter = ClientError("This command cannot be formatted to plain text")
 
-var ErrIncorrectType = errors.New("The command returned a value with a different type than expected")
+	// ErrIncorrectType signales that the commands returned a value with unexpected type.
+	ErrIncorrectType = errors.New("The command returned a value with a different type than expected")
+)
 
 // Call invokes the command for the given Request
 func (c *Command) Call(req *Request, re ResponseEmitter, env Environment) {
