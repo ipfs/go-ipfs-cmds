@@ -31,12 +31,8 @@ func NewChanResponsePair(req *Request) (ResponseEmitter, Response) {
 type chanStream struct {
 	req *Request
 
-	// rl is a lock for reading calls, i.e. Next.
-	rl sync.Mutex
-
 	// ch is used to send values from emitter to response.
-	// When Emit received a channel close, it sets it to nil.
-	// It is protected by rl.
+	// When Emit received a channel close, it returns the error stored in err.
 	ch chan interface{}
 
 	// wl is a lock for writing calls, i.e. Emit, Close(WithError) and SetLength.
@@ -97,10 +93,6 @@ func (r *chanResponse) Next() (interface{}, error) {
 	} else {
 		ctx = context.Background()
 	}
-
-	// to avoid races by setting r.ch to nil
-	r.rl.Lock()
-	defer r.rl.Unlock()
 
 	select {
 	case v, ok := <-r.ch:
