@@ -71,17 +71,13 @@ func (c *Command) Call(req *Request, re ResponseEmitter, env Environment) {
 	var closeErr error
 
 	err := c.call(req, re, env)
-	if err == nil {
-		closeErr = re.Close()
-	} else {
-		closeErr = re.CloseWithError(err)
+	if err != nil {
+		log.Debug("error occured in call, closing with error: %s", err)
 	}
 
+	closeErr = re.CloseWithError(err)
 	if closeErr != nil {
-		log.Errorf("error closing connection: %s", closeErr)
-		if err != nil {
-			log.Errorf("close caused by error: %s", err)
-		}
+		log.Errorf("error closing ResponseEmitter: %s", closeErr)
 	}
 }
 
