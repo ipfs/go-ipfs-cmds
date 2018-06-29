@@ -60,6 +60,13 @@ var (
 					return errors.New("an error occurred")
 				},
 			},
+			"lateerror": &cmds.Command{
+				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+					re.Emit("some value")
+					return errors.New("an error occurred")
+				},
+				Type: "",
+			},
 			"version": &cmds.Command{
 				Helptext: cmdkit.HelpText{
 					Tagline:          "Show ipfs version information.",

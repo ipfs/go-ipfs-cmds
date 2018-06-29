@@ -18,7 +18,9 @@ func (s *testEmitter) Close() error {
 
 func (s *testEmitter) SetLength(_ uint64) {}
 func (s *testEmitter) CloseWithError(err error) error {
-	(*testing.T)(s).Error(err)
+	if err != nil {
+		(*testing.T)(s).Error(err)
+	}
 	return nil
 }
 func (s *testEmitter) Emit(value interface{}) error {

@@ -1,8 +1,13 @@
 package cmds
 
 import (
+	"errors"
 	"fmt"
 	"io"
+)
+
+var (
+	ErrClosedEmitter = errors.New("cmds: emit on closed emitter")
 )
 
 // Single can be used to signal to any ResponseEmitter that only one value will be emitted.
@@ -48,10 +53,6 @@ type EncodingEmitter interface {
 	ResponseEmitter
 
 	SetEncoder(func(io.Writer) Encoder)
-}
-
-type Header interface {
-	Head() Head
 }
 
 // Copy sends all values received on res to re. If res is closed, it closes re.

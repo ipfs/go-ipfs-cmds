@@ -2,6 +2,7 @@ package cmds
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"reflect"
@@ -26,14 +27,12 @@ func NewWriterResponseEmitter(w io.WriteCloser, req *Request, enc func(*Request)
 }
 
 func NewReaderResponse(r io.Reader, encType EncodingType, req *Request) Response {
-	emitted := make(chan struct{})
-
 	return &readerResponse{
 		req:     req,
 		r:       r,
 		encType: encType,
 		dec:     Decoders[encType](r),
-		emitted: emitted,
+		emitted: make(chan struct{}),
 	}
 }
 
@@ -45,7 +44,7 @@ type readerResponse struct {
 	req *Request
 
 	length uint64
-	err    *cmdkit.Error
+	err    error
 
 	emitted chan struct{}
 	once    sync.Once
@@ -58,7 +57,11 @@ func (r *readerResponse) Request() *Request {
 func (r *readerResponse) Error() *cmdkit.Error {
 	<-r.emitted
 
-	return r.err
+	if err, ok := r.err.(*cmdkit.Error); ok {
+		return err
+	}
+
+	return &cmdkit.Error{Message: r.err.Error()}
 }
 
 func (r *readerResponse) Length() uint64 {
@@ -103,16 +106,16 @@ func (re *WriterResponseEmitter) SetEncoder(mkEnc func(io.Writer) Encoder) {
 }
 
 func (re *WriterResponseEmitter) CloseWithError(err error) error {
-	if err == nil {
+	cwe, ok := re.c.(interface{ CloseWithError(error) error })
+	if ok {
+		return cwe.CloseWithError(err)
+	}
+
+	if err == nil || err == io.EOF {
 		return re.Close()
 	}
 
-	_, ok := err.(*cmdkit.Error)
-	if ok {
-		return re.Emit(err)
-	}
-
-	return re.Emit(&cmdkit.Error{Message: err.Error(), Code: cmdkit.ErrNormal})
+	return errors.New("provided closer does not support CloseWithError")
 }
 
 func (re *WriterResponseEmitter) SetError(v interface{}, errType cmdkit.ErrorType) {
@@ -134,14 +137,15 @@ func (re *WriterResponseEmitter) Close() error {
 	return re.c.Close()
 }
 
-func (re *WriterResponseEmitter) Head() Head {
-	return Head{
-		Len: *re.length,
-		Err: re.err,
-	}
-}
-
 func (re *WriterResponseEmitter) Emit(v interface{}) error {
+	// channel emission iteration
+	if ch, ok := v.(chan interface{}); ok {
+		v = (<-chan interface{})(ch)
+	}
+	if ch, isChan := v.(<-chan interface{}); isChan {
+		return EmitChan(re, ch)
+	}
+
 	// Initially this library allowed commands to return errors by sending an
 	// error value along a stream. We removed that in favour of CloseWithError,
 	// so we want to make sure we catch situations where some code still uses the
@@ -149,25 +153,12 @@ func (re *WriterResponseEmitter) Emit(v interface{}) error {
 	// Also errors may occur both as pointers and as plain values, so we need to
 	// check both.
 	debug.AssertNotError(v)
-	if ch, ok := v.(chan interface{}); ok {
-		v = (<-chan interface{})(ch)
-	}
-
-	if ch, isChan := v.(<-chan interface{}); isChan {
-		for v = range ch {
-			err := re.Emit(v)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-
-	re.emitted = true
 
 	if _, ok := v.(Single); ok {
 		defer re.Close()
 	}
+
+	re.emitted = true
 
 	return re.enc.Encode(v)
 }

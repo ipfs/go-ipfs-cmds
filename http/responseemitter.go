@@ -69,9 +69,9 @@ type responseEmitter struct {
 }
 
 func (re *responseEmitter) Emit(value interface{}) error {
-	if value == nil {
-		log.Error("emitting nil value")
-		debug.PrintStack()
+	if single, ok := value.(cmds.Single); ok {
+		value = single.Value
+		defer re.closeWithError(nil)
 	}
 
 	// Initially this library allowed commands to return errors by sending an
@@ -79,19 +79,13 @@ func (re *responseEmitter) Emit(value interface{}) error {
 	// so we want to make sure we catch situations where some code still uses the
 	// old error emitting semantics and _panic_ in those situations.
 	debug.AssertNotError(value)
-	ch, isChan := value.(<-chan interface{})
-	if !isChan {
-		ch, isChan = value.(chan interface{})
-	}
 
-	if isChan {
-		for value = range ch {
-			err := re.Emit(value)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
+	// if we got a channel, instead emit values received on there.
+	if ch, ok := value.(chan interface{}); ok {
+		value = (<-chan interface{})(ch)
+	}
+	if ch, isChan := value.(<-chan interface{}); isChan {
+		return cmds.EmitChan(re, ch)
 	}
 
 	re.once.Do(func() { re.preamble(value) })
@@ -106,13 +100,8 @@ func (re *responseEmitter) Emit(value interface{}) error {
 		return nil
 	}
 
-	if single, ok := value.(cmds.Single); ok {
-		value = single.Value
-		defer re.closeWithError(nil)
-	}
-
 	if re.w == nil {
-		return fmt.Errorf("connection already closed / custom - http.respem - TODO")
+		return cmds.ErrClosedEmitter
 	}
 
 	// ignore those

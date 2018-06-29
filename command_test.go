@@ -185,17 +185,13 @@ func TestPostRun(t *testing.T) {
 			finalLength: 4,
 			next:        []interface{}{14},
 			postRun: func(res Response, re ResponseEmitter) error {
-				defer re.Close()
 				l := res.Length()
 				re.SetLength(l + 1)
 
 				for {
 					v, err := res.Next()
-					if err == io.EOF {
-						return nil
-					}
+					t.Log("PostRun: Next returned", v, err)
 					if err != nil {
-						t.Error(err) // TODO keks: should this go?
 						return err
 					}
 
@@ -220,10 +216,6 @@ func TestPostRun(t *testing.T) {
 					if err != nil {
 						t.Fatal(err)
 					}
-				}
-				err := re.Close()
-				if err != nil {
-					t.Fatal(err)
 				}
 				return nil
 			},
@@ -263,8 +255,9 @@ func TestPostRun(t *testing.T) {
 
 		go func() {
 			err := cmd.PostRun[PostRunType(encType)](postres, postre)
+			err = postre.CloseWithError(err)
 			if err != nil {
-				t.Error("error in PostRun: ", err)
+				t.Error("error closing after PostRun: ", err)
 			}
 		}()
 
@@ -280,6 +273,7 @@ func TestPostRun(t *testing.T) {
 
 			go func() {
 				v, err := res.Next()
+				t.Log("next returned", v, err)
 				if err != nil {
 					close(ch)
 					t.Fatal(err)

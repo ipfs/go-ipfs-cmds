@@ -91,7 +91,7 @@ func (res *Response) Next() (interface{}, error) {
 			return nil, err
 		} else {
 			// wrap all other errors
-			res.err = &cmdkit.Error{Message: err.Error()}
+			res.err = err
 			return nil, res.err
 		}
 	}

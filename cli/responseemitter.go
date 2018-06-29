@@ -51,13 +51,10 @@ type responseEmitter struct {
 	stderr io.Writer
 
 	length  uint64
-	err     *cmdkit.Error // TODO do we really need this?
 	enc     cmds.Encoder
 	encType cmds.EncodingType
 	exit    int
 	closed  bool
-
-	errOccurred bool
 
 	ch chan<- int
 }
@@ -93,9 +90,7 @@ func (re *responseEmitter) CloseWithError(err error) error {
 		return errors.New("closing closed emitter")
 	}
 
-	re.errOccurred = true
 	re.exit = 1 // TODO we could let err carry an exit code
-	re.err = e
 
 	_, err = fmt.Fprintln(re.stderr, "Error:", e.Message)
 	if err != nil {
@@ -164,17 +159,6 @@ func (re *responseEmitter) close() error {
 	return nil
 }
 
-// Head returns the current head.
-// TODO: maybe it makes sense to make these pointers to shared memory?
-//   might not be so clever though...concurrency and stuff
-// TODO: can we maybe drop this function? Then we could also remove the err struct field
-func (re *responseEmitter) Head() cmds.Head {
-	return cmds.Head{
-		Len: re.length,
-		Err: re.err,
-	}
-}
-
 func (re *responseEmitter) Emit(v interface{}) error {
 	// unwrap
 	if val, ok := v.(cmds.Single); ok {
@@ -187,8 +171,12 @@ func (re *responseEmitter) Emit(v interface{}) error {
 	// old error emitting semantics and _panic_ in those situations.
 	debug.AssertNotError(v)
 
+	// channel emission iteration
 	if ch, ok := v.(chan interface{}); ok {
 		v = (<-chan interface{})(ch)
+	}
+	if ch, isChan := v.(<-chan interface{}); isChan {
+		return cmds.EmitChan(re, ch)
 	}
 
 	// TODO find a better solution for this.
@@ -201,19 +189,8 @@ func (re *responseEmitter) Emit(v interface{}) error {
 		v = *c
 	}
 
-	if ch, isChan := v.(<-chan interface{}); isChan {
-		log.Debug("iterating over chan...", ch)
-		for v = range ch {
-			err := re.Emit(v)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-
 	if re.isClosed() {
-		return io.ErrClosedPipe
+		return cmds.ErrClosedEmitter
 	}
 
 	var err error
