@@ -14,9 +14,10 @@ import (
 
 func TestHTTP(t *testing.T) {
 	type testcase struct {
-		path []string
-		v    interface{}
-		err  error
+		path    []string
+		v       interface{}
+		sendErr error
+		nextErr error
 	}
 
 	tcs := []testcase{
@@ -31,9 +32,8 @@ func TestHTTP(t *testing.T) {
 			},
 		},
 		{
-			path: []string{"error"},
-			v:    nil,
-			err:  errors.New("an error occurred"),
+			path:    []string{"error"},
+			sendErr: errors.New("an error occurred"),
 		},
 	}
 
@@ -47,21 +47,27 @@ func TestHTTP(t *testing.T) {
 			}
 
 			res, err := c.Send(req)
-			if err != nil {
-				t.Fatal(err)
+			if tc.sendErr != nil {
+				if err == nil {
+					t.Fatal("got nil error, expected:", tc.sendErr)
+				} else if err.Error() != tc.sendErr.Error() {
+					t.Fatalf("got error %q, expected %q", err, tc.sendErr)
+				}
+
+				return
+			} else if err != nil {
+				t.Fatal("unexpected error:", err)
 			}
 
 			v, err := res.Next()
-			if tc.err == nil {
-				if err != nil {
-					t.Fatal(err)
-				}
-			} else {
+			if tc.nextErr != nil {
 				if err == nil {
-					t.Fatal("got nil error, expected:", tc.err)
-				} else if err.Error() != tc.err.Error() {
-					t.Fatalf("got error %q, expected %q", err, tc.err)
+					t.Fatal("got nil error, expected:", tc.nextErr)
+				} else if err.Error() != tc.nextErr.Error() {
+					t.Fatalf("got error %q, expected %q", err, tc.nextErr)
 				}
+			} else if err != nil {
+				t.Fatal("unexpected error:", err)
 			}
 
 			if !reflect.DeepEqual(v, tc.v) {
@@ -69,16 +75,14 @@ func TestHTTP(t *testing.T) {
 			}
 
 			_, err = res.Next()
-			if tc.err == nil {
-				if err != io.EOF {
-					t.Fatal("expected io.EOF error, got:", err)
-				}
-			} else {
+			if tc.nextErr != nil {
 				if err == nil {
-					t.Fatal("got nil error, expected:", tc.err)
-				} else if err.Error() != tc.err.Error() {
-					t.Fatalf("got error %q, expected %q", err, tc.err)
+					t.Fatal("got nil error, expected:", tc.nextErr)
+				} else if err.Error() != tc.nextErr.Error() {
+					t.Fatalf("got error %q, expected %q", err, tc.nextErr)
 				}
+			} else if err != io.EOF {
+				t.Fatal("expected io.EOF error, got:", err)
 			}
 		}
 	}
