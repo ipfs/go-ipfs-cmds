@@ -157,13 +157,16 @@ func (re *responseEmitter) CloseWithError(err error) error {
 }
 
 func (re *responseEmitter) closeWithError(err error) error {
-	// use preamble directly, we're already in critical section
-	re.once.Do(func() { re.doPreamble(nil) })
-
-	if err != nil && err != io.EOF {
+	if err == io.EOF {
+		err = nil
+	}
+	if err != nil {
 		// abort by sending an error trailer
 		re.w.Header().Set(StreamErrHeader, err.Error())
 	}
+
+	// use preamble directly, we're already in critical section
+	re.once.Do(func() { re.doPreamble(err) })
 
 	return nil
 }
