@@ -76,6 +76,7 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) (e
 		}
 	}
 
+	// contains the error returned by PostRun
 	errCh := make(chan error)
 
 	if cmd.PostRun != nil {
@@ -132,9 +133,8 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) (e
 
 	}()
 	err = cmd.Run(req, re, env)
-	log.Debugf("cmds.Execute: Run returned %q with response emitter of type %T", err, re)
-	closeErr := re.CloseWithError(err)
-	if closeErr != nil {
+	err = re.CloseWithError(err)
+	if err != nil {
 		return err
 	}
 
