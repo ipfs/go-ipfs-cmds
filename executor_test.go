@@ -66,14 +66,18 @@ func TestExecutorError(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var buf bytes.Buffer
-	re := NewWriterResponseEmitter(wc{&buf, nopCloser{}}, req, Encoders[Text])
+
+	re, res := NewChanResponsePair(req)
 
 	x := NewExecutor(root)
 	x.Execute(req, re, &env)
 
-	expected := "{\"Message\":\"an error occurred\",\"Code\":0,\"Type\":\"error\"}\n"
-	if out := buf.String(); out != expected {
-		t.Errorf("expected output \"%s\" but got %q", expected, out)
+	_, err = res.Next()
+	if err == nil {
+		t.Fatal("expected error but got nil")
+	}
+	expErr := "an error occurred"
+	if err.Error() != expErr {
+		t.Fatalf("expected error message %q but got: %s", expErr, err)
 	}
 }

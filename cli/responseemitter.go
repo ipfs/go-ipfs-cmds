@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"runtime/debug"
 	"sync"
 	"syscall"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-cmds"
+	"github.com/ipfs/go-ipfs-cmds/debug"
 )
 
 var _ ResponseEmitter = &responseEmitter{}
@@ -181,6 +181,12 @@ func (re *responseEmitter) Emit(v interface{}) error {
 		v = val.Value
 	}
 
+	// Initially this library allowed commands to return errors by sending an
+	// error value along a stream. We removed that in favour of CloseWithError,
+	// so we want to make sure we catch situations where some code still uses the
+	// old error emitting semantics and _panic_ in those situations.
+	debug.AssertNotError(v)
+
 	if ch, ok := v.(chan interface{}); ok {
 		v = (<-chan interface{})(ch)
 	}
@@ -213,8 +219,6 @@ func (re *responseEmitter) Emit(v interface{}) error {
 	var err error
 
 	switch t := v.(type) {
-	case *cmdkit.Error:
-		log.Errorf("got an error: %v\n%s", err, debug.Stack())
 	case io.Reader:
 		_, err = io.Copy(re.stdout, t)
 		if err != nil {

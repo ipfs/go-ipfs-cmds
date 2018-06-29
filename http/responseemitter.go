@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 	cmds "github.com/ipfs/go-ipfs-cmds"
+	"github.com/ipfs/go-ipfs-cmds/debug"
 )
 
 var (
@@ -74,6 +74,11 @@ func (re *responseEmitter) Emit(value interface{}) error {
 		debug.PrintStack()
 	}
 
+	// Initially this library allowed commands to return errors by sending an
+	// error value along a stream. We removed that in favour of CloseWithError,
+	// so we want to make sure we catch situations where some code still uses the
+	// old error emitting semantics and _panic_ in those situations.
+	debug.AssertNotError(value)
 	ch, isChan := value.(<-chan interface{})
 	if !isChan {
 		ch, isChan = value.(chan interface{})

@@ -3,12 +3,8 @@ package cmds
 import (
 	"bytes"
 	"context"
-	"fmt"
-	"io"
 	"strings"
 	"testing"
-
-	"github.com/ipfs/go-ipfs-cmdkit"
 )
 
 type TestOutput struct {
@@ -58,97 +54,7 @@ func TestMarshalling(t *testing.T) {
 
 	buf.Reset()
 
-	re.SetError(fmt.Errorf("Oops!"), cmdkit.ErrClient)
-
-	output = buf.String()
-	if removeWhitespace(output) != `{"Message":"Oops!","Code":1,"Type":"error"}` {
-		t.Log(`expected: {"Message":"Oops!","Code":1,"Type":"error"}`)
-		t.Log("got:", removeWhitespace(buf.String()))
-		t.Error("Incorrect JSON output")
-	}
-}
-
-func TestHandleError_Error(t *testing.T) {
-	var (
-		out []string
-		exp = []string{"1", "2", "test errors"}
-	)
-
-	cmd := &Command{}
-
-	req, err := NewRequest(context.Background(), nil, nil, nil, nil, cmd)
-	if err != nil {
-		t.Error(err, "Should have passed")
-	}
-
-	re, res := NewChanResponsePair(req)
-
-	go func() {
-		re.Emit(1)
-		re.Emit(2)
-		re.CloseWithError(&cmdkit.Error{Message: "test errors"})
-	}()
-
-	for {
-		v, err := res.Next()
-		fmt.Println(v, err)
-
-		if err == nil {
-			t.Log("err == nil")
-			out = append(out, fmt.Sprint(v))
-		} else {
-			t.Log("err != nil")
-			out = append(out, fmt.Sprint(err))
-			break
-		}
-	}
-
-	if !eqStringSlice(out, exp) {
-		t.Fatalf("expected %v, got %v", exp, out)
-	}
-}
-
-func TestHandleError(t *testing.T) {
-	var (
-		out []string
-		exp = []string{"1", "2", "3", "EOF"}
-	)
-
-	cmd := &Command{}
-
-	req, err := NewRequest(context.Background(), nil, nil, nil, nil, cmd)
-	if err != nil {
-		t.Error(err, "Should have passed")
-	}
-
-	re, res := NewChanResponsePair(req)
-	reFwd, resFwd := NewChanResponsePair(req)
-	go func() {
-		re.Emit(1)
-		re.Emit(2)
-		re.Emit(3)
-		re.Close()
-	}()
-
-	go func() {
-		for v, err := resFwd.Next(); err != io.EOF; {
-			t.Logf("received forwarded value %#v, error  %#v", v, err)
-		}
-	}()
-
-	for HandleError(err, res, reFwd) {
-		var v interface{}
-		v, err = res.Next()
-		if v != nil {
-			out = append(out, fmt.Sprint(v))
-		} else {
-			out = append(out, fmt.Sprint(err))
-		}
-	}
-
-	if !eqStringSlice(out, exp) {
-		t.Fatalf("expected %v, got %v", exp, out)
-	}
+	re.Close()
 }
 
 func removeWhitespace(input string) string {

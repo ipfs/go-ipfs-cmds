@@ -3,7 +3,6 @@ package cmds
 import (
 	"fmt"
 	"io"
-	//"github.com/ipfs/go-ipfs-cmdkit"
 )
 
 // Single can be used to signal to any ResponseEmitter that only one value will be emitted.

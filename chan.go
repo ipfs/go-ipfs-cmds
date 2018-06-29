@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"runtime/debug"
 	"sync"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
+	"github.com/ipfs/go-ipfs-cmds/debug"
 )
 
 func NewChanResponsePair(req *Request) (ResponseEmitter, Response) {
@@ -137,19 +137,6 @@ func (r *chanResponse) Next() (interface{}, error) {
 type chanResponseEmitter chanResponse
 
 func (re *chanResponseEmitter) Emit(v interface{}) error {
-	// Initially this library allowed commands to return errors by sending an
-	// error value along a stream. We removed that in favour of CloseWithError,
-	// so we want to make sure we catch situations where some code still uses the
-	// old error emitting semantics.
-	// Also errors may occur both as pointers and as plain values, so we need to
-	// check both.
-	if e, ok := v.(cmdkit.Error); ok {
-		v = &e
-	}
-	if e, ok := v.(*cmdkit.Error); ok {
-		log.Errorf("unexpected error value emitted: %s at\n%s", e.Error(), debug.Stack())
-	}
-
 	// channel emission iteration
 	// TODO maybe remove this and use EmitChan instead of calling Emit directly?
 	if ch, ok := v.(chan interface{}); ok {
@@ -169,6 +156,13 @@ func (re *chanResponseEmitter) Emit(v interface{}) error {
 
 	if _, ok := v.(Single); ok {
 		defer re.closeWithError(io.EOF)
+
+	// Initially this library allowed commands to return errors by sending an
+	// error value along a stream. We removed that in favour of CloseWithError,
+	// so we want to make sure we catch situations where some code still uses the
+	// old error emitting semantics and _panic_ in those situations.
+	debug.AssertNotError(v)
+
 	}
 
 	ctx := re.req.Context
