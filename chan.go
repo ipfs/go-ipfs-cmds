@@ -125,10 +125,6 @@ func (re *chanResponseEmitter) Emit(v interface{}) error {
 	re.wl.Lock()
 	defer re.wl.Unlock()
 
-	if _, ok := v.(Single); ok {
-		defer re.closeWithError(nil)
-	}
-
 	// Initially this library allowed commands to return errors by sending an
 	// error value along a stream. We removed that in favour of CloseWithError,
 	// so we want to make sure we catch situations where some code still uses the
@@ -155,6 +151,10 @@ func (re *chanResponseEmitter) Emit(v interface{}) error {
 
 	select {
 	case re.ch <- v:
+		if _, ok := v.(Single); ok {
+			re.closeWithError(nil)
+		}
+
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()

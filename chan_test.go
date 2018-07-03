@@ -77,3 +77,52 @@ func TestChanResponsePair(t *testing.T) {
 		t.Run(fmt.Sprint(i), mkTest(tc))
 	}
 }
+
+func TestSingle1(t *testing.T) {
+	cmd := &Command{}
+	req, err := NewRequest(context.TODO(), nil, nil, nil, nil, cmd)
+	if err != nil {
+		t.Fatal("error building request", err)
+	}
+	re, res := NewChanResponsePair(req)
+
+	go func() {
+		re.Emit(Single{42})
+	}()
+
+	v, err := res.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+	
+	if v != 42 {
+		t.Fatal("expected 42, got", v)
+	}
+	
+	_, err = res.Next()
+	if err != io.EOF {
+		t.Fatal("expected EOF, got", err)
+	}
+}
+
+func TestSingle2(t *testing.T) {
+	cmd := &Command{}
+	req, err := NewRequest(context.TODO(), nil, nil, nil, nil, cmd)
+	if err != nil {
+		t.Fatal("error building request", err)
+	}
+	re, res := NewChanResponsePair(req)
+
+	re.Close()
+	go func() {
+		err := re.Emit(Single{42})
+		if err != ErrClosedEmitter {
+			t.Fatal("expected closed emitter error, got", err)
+		}
+	}()
+
+	_, err = res.Next()
+	if err != io.EOF {
+		t.Fatal("expected EOF, got", err)
+	}
+}
