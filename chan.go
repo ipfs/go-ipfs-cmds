@@ -41,8 +41,8 @@ type chanStream struct {
 	closed bool
 
 	// waitErr is closed when the stream is closed.
-	// Error waits for waitErr to be closed.
-	// It is protected by wl.
+	// Error checks if the stream has been closed by checking if this channes is closed.
+	// Its closing is protected by wl.
 	waitErr chan struct{}
 
 	// err is the error that the stream was closed with.
@@ -51,7 +51,7 @@ type chanStream struct {
 
 	// waitLen is closed when the first value is emitted or the stream is closed.
 	// Length waits for waitLen to be closed.
-	// It is protected by wl.
+	// Its closing is protected by wl.
 	waitLen chan struct{}
 
 	// length is the length of the response.
@@ -66,17 +66,20 @@ func (r *chanResponse) Request() *Request {
 }
 
 func (r *chanResponse) Error() *cmdkit.Error {
-	<-r.waitErr
+	select {
+	case <-r.waitErr:
+		if r.err == nil || r.err == io.EOF {
+			return nil
+		}
 
-	if r.err == nil || r.err == io.EOF {
+		if e, ok := r.err.(*cmdkit.Error); ok {
+			return e
+		}
+
+		return &cmdkit.Error{Message: r.err.Error()}
+	default:
 		return nil
 	}
-
-	if e, ok := r.err.(*cmdkit.Error); ok {
-		return e
-	}
-
-	return &cmdkit.Error{Message: r.err.Error()}
 }
 
 func (r *chanResponse) Length() uint64 {
