@@ -69,10 +69,6 @@ type responseEmitter struct {
 }
 
 func (re *responseEmitter) Emit(value interface{}) error {
-	if single, ok := value.(cmds.Single); ok {
-		value = single.Value
-		defer re.closeWithError(nil)
-	}
 
 	// Initially this library allowed commands to return errors by sending an
 	// error value along a stream. We removed that in favour of CloseWithError,
@@ -92,6 +88,11 @@ func (re *responseEmitter) Emit(value interface{}) error {
 
 	re.l.Lock()
 	defer re.l.Unlock()
+	
+	if single, ok := value.(cmds.Single); ok {
+		value = single.Value
+		defer re.closeWithError(nil)
+	}
 
 	var err error
 
