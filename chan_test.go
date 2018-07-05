@@ -94,11 +94,11 @@ func TestSingle1(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	
+
 	if v != 42 {
 		t.Fatal("expected 42, got", v)
 	}
-	
+
 	_, err = res.Next()
 	if err != io.EOF {
 		t.Fatal("expected EOF, got", err)

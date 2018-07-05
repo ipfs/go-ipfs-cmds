@@ -160,9 +160,11 @@ func (re *responseEmitter) close() error {
 }
 
 func (re *responseEmitter) Emit(v interface{}) error {
+	var isSingle bool
 	// unwrap
 	if val, ok := v.(cmds.Single); ok {
 		v = val.Value
+		isSingle = true
 	}
 
 	// Initially this library allowed commands to return errors by sending an
@@ -207,6 +209,10 @@ func (re *responseEmitter) Emit(v interface{}) error {
 		} else {
 			_, err = fmt.Fprintln(re.stdout, t)
 		}
+	}
+
+	if isSingle {
+		return re.Close()
 	}
 
 	return err

@@ -77,7 +77,7 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) (e
 	}
 
 	// contains the error returned by PostRun
-	errCh := make(chan error)
+	errCh := make(chan error, 1)
 
 	if cmd.PostRun != nil {
 		if typer, ok := re.(interface {
@@ -129,8 +129,10 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) (e
 				// otherwise keep panicking.
 				panic(v)
 			}
-		}
 
+			// wait for PostRun to finish
+			<-errCh
+		}
 	}()
 	err = cmd.Run(req, re, env)
 	err = re.CloseWithError(err)

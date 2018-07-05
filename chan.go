@@ -11,13 +11,11 @@ import (
 )
 
 func NewChanResponsePair(req *Request) (ResponseEmitter, Response) {
-	ch := make(chan interface{})
-	wait := make(chan struct{})
-
 	r := &chanResponse{
-		req:  req,
-		ch:   ch,
-		wait: wait,
+		req:     req,
+		ch:      make(chan interface{}),
+		waitLen: make(chan struct{}),
+		waitErr: make(chan struct{}),
 	}
 
 	re := (*chanResponseEmitter)(r)
@@ -42,14 +40,19 @@ type chanStream struct {
 	// It is protected by wl.
 	closed bool
 
-	// wait is closed when the stream is closed or the first value is emitted.
-	// Error and Length both wait for wait to be closed.
+	// waitErr is closed when the stream is closed.
+	// Error waits for waitErr to be closed.
 	// It is protected by wl.
-	wait chan struct{}
+	waitErr chan struct{}
 
 	// err is the error that the stream was closed with.
-	// It is written once under lock wl, but only read after wait is closed (which also happens under wl)
+	// It is written once under lock wl, but only read after waitLen is closed (which also happens under wl)
 	err error
+
+	// waitLen is closed when the first value is emitted or the stream is closed.
+	// Length waits for waitLen to be closed.
+	// It is protected by wl.
+	waitLen chan struct{}
 
 	// length is the length of the response.
 	// It can be set by calling SetLength, but only before the first call to Emit, Close or CloseWithError.
@@ -63,7 +66,7 @@ func (r *chanResponse) Request() *Request {
 }
 
 func (r *chanResponse) Error() *cmdkit.Error {
-	<-r.wait
+	<-r.waitErr
 
 	if r.err == nil || r.err == io.EOF {
 		return nil
@@ -77,7 +80,7 @@ func (r *chanResponse) Error() *cmdkit.Error {
 }
 
 func (r *chanResponse) Length() uint64 {
-	<-r.wait
+	<-r.waitLen
 
 	return r.length
 }
@@ -133,9 +136,9 @@ func (re *chanResponseEmitter) Emit(v interface{}) error {
 
 	// unblock Length() and Error()
 	select {
-	case <-re.wait:
+	case <-re.waitLen:
 	default:
-		close(re.wait)
+		close(re.waitLen)
 	}
 
 	// make sure we check whether the stream is closed *before accessing re.ch*!
@@ -171,7 +174,7 @@ func (re *chanResponseEmitter) SetLength(l uint64) {
 
 	// don't change value after emitting or closing
 	select {
-	case <-re.wait:
+	case <-re.waitLen:
 	default:
 		re.length = l
 	}
@@ -205,8 +208,13 @@ func (re *chanResponseEmitter) closeWithError(err error) {
 
 	// unblock Length() and Error()
 	select {
-	case <-re.wait:
+	case <-re.waitLen:
 	default:
-		close(re.wait)
+		close(re.waitLen)
+	}
+	select {
+	case <-re.waitErr:
+	default:
+		close(re.waitErr)
 	}
 }

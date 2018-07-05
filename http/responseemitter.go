@@ -109,14 +109,6 @@ func (re *responseEmitter) Emit(value interface{}) error {
 		return nil
 	}
 
-	if err, ok := value.(cmdkit.Error); ok {
-		panic("fixme: got a cmdkit.Error: " + err.Error())
-	}
-
-	if err, ok := value.(*cmdkit.Error); ok {
-		panic("fixme: got a *cmdkit.Error: " + err.Error())
-	}
-
 	switch v := value.(type) {
 	case io.Reader:
 		err = flushCopy(re.w, v)

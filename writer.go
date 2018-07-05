@@ -119,10 +119,8 @@ func (re *writerResponseEmitter) CloseWithError(err error) error {
 }
 
 func (re *writerResponseEmitter) SetError(v interface{}, errType cmdkit.ErrorType) {
-	err := re.Emit(&cmdkit.Error{Message: fmt.Sprint(v), Code: errType})
-	if err != nil {
-		panic(err)
-	}
+	err := &cmdkit.Error{Message: fmt.Sprint(v), Code: errType}
+	log.Errorf("error setting error %q: cannot set error with writerResponseEmitter", err)
 }
 
 func (re *writerResponseEmitter) SetLength(length uint64) {
