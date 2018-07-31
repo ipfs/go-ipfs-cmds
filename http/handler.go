@@ -2,6 +2,8 @@ package http
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base32"
 	"errors"
 	"net/http"
 	"runtime/debug"
@@ -10,7 +12,6 @@ import (
 
 	cmds "github.com/ipfs/go-ipfs-cmds"
 	logging "github.com/ipfs/go-log"
-	"github.com/libp2p/go-libp2p-loggables"
 	cors "github.com/rs/cors"
 )
 
@@ -132,7 +133,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer cancel()
 
-	req.Context = logging.ContextWithLoggable(req.Context, loggables.Uuid("requestId"))
+	req.Context = logging.ContextWithLoggable(req.Context, uuidLoggable())
 	if cn, ok := w.(http.CloseNotifier); ok {
 		clientGone := cn.CloseNotify()
 		go func() {
@@ -158,6 +159,15 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	re := NewResponseEmitter(w, r.Method, req)
 	h.root.Call(req, re, h.env)
+}
+
+func uuidLoggable() logging.Loggable {
+	ids := make([]byte, 16)
+	rand.Read(ids)
+
+	return logging.Metadata{
+		"requestId": base32.HexEncoding.EncodeToString(ids),
+	}
 }
 
 func sanitizedErrStr(err error) string {

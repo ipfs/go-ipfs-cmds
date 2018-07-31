@@ -30,12 +30,6 @@
       "version": "1.1.1"
     },
     {
-      "author": "whyrusleeping",
-      "hash": "QmRPkGkHLB72caXgdDYnoaWigXNWx95BcYDKV1n3KTEpaG",
-      "name": "go-libp2p-loggables",
-      "version": "1.1.18"
-    },
-    {
       "author": "texttheater",
       "hash": "QmTVvctiHWZzSDZdyU5wdnXh7VF3kprHSyQFwVChos5qKu",
       "name": "golang-levenshtein",
