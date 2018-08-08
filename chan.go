@@ -15,7 +15,7 @@ func NewChanResponsePair(req *Request) (ResponseEmitter, Response) {
 		req:     req,
 		ch:      make(chan interface{}),
 		waitLen: make(chan struct{}),
-		waitErr: make(chan struct{}),
+		closeCh: make(chan struct{}),
 	}
 
 	re := (*chanResponseEmitter)(r)
@@ -40,10 +40,10 @@ type chanStream struct {
 	// It is protected by wl.
 	closed bool
 
-	// waitErr is closed when the stream is closed.
+	// closeCh is closed when the stream is closed.
 	// Error checks if the stream has been closed by checking if this channes is closed.
 	// Its closing is protected by wl.
-	waitErr chan struct{}
+	closeCh chan struct{}
 
 	// err is the error that the stream was closed with.
 	// It is written once under lock wl, but only read after waitLen is closed (which also happens under wl)
@@ -67,7 +67,7 @@ func (r *chanResponse) Request() *Request {
 
 func (r *chanResponse) Error() *cmdkit.Error {
 	select {
-	case <-r.waitErr:
+	case <-r.closeCh:
 		if r.err == nil || r.err == io.EOF {
 			return nil
 		}
@@ -216,8 +216,8 @@ func (re *chanResponseEmitter) closeWithError(err error) {
 		close(re.waitLen)
 	}
 	select {
-	case <-re.waitErr:
+	case <-re.closeCh:
 	default:
-		close(re.waitErr)
+		close(re.closeCh)
 	}
 }
