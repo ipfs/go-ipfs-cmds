@@ -98,6 +98,7 @@ type writerResponseEmitter struct {
 	err    *cmdkit.Error
 
 	emitted bool
+	closed  bool
 }
 
 func (re *writerResponseEmitter) SetEncoder(mkEnc func(io.Writer) Encoder) {
@@ -126,6 +127,11 @@ func (re *writerResponseEmitter) SetLength(length uint64) {
 }
 
 func (re *writerResponseEmitter) Close() error {
+	if re.closed {
+		return ErrClosingClosedEmitter
+	}
+
+	re.closed = true
 	return re.c.Close()
 }
 

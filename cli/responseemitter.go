@@ -87,7 +87,7 @@ func (re *responseEmitter) CloseWithError(err error) error {
 	defer re.l.Unlock()
 
 	if re.closed {
-		return errors.New("closing closed emitter")
+		return cmds.ErrClosingClosedEmitter
 	}
 
 	re.exit = 1 // TODO we could let err carry an exit code

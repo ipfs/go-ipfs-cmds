@@ -2,7 +2,6 @@ package cmds
 
 import (
 	"context"
-	"errors"
 	"io"
 	"sync"
 
@@ -188,7 +187,7 @@ func (re *chanResponseEmitter) CloseWithError(err error) error {
 	defer re.wl.Unlock()
 
 	if re.closed {
-		return errors.New("close of closed emitter")
+		return ErrClosingClosedEmitter
 	}
 
 	re.closeWithError(err)

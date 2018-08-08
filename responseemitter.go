@@ -7,7 +7,8 @@ import (
 )
 
 var (
-	ErrClosedEmitter = errors.New("cmds: emit on closed emitter")
+	ErrClosedEmitter        = errors.New("cmds: emit on closed emitter")
+	ErrClosingClosedEmitter = errors.New("cmds: closing closed emitter")
 )
 
 // Single can be used to signal to any ResponseEmitter that only one value will be emitted.

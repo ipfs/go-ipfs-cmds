@@ -146,6 +146,10 @@ func (re *responseEmitter) CloseWithError(err error) error {
 	re.l.Lock()
 	defer re.l.Unlock()
 
+	if re.w == nil {
+		return cmds.ErrClosingClosedEmitter
+	}
+
 	return re.closeWithError(err)
 }
 
