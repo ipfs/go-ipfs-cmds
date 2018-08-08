@@ -146,13 +146,19 @@ func (re *writerResponseEmitter) Emit(v interface{}) error {
 	// check both.
 	debug.AssertNotError(v)
 
-	if _, ok := v.(Single); ok {
-		defer re.Close()
-	}
-
 	re.emitted = true
 
-	return re.enc.Encode(v)
+	err := re.enc.Encode(v)
+	if err != nil {
+		return err
+	}
+
+	if _, ok := v.(Single); ok {
+		return re.Close()
+	}
+
+	return nil
+
 }
 
 type MaybeError struct {

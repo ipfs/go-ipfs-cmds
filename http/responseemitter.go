@@ -88,7 +88,7 @@ func (re *responseEmitter) Emit(value interface{}) error {
 
 	re.l.Lock()
 	defer re.l.Unlock()
-	
+
 	if single, ok := value.(cmds.Single); ok {
 		value = single.Value
 		defer re.closeWithError(nil)
