@@ -3,7 +3,6 @@ package cmds
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"reflect"
 	"sync"
@@ -116,11 +115,6 @@ func (re *writerResponseEmitter) CloseWithError(err error) error {
 	}
 
 	return errors.New("provided closer does not support CloseWithError")
-}
-
-func (re *writerResponseEmitter) SetError(v interface{}, errType cmdkit.ErrorType) {
-	err := &cmdkit.Error{Message: fmt.Sprint(v), Code: errType}
-	log.Errorf("error setting error %q: cannot set error with writerResponseEmitter", err)
 }
 
 func (re *writerResponseEmitter) SetLength(length uint64) {
