@@ -47,6 +47,6 @@
   "license": "MIT",
   "name": "go-ipfs-cmds",
   "releaseCmd": "git commit -a -m \"gx publish $VERSION\"",
-  "version": "1.0.20"
+  "version": "1.0.21"
 }
 
