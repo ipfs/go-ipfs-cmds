@@ -24,6 +24,7 @@ type VersionOutput struct {
 type testEnv struct {
 	version, commit, repoVersion string
 	rootCtx                      context.Context
+	t                            *testing.T
 }
 
 func (env testEnv) Context() context.Context {
@@ -64,6 +65,27 @@ var (
 				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
 					re.Emit("some value")
 					return errors.New("an error occurred")
+				},
+				Type: "",
+			},
+			"doubleclose": &cmds.Command{
+				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+					tEnv := env.(testEnv)
+					t := tEnv.t
+
+					re.Emit("some value")
+
+					err := re.Close()
+					if err != nil {
+						t.Error("unexpected error closing:", err)
+					}
+
+					err = re.Close()
+					if err != cmds.ErrClosingClosedEmitter {
+						t.Error("expected double close error, got:", err)
+					}
+
+					return nil
 				},
 				Type: "",
 			},
@@ -149,6 +171,7 @@ func getTestServer(t *testing.T, origins []string) *httptest.Server {
 		commit:      "c0mm17", // yes, I know there's no 'm' in hex.
 		repoVersion: "4",
 		rootCtx:     context.Background(),
+		t:           t,
 	}
 
 	return httptest.NewServer(NewHandler(env, cmdRoot, originCfg(origins)))
