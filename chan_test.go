@@ -86,8 +86,16 @@ func TestSingle1(t *testing.T) {
 	}
 	re, res := NewChanResponsePair(req)
 
+	wait := make(chan struct{})
+
 	go func() {
 		re.Emit(Single{42})
+
+		err = re.Close()
+		if err != ErrClosingClosedEmitter {
+			t.Fatalf("expected double close error, got %v", err)
+		}
+		close(wait)
 	}()
 
 	v, err := res.Next()
@@ -103,6 +111,8 @@ func TestSingle1(t *testing.T) {
 	if err != io.EOF {
 		t.Fatal("expected EOF, got", err)
 	}
+
+	<-wait
 }
 
 func TestSingle2(t *testing.T) {
@@ -124,5 +134,24 @@ func TestSingle2(t *testing.T) {
 	_, err = res.Next()
 	if err != io.EOF {
 		t.Fatal("expected EOF, got", err)
+	}
+}
+
+func TestDoubleClose(t *testing.T) {
+	cmd := &Command{}
+	req, err := NewRequest(context.TODO(), nil, nil, nil, nil, cmd)
+	if err != nil {
+		t.Fatal("error building request", err)
+	}
+	re, _ := NewChanResponsePair(req)
+
+	err = re.Close()
+	if err != nil {
+		t.Fatal("unexpected error closing re:", err)
+	}
+
+	err = re.Close()
+	if err != ErrClosingClosedEmitter {
+		t.Fatal("expected closed emitter error, got", err)
 	}
 }
