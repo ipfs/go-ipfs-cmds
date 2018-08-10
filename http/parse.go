@@ -210,6 +210,8 @@ func parseResponse(httpRes *http.Response, req *cmds.Request) (cmds.Response, er
 			}
 			e.Message = string(mes)
 			e.Code = cmdkit.ErrNormal
+		case res.dec == nil:
+			return nil, fmt.Errorf("unknown error content type: %s", contentType)
 		default:
 			// handle marshalled errors
 			err := res.dec.Decode(&e)
