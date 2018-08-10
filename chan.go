@@ -136,7 +136,7 @@ func (re *chanResponseEmitter) Emit(v interface{}) error {
 	// old error emitting semantics and _panic_ in those situations.
 	debug.AssertNotError(v)
 
-	// unblock Length() and Error()
+	// unblock Length()
 	select {
 	case <-re.waitLen:
 	default:
@@ -208,12 +208,14 @@ func (re *chanResponseEmitter) closeWithError(err error) {
 	re.err = err
 	close(re.ch)
 
-	// unblock Length() and Error()
+	// unblock Length()
 	select {
 	case <-re.waitLen:
 	default:
 		close(re.waitLen)
 	}
+
+	// unblock Error()
 	select {
 	case <-re.closeCh:
 	default:
