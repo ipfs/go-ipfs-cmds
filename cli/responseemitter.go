@@ -76,6 +76,10 @@ func (re *responseEmitter) CloseWithError(err error) error {
 		return re.Close()
 	}
 
+	if e, ok := err.(cmdkit.Error); ok {
+		err = &e
+	}
+
 	e, ok := err.(*cmdkit.Error)
 	if !ok {
 		e = &cmdkit.Error{
