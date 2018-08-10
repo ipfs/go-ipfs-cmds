@@ -80,7 +80,8 @@ func (c *Command) Call(req *Request, re ResponseEmitter, env Environment) {
 	}
 
 	closeErr = re.CloseWithError(err)
-	if closeErr != nil {
+	// ignore double close errors
+	if closeErr != nil && closeErr != ErrClosingClosedEmitter {
 		log.Errorf("error closing ResponseEmitter: %s", closeErr)
 	}
 }
@@ -113,9 +114,7 @@ func (c *Command) call(req *Request, re ResponseEmitter, env Environment) error 
 		} else if enc, ok := Encoders[encType]; ok {
 			re_.SetEncoder(enc(req))
 		} else {
-			// TODO or should this return an error?
-			log.Errorf("unknown encoding %q, using json", encType)
-			re_.SetEncoder(Encoders[JSON](req))
+			return fmt.Errorf("unknown encoding %q, using json", encType)
 		}
 	}
 

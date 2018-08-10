@@ -97,6 +97,10 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) (e
 
 				err := cmd.PostRun[typer.Type()](res, lower)
 				closeErr = lower.CloseWithError(err)
+				if closeErr == ErrClosingClosedEmitter {
+					// ignore double close errors
+					closeErr = nil
+				}
 				errCh <- closeErr
 
 				if closeErr != nil && err != nil {
@@ -119,7 +123,10 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) (e
 			if err, ok := v.(error); ok {
 				// use them as return error
 				closeErr := re.CloseWithError(err)
-				if closeErr != nil {
+				if closeErr == ErrClosingClosedEmitter {
+					// ignore double close errors
+					closeErr = nil
+				} else if closeErr != nil {
 					log.Errorf("error closing connection: %s", closeErr)
 					if err != nil {
 						log.Errorf("close caused by error: %s", err)
@@ -136,7 +143,10 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) (e
 	}()
 	err = cmd.Run(req, re, env)
 	err = re.CloseWithError(err)
-	if err != nil {
+	if err == ErrClosingClosedEmitter {
+		// ignore double close errors
+		return nil
+	} else if err != nil {
 		return err
 	}
 
