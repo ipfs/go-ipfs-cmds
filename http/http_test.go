@@ -14,10 +14,9 @@ import (
 
 func TestHTTP(t *testing.T) {
 	type testcase struct {
-		path    []string
-		v       interface{}
-		sendErr error
-		nextErr error
+		path []string
+		v    interface{}
+		err  error
 	}
 
 	tcs := []testcase{
@@ -32,8 +31,8 @@ func TestHTTP(t *testing.T) {
 			},
 		},
 		{
-			path:    []string{"error"},
-			sendErr: errors.New("an error occurred"),
+			path: []string{"error"},
+			err:  errors.New("an error occurred"),
 		},
 	}
 
@@ -47,24 +46,16 @@ func TestHTTP(t *testing.T) {
 			}
 
 			res, err := c.Send(req)
-			if tc.sendErr != nil {
-				if err == nil {
-					t.Fatal("got nil error, expected:", tc.sendErr)
-				} else if err.Error() != tc.sendErr.Error() {
-					t.Fatalf("got error %q, expected %q", err, tc.sendErr)
-				}
-
-				return
-			} else if err != nil {
+			if err != nil {
 				t.Fatal("unexpected error:", err)
 			}
 
 			v, err := res.Next()
-			if tc.nextErr != nil {
+			if tc.err != nil {
 				if err == nil {
-					t.Fatal("got nil error, expected:", tc.nextErr)
-				} else if err.Error() != tc.nextErr.Error() {
-					t.Fatalf("got error %q, expected %q", err, tc.nextErr)
+					t.Fatal("got nil error, expected:", tc.err)
+				} else if err.Error() != tc.err.Error() {
+					t.Fatalf("got error %q, expected %q", err, tc.err)
 				}
 			} else if err != nil {
 				t.Fatal("unexpected error:", err)
@@ -75,11 +66,11 @@ func TestHTTP(t *testing.T) {
 			}
 
 			_, err = res.Next()
-			if tc.nextErr != nil {
+			if tc.err != nil {
 				if err == nil {
-					t.Fatal("got nil error, expected:", tc.nextErr)
-				} else if err.Error() != tc.nextErr.Error() {
-					t.Fatalf("got error %q, expected %q", err, tc.nextErr)
+					t.Fatal("got nil error, expected:", tc.err)
+				} else if err.Error() != tc.err.Error() {
+					t.Fatalf("got error %q, expected %q", err, tc.err)
 				}
 			} else if err != io.EOF {
 				t.Fatal("expected io.EOF error, got:", err)

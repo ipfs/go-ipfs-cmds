@@ -87,6 +87,12 @@ func (res *Response) Next() (interface{}, error) {
 	err := res.dec.Decode(m)
 	if err != nil {
 		if err == io.EOF {
+			// handle errors from headers
+			errStr := res.res.Header.Get(StreamErrHeader)
+			if errStr != "" {
+				return nil, &cmdkit.Error{Message: errStr}
+			}
+
 			res.err = err
 			return nil, err
 		} else {

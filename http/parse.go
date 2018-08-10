@@ -2,7 +2,6 @@ package http
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"mime"
@@ -215,10 +214,7 @@ func parseResponse(httpRes *http.Response, req *cmds.Request) (cmds.Response, er
 			return nil, fmt.Errorf("unknown error content type: %s", contentType)
 		default:
 			// handle errors from headers
-			errStr := httpRes.Header.Get(StreamErrHeader)
-			if errStr != "" {
-				return nil, errors.New(errStr)
-			}
+			e.Message = httpRes.Header.Get(StreamErrHeader)
 		}
 
 		res.initErr = e
