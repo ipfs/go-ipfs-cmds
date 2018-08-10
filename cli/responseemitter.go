@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -120,7 +119,7 @@ func (re *responseEmitter) Close() error {
 
 func (re *responseEmitter) close() error {
 	if re.closed {
-		return errors.New("closing closed responseemitter")
+		return cmds.ErrClosingClosedEmitter
 	}
 
 	re.ch <- re.exit

@@ -60,6 +60,26 @@ func TestCloseWithError(t *testing.T) {
 				re.Emit("b")
 			},
 		},
+		tcCloseWithError{
+			stdout:   bytes.NewBuffer(nil),
+			stderr:   bytes.NewBuffer(nil),
+			exStdout: "a\n",
+			exStderr: "Error: some error\n",
+			exExit:   1,
+			f: func(re ResponseEmitter, t *testing.T) {
+				re.Emit("a")
+
+				err := re.CloseWithError(fmt.Errorf("some error"))
+				if err != nil {
+					t.Fatal("unexpected error:", err)
+				}
+
+				err = re.Close()
+				if err != cmds.ErrClosingClosedEmitter {
+					t.Fatal("expected double close error, got:", err)
+				}
+			},
+		},
 	}
 
 	for i, tc := range tcs {
