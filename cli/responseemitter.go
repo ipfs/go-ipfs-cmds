@@ -215,7 +215,7 @@ func (re *responseEmitter) Emit(v interface{}) error {
 	}
 
 	if isSingle {
-		return re.Close()
+		return re.CloseWithError(err)
 	}
 
 	return err
