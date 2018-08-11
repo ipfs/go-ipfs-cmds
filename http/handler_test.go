@@ -121,6 +121,15 @@ var (
 					}),
 				},
 			},
+			"notfound": &cmds.Command{
+				Helptext: cmdkit.HelpText{
+					Tagline: "Fail with 404",
+				},
+				Type: VersionOutput{},
+				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) {
+					re.SetError(cmdkit.Error{Message: "Not found", Code: cmdkit.ErrNotFound}, cmdkit.ErrNotFound)
+				},
+			},
 		},
 	}
 )

@@ -355,3 +355,30 @@ func TestEncoding(t *testing.T) {
 		tc.test(t)
 	}
 }
+
+func TestNotFound(t *testing.T) {
+	gtc := func(enc, contentType string) httpTestCase {
+		code := http.StatusNotFound
+		path := fmt.Sprintf("/notfound?%v=%v", cmds.EncShort, enc)
+
+		return httpTestCase{
+			Method:       "GET",
+			Path:         path,
+			Origin:       "http://localhost",
+			AllowOrigins: []string{"*"},
+			ReqHeaders: map[string]string{
+				"Access-Control-Request-Method": "GET",
+			},
+			//ResHeaders: hdrs,
+			Code: code,
+		}
+	}
+
+	tcs := []httpTestCase{
+		gtc(cmds.JSON, applicationJson),
+	}
+
+	for _, tc := range tcs {
+		tc.test(t)
+	}
+}

@@ -148,6 +148,11 @@ func (re *responseEmitter) Close() error {
 }
 
 func (re *responseEmitter) SetError(v interface{}, errType cmdkit.ErrorType) {
+	if errType == cmdkit.ErrNotFound {
+		re.w.WriteHeader(http.StatusNotFound)
+		re.Close()
+		return
+	}
 	err := re.Emit(&cmdkit.Error{Message: fmt.Sprint(v), Code: errType})
 	if err != nil {
 		log.Debug("http.SetError err=", err)
