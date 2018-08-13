@@ -106,13 +106,18 @@ func (re *writerResponseEmitter) SetEncoder(mkEnc func(io.Writer) Encoder) {
 }
 
 func (re *writerResponseEmitter) CloseWithError(err error) error {
-	cwe, ok := re.c.(interface{ CloseWithError(error) error })
-	if ok {
-		return cwe.CloseWithError(err)
+	if re.closed {
+		return ErrClosingClosedEmitter
 	}
 
 	if err == nil || err == io.EOF {
 		return re.Close()
+	}
+
+	cwe, ok := re.c.(interface{ CloseWithError(error) error })
+	if ok {
+		re.closed = true
+		return cwe.CloseWithError(err)
 	}
 
 	return errors.New("provided closer does not support CloseWithError")
@@ -152,19 +157,28 @@ func (re *writerResponseEmitter) Emit(v interface{}) error {
 	// check both.
 	debug.AssertNotError(v)
 
+	if re.closed {
+		return ErrClosedEmitter
+	}
+
 	re.emitted = true
+
+	var isSingle bool
+	if s, ok := v.(Single); ok {
+		v = s.Value
+		isSingle = true
+	}
 
 	err := re.enc.Encode(v)
 	if err != nil {
 		return err
 	}
 
-	if _, ok := v.(Single); ok {
+	if isSingle {
 		return re.Close()
 	}
 
 	return nil
-
 }
 
 type MaybeError struct {
