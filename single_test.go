@@ -10,7 +10,7 @@ import (
 func TestSingleChan(t *testing.T) {
 	req, err := NewRequest(context.Background(), nil, nil, nil, nil, &Command{})
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal("error building request", err)
 	}
 
 	re, res := NewChanResponsePair(req)
