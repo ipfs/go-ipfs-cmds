@@ -34,6 +34,10 @@ func TestHTTP(t *testing.T) {
 			path: []string{"error"},
 			err:  errors.New("an error occurred"),
 		},
+		{
+			path: []string{"doubleclose"},
+			v:    "some value",
+		},
 	}
 
 	mkTest := func(tc testcase) func(*testing.T) {
@@ -61,8 +65,13 @@ func TestHTTP(t *testing.T) {
 				t.Fatal("unexpected error:", err)
 			}
 
+			// TODO find a better way to solve this!
+			if s, ok := v.(*string); ok {
+				v = *s
+			}
+
 			if !reflect.DeepEqual(v, tc.v) {
-				t.Errorf("expected value to be %v but got %v", tc.v, v)
+				t.Errorf("expected value to be %v but got: %+v", tc.v, v)
 			}
 
 			_, err = res.Next()

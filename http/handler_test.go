@@ -46,6 +46,11 @@ func getRepoVersion(env cmds.Environment) (string, bool) {
 	return tEnv.repoVersion, ok
 }
 
+func getTestingT(env cmds.Environment) (*testing.T, bool) {
+	tEnv, ok := env.(testEnv)
+	return tEnv.t, ok
+}
+
 var (
 	cmdRoot = &cmds.Command{
 		Options: []cmdkit.Option{
@@ -70,8 +75,10 @@ var (
 			},
 			"doubleclose": &cmds.Command{
 				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
-					tEnv := env.(testEnv)
-					t := tEnv.t
+					t, ok := getTestingT(env)
+					if !ok {
+						return errors.New("error getting *testing.T")
+					}
 
 					re.Emit("some value")
 

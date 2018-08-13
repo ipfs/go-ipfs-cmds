@@ -64,6 +64,7 @@ type responseEmitter struct {
 	err    *cmdkit.Error
 
 	streaming bool
+	closed    bool
 	once      sync.Once
 	method    string
 }
@@ -89,6 +90,10 @@ func (re *responseEmitter) Emit(value interface{}) error {
 	re.l.Lock()
 	defer re.l.Unlock()
 
+	if re.closed {
+		return cmds.ErrClosedEmitter
+	}
+
 	if single, ok := value.(cmds.Single); ok {
 		value = single.Value
 		defer re.closeWithError(nil)
@@ -99,10 +104,6 @@ func (re *responseEmitter) Emit(value interface{}) error {
 	// return immediately if this is a head request
 	if re.method == "HEAD" {
 		return nil
-	}
-
-	if re.w == nil {
-		return cmds.ErrClosedEmitter
 	}
 
 	// ignore those
@@ -119,10 +120,6 @@ func (re *responseEmitter) Emit(value interface{}) error {
 
 	if f, ok := re.w.(http.Flusher); ok {
 		f.Flush()
-	}
-
-	if err != nil {
-		log.Error(err)
 	}
 
 	return err
@@ -146,9 +143,11 @@ func (re *responseEmitter) CloseWithError(err error) error {
 	re.l.Lock()
 	defer re.l.Unlock()
 
-	if re.w == nil {
+	if re.closed {
 		return cmds.ErrClosingClosedEmitter
 	}
+
+	re.closed = true
 
 	return re.closeWithError(err)
 }
@@ -164,6 +163,8 @@ func (re *responseEmitter) closeWithError(err error) error {
 
 	// use preamble directly, we're already in critical section
 	re.once.Do(func() { re.doPreamble(err) })
+
+	re.closed = true
 
 	return nil
 }
