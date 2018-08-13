@@ -17,6 +17,7 @@ func TestHTTP(t *testing.T) {
 		path []string
 		v    interface{}
 		err  error
+		wait bool
 	}
 
 	tcs := []testcase{
@@ -38,11 +39,16 @@ func TestHTTP(t *testing.T) {
 			path: []string{"doubleclose"},
 			v:    "some value",
 		},
+		{
+			path: []string{"single"},
+			v:    "some value",
+			wait: true,
+		},
 	}
 
 	mkTest := func(tc testcase) func(*testing.T) {
 		return func(t *testing.T) {
-			srv := getTestServer(t, nil) // handler_test:/^func getTestServer/
+			env, srv := getTestServer(t, nil) // handler_test:/^func getTestServer/
 			c := NewClient(srv.URL)
 			req, err := cmds.NewRequest(context.Background(), tc.path, nil, nil, nil, cmdRoot)
 			if err != nil {
@@ -83,6 +89,15 @@ func TestHTTP(t *testing.T) {
 				}
 			} else if err != io.EOF {
 				t.Fatal("expected io.EOF error, got:", err)
+			}
+
+			wait, ok := getWaitChan(env)
+			if !ok {
+				t.Fatal("could not get wait chan")
+			}
+
+			if tc.wait {
+				<-wait
 			}
 		}
 	}

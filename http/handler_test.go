@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http/httptest"
 	"runtime"
+
 	"testing"
 
 	cmdkit "github.com/ipfs/go-ipfs-cmdkit"
@@ -25,6 +26,7 @@ type testEnv struct {
 	version, commit, repoVersion string
 	rootCtx                      context.Context
 	t                            *testing.T
+	wait                         chan struct{}
 }
 
 func (env testEnv) Context() context.Context {
@@ -49,6 +51,12 @@ func getRepoVersion(env cmds.Environment) (string, bool) {
 func getTestingT(env cmds.Environment) (*testing.T, bool) {
 	tEnv, ok := env.(testEnv)
 	return tEnv.t, ok
+}
+
+func getWaitChan(env cmds.Environment) (chan struct{}, bool) {
+	tEnv, ok := env.(testEnv)
+	return tEnv.wait, ok
+
 }
 
 var (
@@ -91,6 +99,39 @@ var (
 					if err != cmds.ErrClosingClosedEmitter {
 						t.Error("expected double close error, got:", err)
 					}
+
+					return nil
+				},
+				Type: "",
+			},
+			"single": &cmds.Command{
+				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+					t, ok := getTestingT(env)
+					if !ok {
+						return errors.New("error getting *testing.T")
+					}
+
+					wait, ok := getWaitChan(env)
+					if !ok {
+						return errors.New("error getting wait chan")
+					}
+
+					err := cmds.EmitOnce(re, "some value")
+					if err != nil {
+						t.Error("unexpected emit error:", err)
+					}
+
+					err = re.Emit("this should not be emitted")
+					if err != cmds.ErrClosedEmitter {
+						t.Errorf("expected emit error %q, got: %v", cmds.ErrClosedEmitter, err)
+					}
+
+					err = re.Close()
+					if err != cmds.ErrClosingClosedEmitter {
+						t.Error("expected double close error, got:", err)
+					}
+
+					close(wait)
 
 					return nil
 				},
@@ -168,7 +209,7 @@ var (
 	}
 )
 
-func getTestServer(t *testing.T, origins []string) *httptest.Server {
+func getTestServer(t *testing.T, origins []string) (cmds.Environment, *httptest.Server) {
 	if len(origins) == 0 {
 		origins = defaultOrigins
 	}
@@ -179,9 +220,10 @@ func getTestServer(t *testing.T, origins []string) *httptest.Server {
 		repoVersion: "4",
 		rootCtx:     context.Background(),
 		t:           t,
+		wait:        make(chan struct{}),
 	}
 
-	return httptest.NewServer(NewHandler(env, cmdRoot, originCfg(origins)))
+	return env, httptest.NewServer(NewHandler(env, cmdRoot, originCfg(origins)))
 }
 
 func errEq(err1, err2 error) bool {
