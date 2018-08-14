@@ -114,7 +114,7 @@ func (c *Command) call(req *Request, re ResponseEmitter, env Environment) error 
 		} else if enc, ok := Encoders[encType]; ok {
 			re_.SetEncoder(enc(req))
 		} else {
-			return fmt.Errorf("unknown encoding %q, using json", encType)
+			return fmt.Errorf("unknown encoding %q", encType)
 		}
 	}
 
