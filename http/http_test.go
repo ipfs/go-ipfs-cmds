@@ -63,9 +63,9 @@ func TestHTTP(t *testing.T) {
 			v, err := res.Next()
 			if tc.err != nil {
 				if err == nil {
-					t.Fatal("got nil error, expected:", tc.err)
+					t.Error("got nil error, expected:", tc.err)
 				} else if err.Error() != tc.err.Error() {
-					t.Fatalf("got error %q, expected %q", err, tc.err)
+					t.Errorf("got error %q, expected %q", err, tc.err)
 				}
 			} else if err != nil {
 				t.Fatal("unexpected error:", err)
