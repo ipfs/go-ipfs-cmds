@@ -25,8 +25,6 @@ func TestSingle(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		wait <- struct{}{}
-
 		err := re.Emit("this should not be emitted")
 		if err != cmds.ErrClosedEmitter {
 			t.Errorf("expected emit error %q, got: %v", cmds.ErrClosedEmitter, err)
@@ -43,7 +41,6 @@ func TestSingle(t *testing.T) {
 	if exitCode != 0 {
 		t.Errorf("expected exit code 0, got: %v", exitCode)
 	}
-	<-wait
 
 	str := bufout.String()
 	if str != "test\n" {
