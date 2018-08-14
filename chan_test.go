@@ -91,7 +91,7 @@ func TestSingle1(t *testing.T) {
 	go func() {
 		re.Emit(Single{42})
 
-		err = re.Close()
+		err := re.Close()
 		if err != ErrClosingClosedEmitter {
 			t.Fatalf("expected double close error, got %v", err)
 		}
