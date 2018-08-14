@@ -147,8 +147,6 @@ func (re *responseEmitter) CloseWithError(err error) error {
 		return cmds.ErrClosingClosedEmitter
 	}
 
-	re.closed = true
-
 	return re.closeWithError(err)
 }
 
