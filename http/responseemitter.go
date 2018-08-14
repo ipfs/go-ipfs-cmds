@@ -94,11 +94,6 @@ func (re *responseEmitter) Emit(value interface{}) error {
 		return cmds.ErrClosedEmitter
 	}
 
-	if single, ok := value.(cmds.Single); ok {
-		value = single.Value
-		defer re.closeWithError(nil)
-	}
-
 	var err error
 
 	// return immediately if this is a head request
@@ -111,6 +106,12 @@ func (re *responseEmitter) Emit(value interface{}) error {
 		return nil
 	}
 
+	var isSingle bool
+	if single, ok := value.(cmds.Single); ok {
+		value = single.Value
+		isSingle = true
+	}
+
 	switch v := value.(type) {
 	case io.Reader:
 		err = flushCopy(re.w, v)
@@ -120,6 +121,10 @@ func (re *responseEmitter) Emit(value interface{}) error {
 
 	if f, ok := re.w.(http.Flusher); ok {
 		f.Flush()
+	}
+
+	if isSingle {
+		err = re.closeWithError(err)
 	}
 
 	return err
