@@ -90,7 +90,7 @@ func (res *Response) Next() (interface{}, error) {
 			// handle errors from headers
 			errStr := res.res.Header.Get(StreamErrHeader)
 			if errStr != "" {
-				return nil, &cmdkit.Error{Message: errStr}
+				err = &cmdkit.Error{Message: errStr}
 			}
 
 			res.err = err
