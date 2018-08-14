@@ -156,20 +156,35 @@ func (re *responseEmitter) CloseWithError(err error) error {
 }
 
 func (re *responseEmitter) closeWithError(err error) error {
+	// encoding error, only set if err != nil/EOF
+	var encErr error
+
 	if err == io.EOF {
 		err = nil
 	}
-	if err != nil {
-		// abort by sending an error trailer
-		re.w.Header().Set(StreamErrHeader, err.Error())
+	if e, ok := err.(cmdkit.Error); ok {
+		err = &e
 	}
 
 	// use preamble directly, we're already in critical section
+	// preamble needs to be before branch below, because the headers need to be written before writing the response
 	re.once.Do(func() { re.doPreamble(err) })
+
+	if err != nil {
+		// also send the error as a value if we have an encoder
+		if re.enc != nil {
+			e, ok := err.(*cmdkit.Error)
+			if !ok {
+				e = &cmdkit.Error{Message: err.Error()}
+			}
+
+			encErr = re.enc.Encode(e)
+		}
+	}
 
 	re.closed = true
 
-	return nil
+	return encErr
 }
 
 // Flush the http connection
@@ -212,8 +227,10 @@ func (re *responseEmitter) doPreamble(value interface{}) {
 		} else {
 			status = http.StatusInternalServerError
 		}
+		h.Set(StreamErrHeader, err.Message)
 	case error:
 		status = http.StatusInternalServerError
+		h.Set(StreamErrHeader, v.Error())
 	default:
 		h.Set(channelHeader, "1")
 	}
