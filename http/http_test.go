@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"testing"
 
-	cmds "github.com/ipfs/go-ipfs-cmds"
+	"github.com/ipfs/go-ipfs-cmds"
 )
 
 func TestHTTP(t *testing.T) {

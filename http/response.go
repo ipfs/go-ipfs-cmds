@@ -4,11 +4,11 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"reflect"
 	"strings"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-cmds"
-	"reflect"
 )
 
 var (
@@ -83,6 +83,7 @@ func (res *Response) Next() (interface{}, error) {
 		}
 		value = reflect.New(valueType).Interface()
 	}
+
 	m := &cmds.MaybeError{Value: value}
 	err := res.dec.Decode(m)
 	if err != nil {
