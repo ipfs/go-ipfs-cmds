@@ -78,6 +78,43 @@ func TestChanResponsePair(t *testing.T) {
 	}
 }
 
+func TestSingle1(t *testing.T) {
+	cmd := &Command{}
+	req, err := NewRequest(context.TODO(), nil, nil, nil, nil, cmd)
+	if err != nil {
+		t.Fatal("error building request", err)
+	}
+	re, res := NewChanResponsePair(req)
+
+	wait := make(chan struct{})
+
+	go func() {
+		re.Emit(Single{42})
+
+		err = re.Close()
+		if err != ErrClosingClosedEmitter {
+			t.Fatalf("expected double close error, got %v", err)
+		}
+		close(wait)
+	}()
+
+	v, err := res.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if v != 42 {
+		t.Fatal("expected 42, got", v)
+	}
+
+	_, err = res.Next()
+	if err != io.EOF {
+		t.Fatal("expected EOF, got", err)
+	}
+
+	<-wait
+}
+
 func TestSingle2(t *testing.T) {
 	cmd := &Command{}
 	req, err := NewRequest(context.TODO(), nil, nil, nil, nil, cmd)
