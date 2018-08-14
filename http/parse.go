@@ -190,7 +190,11 @@ func parseResponse(httpRes *http.Response, req *cmds.Request) (cmds.Response, er
 		makeDec, ok := cmds.Decoders[encType]
 		if ok {
 			res.dec = makeDec(res.rr)
+		} else {
+			log.Errorf("could not find decoder for encoding %q", encType)
 		}
+	} else {
+		log.Errorf("could not guess encoding from content type %q", contentType)
 	}
 
 	// If we ran into an error
