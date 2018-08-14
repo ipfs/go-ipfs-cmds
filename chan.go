@@ -215,7 +215,7 @@ func (re *chanResponseEmitter) closeWithError(err error) {
 		close(re.waitLen)
 	}
 
-	// unblock Error()
+	// make Error() return the value in res.err instead of nil
 	select {
 	case <-re.closeCh:
 	default:
