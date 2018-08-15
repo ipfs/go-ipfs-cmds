@@ -171,6 +171,8 @@ func (re *responseEmitter) closeWithError(err error) error {
 	re.once.Do(func() { re.doPreamble(err) })
 
 	if err != nil {
+		re.w.Header().Set(StreamErrHeader, err.Error())
+
 		// also send the error as a value if we have an encoder
 		if re.enc != nil {
 			e, ok := err.(*cmdkit.Error)
