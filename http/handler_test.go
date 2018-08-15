@@ -1,6 +1,7 @@
 package http
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -104,6 +105,7 @@ var (
 				},
 				Type: "",
 			},
+
 			"single": &cmds.Command{
 				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
 					t, ok := getTestingT(env)
@@ -137,6 +139,14 @@ var (
 				},
 				Type: "",
 			},
+
+			"reader": &cmds.Command{
+				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+					buf := bytes.NewBufferString("the reader call returns a reader.")
+					return re.Emit(buf)
+				},
+			},
+
 			"version": &cmds.Command{
 				Helptext: cmdkit.HelpText{
 					Tagline:          "Show ipfs version information.",

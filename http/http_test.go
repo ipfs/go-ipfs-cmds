@@ -1,6 +1,7 @@
 package http
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -16,6 +17,7 @@ func TestHTTP(t *testing.T) {
 	type testcase struct {
 		path []string
 		v    interface{}
+		r    string
 		err  error
 		wait bool
 	}
@@ -31,18 +33,26 @@ func TestHTTP(t *testing.T) {
 				Golang:  runtime.Version(),
 			},
 		},
+
 		{
 			path: []string{"error"},
 			err:  errors.New("an error occurred"),
 		},
+
 		{
 			path: []string{"doubleclose"},
 			v:    "some value",
 		},
+
 		{
 			path: []string{"single"},
 			v:    "some value",
 			wait: true,
+		},
+
+		{
+			path: []string{"reader"},
+			r:    "the reader call returns a reader.",
 		},
 	}
 
@@ -76,19 +86,38 @@ func TestHTTP(t *testing.T) {
 				v = *s
 			}
 
-			if !reflect.DeepEqual(v, tc.v) {
-				t.Errorf("expected value to be %v but got: %+v", tc.v, v)
-			}
-
-			_, err = res.Next()
-			if tc.err != nil {
-				if err == nil {
-					t.Fatal("got nil error, expected:", tc.err)
-				} else if err.Error() != tc.err.Error() {
-					t.Fatalf("got error %q, expected %q", err, tc.err)
+			if len(tc.r) == 0 {
+				// if we don't expect a reader
+				if !reflect.DeepEqual(v, tc.v) {
+					t.Errorf("expected value to be %v but got: %+v", tc.v, v)
 				}
-			} else if err != io.EOF {
-				t.Fatal("expected io.EOF error, got:", err)
+
+				_, err = res.Next()
+				if tc.err != nil {
+					if err == nil {
+						t.Fatal("got nil error, expected:", tc.err)
+					} else if err.Error() != tc.err.Error() {
+						t.Fatalf("got error %q, expected %q", err, tc.err)
+					}
+				} else if err != io.EOF {
+					t.Fatal("expected io.EOF error, got:", err)
+				}
+			} else {
+				r, ok := v.(io.Reader)
+				if !ok {
+					t.Fatalf("expected a %T but got a %T", r, v)
+				}
+
+				var buf bytes.Buffer
+
+				_, err := io.Copy(&buf, r)
+				if err != nil {
+					t.Fatal("unexpected copy error:", err)
+				}
+
+				if buf.String() != tc.r {
+					t.Errorf("expected return string %q but got %q", tc.r, buf.String())
+				}
 			}
 
 			wait, ok := getWaitChan(env)
