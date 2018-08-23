@@ -94,7 +94,7 @@ func MakeTypedEncoder(f interface{}) func(*Request) func(io.Writer) Encoder {
 
 	return MakeEncoder(func(req *Request, w io.Writer, i interface{}) error {
 		if reflect.TypeOf(i) != valType {
-			return fmt.Errorf("unexpected type: %T", i)
+			return fmt.Errorf("unexpected type %T, expected %v", i, valType)
 		}
 
 		out := val.Call([]reflect.Value{

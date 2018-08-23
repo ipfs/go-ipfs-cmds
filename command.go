@@ -76,7 +76,7 @@ func (c *Command) Call(req *Request, re ResponseEmitter, env Environment) {
 
 	err := c.call(req, re, env)
 	if err != nil {
-		log.Debug("error occured in call, closing with error: %s", err)
+		log.Debugf("error occured in call, closing with error: %s", err)
 	}
 
 	closeErr = re.CloseWithError(err)

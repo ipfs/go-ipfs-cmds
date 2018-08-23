@@ -114,7 +114,9 @@ func (re *writerResponseEmitter) CloseWithError(err error) error {
 		return re.Close()
 	}
 
-	cwe, ok := re.c.(interface{ CloseWithError(error) error })
+	cwe, ok := re.c.(interface {
+		CloseWithError(error) error
+	})
 	if ok {
 		re.closed = true
 		return cwe.CloseWithError(err)
