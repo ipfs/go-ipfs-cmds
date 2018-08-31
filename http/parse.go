@@ -220,7 +220,7 @@ func parseResponse(httpRes *http.Response, req *cmds.Request) (cmds.Response, er
 			// handle errors from headers
 			err := res.dec.Decode(e)
 			if err != nil {
-				log.Errorf("error parsing error: ", err.Error())
+				log.Errorf("error parsing error %q", err.Error())
 			}
 		}
 
