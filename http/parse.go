@@ -218,7 +218,10 @@ func parseResponse(httpRes *http.Response, req *cmds.Request) (cmds.Response, er
 			return nil, fmt.Errorf("unknown error content type: %s", contentType)
 		default:
 			// handle errors from headers
-			e.Message = httpRes.Header.Get(StreamErrHeader)
+			err := res.dec.Decode(e)
+			if err != nil {
+				log.Errorf("error parsing error: ", err.Error())
+			}
 		}
 
 		res.initErr = e

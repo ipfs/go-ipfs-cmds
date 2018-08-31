@@ -8,6 +8,7 @@ import (
 	"io"
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/ipfs/go-ipfs-cmds"
@@ -71,6 +72,7 @@ func TestHTTP(t *testing.T) {
 			}
 
 			v, err := res.Next()
+			t.Log("v:", v, "err:", err)
 			if tc.err != nil {
 				if err == nil {
 					t.Error("got nil error, expected:", tc.err)
@@ -132,6 +134,6 @@ func TestHTTP(t *testing.T) {
 	}
 
 	for i, tc := range tcs {
-		t.Run(fmt.Sprint(i), mkTest(tc))
+		t.Run(fmt.Sprintf("%d-%s", i, strings.Join(tc.path, "/")), mkTest(tc))
 	}
 }

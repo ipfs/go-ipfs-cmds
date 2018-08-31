@@ -70,7 +70,6 @@ type responseEmitter struct {
 }
 
 func (re *responseEmitter) Emit(value interface{}) error {
-
 	// Initially this library allowed commands to return errors by sending an
 	// error value along a stream. We removed that in favour of CloseWithError,
 	// so we want to make sure we catch situations where some code still uses the
@@ -112,19 +111,23 @@ func (re *responseEmitter) Emit(value interface{}) error {
 		isSingle = true
 	}
 
+	if f, ok := re.w.(http.Flusher); ok {
+		defer f.Flush()
+	}
+
 	switch v := value.(type) {
+	case error:
+		return re.closeWithError(v)
 	case io.Reader:
 		err = flushCopy(re.w, v)
 	default:
 		err = re.enc.Encode(value)
 	}
 
-	if f, ok := re.w.(http.Flusher); ok {
-		f.Flush()
-	}
-
 	if isSingle {
-		err = re.closeWithError(err)
+		// always close singles with nil error.
+		// encoding errors go to caller.
+		err = re.closeWithError(nil)
 	}
 
 	return err
@@ -148,16 +151,13 @@ func (re *responseEmitter) CloseWithError(err error) error {
 	re.l.Lock()
 	defer re.l.Unlock()
 
-	if re.closed {
-		return cmds.ErrClosingClosedEmitter
-	}
-
 	return re.closeWithError(err)
 }
 
 func (re *responseEmitter) closeWithError(err error) error {
-	// encoding error, only set if err != nil/EOF
-	var encErr error
+	if re.closed {
+		return cmds.ErrClosingClosedEmitter
+	}
 
 	if err == io.EOF {
 		err = nil
@@ -166,27 +166,24 @@ func (re *responseEmitter) closeWithError(err error) error {
 		err = &e
 	}
 
+	setErrTrailer := true
+
 	// use preamble directly, we're already in critical section
 	// preamble needs to be before branch below, because the headers need to be written before writing the response
-	re.once.Do(func() { re.doPreamble(err) })
+	re.once.Do(func() {
+		re.doPreamble(err)
 
-	if err != nil {
+		// do not set error trailer if we send the error as value in preamble
+		setErrTrailer = false
+	})
+
+	if setErrTrailer && err != nil {
 		re.w.Header().Set(StreamErrHeader, err.Error())
-
-		// also send the error as a value if we have an encoder
-		if re.enc != nil {
-			e, ok := err.(*cmdkit.Error)
-			if !ok {
-				e = &cmdkit.Error{Message: err.Error()}
-			}
-
-			encErr = re.enc.Encode(e)
-		}
 	}
 
 	re.closed = true
 
-	return encErr
+	return nil
 }
 
 // Flush the http connection
@@ -229,10 +226,8 @@ func (re *responseEmitter) doPreamble(value interface{}) {
 		} else {
 			status = http.StatusInternalServerError
 		}
-		h.Set(StreamErrHeader, err.Message)
 	case error:
 		status = http.StatusInternalServerError
-		h.Set(StreamErrHeader, v.Error())
 	default:
 		h.Set(channelHeader, "1")
 	}
@@ -259,6 +254,19 @@ func (re *responseEmitter) doPreamble(value interface{}) {
 	h.Set("Access-Control-Expose-Headers", AllowedExposedHeaders)
 
 	re.w.WriteHeader(status)
+
+	if err, ok := value.(error); ok {
+		if _, ok := err.(*cmdkit.Error); !ok {
+			err = &cmdkit.Error{Message: err.Error()}
+		}
+
+		err = re.enc.Encode(err)
+		if err != nil {
+			log.Error("error sending error value after non-200 response", err)
+		}
+
+		re.closed = true
+	}
 }
 
 type responseWriterer interface {
