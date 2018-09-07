@@ -124,9 +124,8 @@ func (re *responseEmitter) Emit(value interface{}) error {
 		err = re.enc.Encode(value)
 	}
 
-	if isSingle {
-		// always close singles with nil error.
-		// encoding errors go to caller.
+	if isSingle && err == nil {
+		// only close when there were no encoding errors
 		err = re.closeWithError(nil)
 	}
 
