@@ -217,14 +217,14 @@ func parseResponse(httpRes *http.Response, req *cmds.Request) (cmds.Response, er
 		case res.dec == nil:
 			return nil, fmt.Errorf("unknown error content type: %s", contentType)
 		default:
-			// handle errors from headers
+			// handle errors from value
 			err := res.dec.Decode(e)
 			if err != nil {
 				log.Errorf("error parsing error %q", err.Error())
 			}
 		}
 
-		res.initErr = e
+		return nil, e
 	}
 
 	return res, nil

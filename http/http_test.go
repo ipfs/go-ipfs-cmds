@@ -16,11 +16,12 @@ import (
 
 func TestHTTP(t *testing.T) {
 	type testcase struct {
-		path []string
-		v    interface{}
-		r    string
-		err  error
-		wait bool
+		path    []string
+		v       interface{}
+		r       string
+		err     error
+		sendErr error
+		wait    bool
 	}
 
 	tcs := []testcase{
@@ -36,8 +37,8 @@ func TestHTTP(t *testing.T) {
 		},
 
 		{
-			path: []string{"error"},
-			err:  errors.New("an error occurred"),
+			path:    []string{"error"},
+			sendErr: errors.New("an error occurred"),
 		},
 
 		{
@@ -67,8 +68,18 @@ func TestHTTP(t *testing.T) {
 			}
 
 			res, err := c.Send(req)
-			if err != nil {
-				t.Fatal("unexpected error:", err)
+			if tc.sendErr != nil {
+				if err == nil {
+					t.Fatalf("expected error %q but got nil", tc.sendErr)
+				}
+
+				if err.Error() != tc.sendErr.Error() {
+					t.Fatalf("expected error %q but got %q", tc.sendErr, err)
+				}
+
+				return
+			} else if err != nil {
+				t.Fatal("unexpected error:", tc.sendErr)
 			}
 
 			v, err := res.Next()
