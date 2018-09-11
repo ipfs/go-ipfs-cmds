@@ -164,6 +164,13 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// If we have a request body, close the connection when we're done.
+	// FIXME: https://github.com/ipfs/go-ipfs/issues/5168
+	// FIXME: https://github.com/golang/go/issues/15527
+	if r.Body != http.NoBody {
+		w.Header().Set("Connection", "close")
+	}
+
 	h.root.Call(req, re, h.env)
 }
 
