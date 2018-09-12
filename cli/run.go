@@ -39,6 +39,7 @@ func Run(ctx context.Context, root *cmds.Command,
 	if timeoutStr, ok := req.Options[cmds.TimeoutOpt]; ok {
 		timeout, err := time.ParseDuration(timeoutStr.(string))
 		if err != nil {
+			printErr(err)
 			return err
 		}
 		req.Context, cancel = context.WithTimeout(req.Context, timeout)
