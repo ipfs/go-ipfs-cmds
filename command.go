@@ -25,7 +25,7 @@ var log = logging.Logger("cmds")
 
 // Function is the type of function that Commands use.
 // It reads from the Request, and writes results to the ResponseEmitter.
-type Function func(*Request, ResponseEmitter, Environment)
+type Function func(*Request, ResponseEmitter, Environment) error
 
 // PostRunMap is the map used in Command.PostRun.
 type PostRunMap map[PostRunType]func(*Request, ResponseEmitter) ResponseEmitter
@@ -104,7 +104,22 @@ func (c *Command) Call(req *Request, re ResponseEmitter, env Environment) {
 		}
 	}
 
-	cmd.Run(req, re, env)
+	err = cmd.Run(req, re, env)
+	if err != nil {
+		if cmderr, ok := err.(cmdkit.Error); ok {
+			err = &cmderr
+		}
+
+		if cmderr, ok := err.(*cmdkit.Error); ok {
+			err = re.Emit(cmderr)
+			if err != nil {
+				log.Error("error %q emitting cmd error %q on request %#v", err, cmderr, req)
+			}
+
+			return
+		}
+		re.SetError(err, cmdkit.ErrNormal)
+	}
 }
 
 // Resolve returns the subcommands at the given path

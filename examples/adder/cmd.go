@@ -29,14 +29,14 @@ var RootCmd = &cmds.Command{
 			Arguments: []cmdkit.Argument{
 				cmdkit.StringArg("summands", true, true, "values that are supposed to be summed"),
 			},
-			Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) {
+			Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
 				sum := 0
 
 				for i, str := range req.Arguments {
 					num, err := strconv.Atoi(str)
 					if err != nil {
 						re.SetError(err, cmdkit.ErrNormal)
-						return
+						return err
 					}
 
 					sum += num
@@ -44,6 +44,7 @@ var RootCmd = &cmds.Command{
 				}
 
 				re.Emit(fmt.Sprintf("total: %d", sum))
+				return nil
 			},
 		},
 		// a bit more sophisticated
@@ -51,14 +52,14 @@ var RootCmd = &cmds.Command{
 			Arguments: []cmdkit.Argument{
 				cmdkit.StringArg("summands", true, true, "values that are supposed to be summed"),
 			},
-			Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) {
+			Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
 				sum := 0
 
 				for i, str := range req.Arguments {
 					num, err := strconv.Atoi(str)
 					if err != nil {
 						re.SetError(err, cmdkit.ErrNormal)
-						return
+						return err
 					}
 
 					sum += num
@@ -68,6 +69,7 @@ var RootCmd = &cmds.Command{
 					})
 					time.Sleep(200 * time.Millisecond)
 				}
+				return nil
 			},
 			Type: &AddStatus{},
 			Encoders: cmds.EncoderMap{
@@ -94,14 +96,14 @@ var RootCmd = &cmds.Command{
 				cmdkit.StringArg("summands", true, true, "values that are supposed to be summed"),
 			},
 			// this is the same as for encoderAdd
-			Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) {
+			Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
 				sum := 0
 
 				for i, str := range req.Arguments {
 					num, err := strconv.Atoi(str)
 					if err != nil {
 						re.SetError(err, cmdkit.ErrNormal)
-						return
+						return err
 					}
 
 					sum += num
@@ -111,6 +113,7 @@ var RootCmd = &cmds.Command{
 					})
 					time.Sleep(200 * time.Millisecond)
 				}
+				return nil
 			},
 			Type: &AddStatus{},
 			PostRun: cmds.PostRunMap{
@@ -159,14 +162,14 @@ var RootCmd = &cmds.Command{
 				cmdkit.StringArg("summands", true, true, "values that are supposed to be summed"),
 			},
 			// this is the same as for encoderAdd
-			Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) {
+			Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
 				sum := 0
 
 				for i, str := range req.Arguments {
 					num, err := strconv.Atoi(str)
 					if err != nil {
 						re.SetError(err, cmdkit.ErrNormal)
-						return
+						return err
 					}
 
 					sum += num
@@ -176,6 +179,7 @@ var RootCmd = &cmds.Command{
 					})
 					time.Sleep(200 * time.Millisecond)
 				}
+				return nil
 			},
 			Type: &AddStatus{},
 			PostRun: cmds.PostRunMap{
