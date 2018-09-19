@@ -25,10 +25,10 @@ var log = logging.Logger("cmds")
 
 // Function is the type of function that Commands use.
 // It reads from the Request, and writes results to the ResponseEmitter.
-type Function func(*Request, ResponseEmitter, Environment)
+type Function func(*Request, ResponseEmitter, Environment) error
 
 // PostRunMap is the map used in Command.PostRun.
-type PostRunMap map[PostRunType]func(*Request, ResponseEmitter) ResponseEmitter
+type PostRunMap map[PostRunType]func(Response, ResponseEmitter) error
 
 // Command is a runnable command, with input arguments and options (flags).
 // It can also have Subcommands, to group units of work into sets.
@@ -59,34 +59,49 @@ type Command struct {
 	Subcommands map[string]*Command
 }
 
-// ErrNotCallable signals a command that cannot be called.
-var ErrNotCallable = ClientError("This command can't be called directly. Try one of its subcommands.")
+var (
+	// ErrNotCallable signals a command that cannot be called.
+	ErrNotCallable = ClientError("This command can't be called directly. Try one of its subcommands.")
 
-var ErrNoFormatter = ClientError("This command cannot be formatted to plain text")
+	// ErrNoFormatter signals that the command can not be formatted.
+	ErrNoFormatter = ClientError("This command cannot be formatted to plain text")
 
-var ErrIncorrectType = errors.New("The command returned a value with a different type than expected")
+	// ErrIncorrectType signales that the commands returned a value with unexpected type.
+	ErrIncorrectType = errors.New("The command returned a value with a different type than expected")
+)
 
 // Call invokes the command for the given Request
 func (c *Command) Call(req *Request, re ResponseEmitter, env Environment) {
-	// we need the named return parameter so we can change the value from defer()
-	defer re.Close()
+	var closeErr error
 
-	var cmd *Command
+	err := c.call(req, re, env)
+	if err != nil {
+		log.Debugf("error occured in call, closing with error: %s", err)
+	}
+
+	closeErr = re.CloseWithError(err)
+	// ignore double close errors
+	if closeErr != nil && closeErr != ErrClosingClosedEmitter {
+		log.Errorf("error closing ResponseEmitter: %s", closeErr)
+	}
+}
+
+func (c *Command) call(req *Request, re ResponseEmitter, env Environment) error {
 	cmd, err := c.Get(req.Path)
 	if err != nil {
-		re.SetError(err, cmdkit.ErrFatal)
-		return
+		log.Errorf("could not get cmd from path %q: %q", req.Path, err)
+		return err
 	}
 
 	if cmd.Run == nil {
-		re.SetError(ErrNotCallable, cmdkit.ErrFatal)
-		return
+		log.Errorf("returned command has nil Run function")
+		return err
 	}
 
 	err = cmd.CheckArguments(req)
 	if err != nil {
-		re.SetError(err, cmdkit.ErrFatal)
-		return
+		log.Errorf("CheckArguments returned an error for path %q: %q", req.Path, err)
+		return err
 	}
 
 	// If this ResponseEmitter encodes messages (e.g. http, cli or writer - but not chan),
@@ -99,12 +114,11 @@ func (c *Command) Call(req *Request, re ResponseEmitter, env Environment) {
 		} else if enc, ok := Encoders[encType]; ok {
 			re_.SetEncoder(enc(req))
 		} else {
-			log.Errorf("unknown encoding %q, using json", encType)
-			re_.SetEncoder(Encoders[JSON](req))
+			return fmt.Errorf("unknown encoding %q", encType)
 		}
 	}
 
-	cmd.Run(req, re, env)
+	return cmd.Run(req, re, env)
 }
 
 // Resolve returns the subcommands at the given path

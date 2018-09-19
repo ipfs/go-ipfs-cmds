@@ -1,21 +1,18 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
 	"sync"
+	"syscall"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-cmds"
+	"github.com/ipfs/go-ipfs-cmds/debug"
 )
 
 var _ ResponseEmitter = &responseEmitter{}
-
-type ErrSet struct {
-	error
-}
 
 func NewResponseEmitter(stdout, stderr io.Writer, enc func(*cmds.Request) func(io.Writer) cmds.Encoder, req *cmds.Request) (cmds.ResponseEmitter, <-chan int) {
 	ch := make(chan int)
@@ -29,7 +26,13 @@ func NewResponseEmitter(stdout, stderr io.Writer, enc func(*cmds.Request) func(i
 		}
 	}
 
-	return &responseEmitter{stdout: stdout, stderr: stderr, encType: encType, enc: enc(req)(stdout), ch: ch}, ch
+	return &responseEmitter{
+		stdout:  stdout,
+		stderr:  stderr,
+		encType: encType,
+		enc:     enc(req)(stdout),
+		ch:      ch,
+	}, ch
 }
 
 // ResponseEmitter extends cmds.ResponseEmitter to give better control over the command line
@@ -42,18 +45,15 @@ type ResponseEmitter interface {
 }
 
 type responseEmitter struct {
-	wLock  sync.Mutex
+	l      sync.Mutex
 	stdout io.Writer
 	stderr io.Writer
 
 	length  uint64
-	err     *cmdkit.Error
 	enc     cmds.Encoder
 	encType cmds.EncodingType
 	exit    int
 	closed  bool
-
-	errOccurred bool
 
 	ch chan<- int
 }
@@ -70,28 +70,56 @@ func (re *responseEmitter) SetEncoder(enc func(io.Writer) cmds.Encoder) {
 	re.enc = enc(re.stdout)
 }
 
-func (re *responseEmitter) SetError(v interface{}, errType cmdkit.ErrorType) {
-	re.errOccurred = true
-
-	err := re.Emit(&cmdkit.Error{Message: fmt.Sprint(v), Code: errType})
-	if err != nil {
-		panic(err)
+func (re *responseEmitter) CloseWithError(err error) error {
+	if err == nil {
+		return re.Close()
 	}
+
+	if e, ok := err.(cmdkit.Error); ok {
+		err = &e
+	}
+
+	e, ok := err.(*cmdkit.Error)
+	if !ok {
+		e = &cmdkit.Error{
+			Message: err.Error(),
+		}
+	}
+
+	re.l.Lock()
+	defer re.l.Unlock()
+
+	if re.closed {
+		return cmds.ErrClosingClosedEmitter
+	}
+
+	re.exit = 1 // TODO we could let err carry an exit code
+
+	_, err = fmt.Fprintln(re.stderr, "Error:", e.Message)
+	if err != nil {
+		return err
+	}
+
+	return re.close()
 }
 
 func (re *responseEmitter) isClosed() bool {
-	re.wLock.Lock()
-	defer re.wLock.Unlock()
+	re.l.Lock()
+	defer re.l.Unlock()
 
 	return re.closed
 }
 
 func (re *responseEmitter) Close() error {
-	re.wLock.Lock()
-	defer re.wLock.Unlock()
+	re.l.Lock()
+	defer re.l.Unlock()
 
+	return re.close()
+}
+
+func (re *responseEmitter) close() error {
 	if re.closed {
-		return errors.New("closing closed responseemitter")
+		return cmds.ErrClosingClosedEmitter
 	}
 
 	re.ch <- re.exit
@@ -103,44 +131,57 @@ func (re *responseEmitter) Close() error {
 		re.closed = true
 	}()
 
-	if re.stdout == nil || re.stderr == nil {
-		log.Warning("more than one call to RespEm.Close!")
+	// ignore error if the operating system doesn't support syncing std{out,err}
+	ignoreError := func(err error) bool {
+		if perr, ok := err.(*os.PathError); ok &&
+			perr.Op == "sync" && (perr.Err == syscall.EINVAL ||
+			perr.Err == syscall.ENOTSUP) {
+			return true
+		}
+
+		return false
 	}
 
 	if f, ok := re.stderr.(*os.File); ok {
 		err := f.Sync()
 		if err != nil {
-			return err
+			if !ignoreError(err) {
+				return err
+			}
 		}
 	}
 	if f, ok := re.stdout.(*os.File); ok {
 		err := f.Sync()
 		if err != nil {
-			return err
+			if !ignoreError(err) {
+				return err
+			}
 		}
 	}
 
 	return nil
 }
 
-// Head returns the current head.
-// TODO: maybe it makes sense to make these pointers to shared memory?
-//   might not be so clever though...concurrency and stuff
-func (re *responseEmitter) Head() cmds.Head {
-	return cmds.Head{
-		Len: re.length,
-		Err: re.err,
-	}
-}
-
 func (re *responseEmitter) Emit(v interface{}) error {
+	var isSingle bool
 	// unwrap
 	if val, ok := v.(cmds.Single); ok {
 		v = val.Value
+		isSingle = true
 	}
 
+	// Initially this library allowed commands to return errors by sending an
+	// error value along a stream. We removed that in favour of CloseWithError,
+	// so we want to make sure we catch situations where some code still uses the
+	// old error emitting semantics and _panic_ in those situations.
+	debug.AssertNotError(v)
+
+	// channel emission iteration
 	if ch, ok := v.(chan interface{}); ok {
 		v = (<-chan interface{})(ch)
+	}
+	if ch, isChan := v.(<-chan interface{}); isChan {
+		return cmds.EmitChan(re, ch)
 	}
 
 	// TODO find a better solution for this.
@@ -153,44 +194,17 @@ func (re *responseEmitter) Emit(v interface{}) error {
 		v = *c
 	}
 
-	if ch, isChan := v.(<-chan interface{}); isChan {
-		log.Debug("iterating over chan...", ch)
-		for v = range ch {
-			err := re.Emit(v)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-
 	if re.isClosed() {
-		return io.ErrClosedPipe
-	}
-
-	if err, ok := v.(cmdkit.Error); ok {
-		v = &err
+		return cmds.ErrClosedEmitter
 	}
 
 	var err error
 
 	switch t := v.(type) {
-	case *cmdkit.Error:
-		_, err = fmt.Fprintln(re.stderr, "Error:", t.Message)
-		if t.Code == cmdkit.ErrFatal {
-			defer re.Close()
-		}
-		re.wLock.Lock()
-		defer re.wLock.Unlock()
-		re.exit = 1
-
-		return nil
-
 	case io.Reader:
 		_, err = io.Copy(re.stdout, t)
 		if err != nil {
-			re.SetError(err, cmdkit.ErrNormal)
-			err = nil
+			return err
 		}
 	default:
 		if re.enc != nil {
@@ -198,6 +212,10 @@ func (re *responseEmitter) Emit(v interface{}) error {
 		} else {
 			_, err = fmt.Fprintln(re.stdout, t)
 		}
+	}
+
+	if isSingle {
+		return re.CloseWithError(err)
 	}
 
 	return err
@@ -217,7 +235,7 @@ func (re *responseEmitter) Stdout() io.Writer {
 func (re *responseEmitter) Exit(code int) {
 	defer re.Close()
 
-	re.wLock.Lock()
-	defer re.wLock.Unlock()
+	re.l.Lock()
+	defer re.l.Unlock()
 	re.exit = code
 }

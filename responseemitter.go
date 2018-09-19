@@ -1,10 +1,14 @@
 package cmds
 
 import (
+	"errors"
 	"fmt"
 	"io"
+)
 
-	"github.com/ipfs/go-ipfs-cmdkit"
+var (
+	ErrClosedEmitter        = errors.New("cmds: emit on closed emitter")
+	ErrClosingClosedEmitter = errors.New("cmds: closing closed emitter")
 )
 
 // Single can be used to signal to any ResponseEmitter that only one value will be emitted.
@@ -29,20 +33,20 @@ func EmitOnce(re ResponseEmitter, v interface{}) error {
 // ResponseEmitter encodes and sends the command code's output to the client.
 // It is all a command can write to.
 type ResponseEmitter interface {
-	// closes http conn or channel
-	io.Closer
+	// Close closes the underlying transport.
+	Close() error
+
+	// CloseWithError closes the underlying transport and makes subsequent read
+	// calls return the passed error.
+	CloseWithError(error) error
 
 	// SetLength sets the length of the output
 	// err is an interface{} so we don't have to manually convert to error.
 	SetLength(length uint64)
 
-	// SetError sets the response error
-	// err is an interface{} so we don't have to manually convert to error.
-	SetError(err interface{}, code cmdkit.ErrorType)
-
-	// Emit sends a value
-	// if value is io.Reader we just copy that to the connection
-	// other values are marshalled
+	// Emit sends a value.
+	// If value is io.Reader we just copy that to the connection
+	// other values are marshalled.
 	Emit(value interface{}) error
 }
 
@@ -52,23 +56,22 @@ type EncodingEmitter interface {
 	SetEncoder(func(io.Writer) Encoder)
 }
 
-type Header interface {
-	Head() Head
-}
-
 // Copy sends all values received on res to re. If res is closed, it closes re.
 func Copy(re ResponseEmitter, res Response) error {
 	re.SetLength(res.Length())
 
 	for {
-		v, err := res.RawNext()
-		switch err {
-		case nil:
-			// all good, go on
-		case io.EOF:
-			re.Close()
-			return nil
-		default:
+		v, err := res.Next()
+		if err != nil {
+			if err == io.EOF {
+				return re.Close()
+			}
+
+			closeErr := re.CloseWithError(err)
+			if closeErr != nil {
+				log.Errorf("error closing emitter with error %q: %s", err, closeErr)
+			}
+
 			return err
 		}
 
@@ -77,4 +80,15 @@ func Copy(re ResponseEmitter, res Response) error {
 			return err
 		}
 	}
+}
+
+func EmitChan(re ResponseEmitter, ch <-chan interface{}) error {
+	for v := range ch {
+		err := re.Emit(v)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

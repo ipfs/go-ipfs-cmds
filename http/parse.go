@@ -190,7 +190,11 @@ func parseResponse(httpRes *http.Response, req *cmds.Request) (cmds.Response, er
 		makeDec, ok := cmds.Decoders[encType]
 		if ok {
 			res.dec = makeDec(res.rr)
-		}
+		} else if encType != "text" {
+			log.Errorf("could not find decoder for encoding %q", encType)
+		} // else we have an io.Reader, which is okay
+	} else {
+		log.Errorf("could not guess encoding from content type %q", contentType)
 	}
 
 	// If we ran into an error
@@ -213,14 +217,14 @@ func parseResponse(httpRes *http.Response, req *cmds.Request) (cmds.Response, er
 		case res.dec == nil:
 			return nil, fmt.Errorf("unknown error content type: %s", contentType)
 		default:
-			// handle marshalled errors
-			err := res.dec.Decode(&e)
+			// handle errors from value
+			err := res.dec.Decode(e)
 			if err != nil {
-				return nil, err
+				log.Errorf("error parsing error %q", err.Error())
 			}
 		}
 
-		res.initErr = e
+		return nil, e
 	}
 
 	return res, nil

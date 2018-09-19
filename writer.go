@@ -2,16 +2,17 @@ package cmds
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io"
 	"reflect"
 	"sync"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
+	"github.com/ipfs/go-ipfs-cmds/debug"
 )
 
-func NewWriterResponseEmitter(w io.WriteCloser, req *Request, enc func(*Request) func(io.Writer) Encoder) *WriterResponseEmitter {
-	re := &WriterResponseEmitter{
+func NewWriterResponseEmitter(w io.WriteCloser, req *Request, enc func(*Request) func(io.Writer) Encoder) ResponseEmitter {
+	re := &writerResponseEmitter{
 		w:   w,
 		c:   w,
 		req: req,
@@ -25,14 +26,12 @@ func NewWriterResponseEmitter(w io.WriteCloser, req *Request, enc func(*Request)
 }
 
 func NewReaderResponse(r io.Reader, encType EncodingType, req *Request) Response {
-	emitted := make(chan struct{})
-
 	return &readerResponse{
 		req:     req,
 		r:       r,
 		encType: encType,
 		dec:     Decoders[encType](r),
-		emitted: emitted,
+		emitted: make(chan struct{}),
 	}
 }
 
@@ -44,7 +43,7 @@ type readerResponse struct {
 	req *Request
 
 	length uint64
-	err    *cmdkit.Error
+	err    error
 
 	emitted chan struct{}
 	once    sync.Once
@@ -57,7 +56,11 @@ func (r *readerResponse) Request() *Request {
 func (r *readerResponse) Error() *cmdkit.Error {
 	<-r.emitted
 
-	return r.err
+	if err, ok := r.err.(*cmdkit.Error); ok {
+		return err
+	}
+
+	return &cmdkit.Error{Message: r.err.Error()}
 }
 
 func (r *readerResponse) Length() uint64 {
@@ -66,7 +69,7 @@ func (r *readerResponse) Length() uint64 {
 	return r.length
 }
 
-func (r *readerResponse) RawNext() (interface{}, error) {
+func (r *readerResponse) Next() (interface{}, error) {
 	m := &MaybeError{Value: r.req.Command.Type}
 	err := r.dec.Decode(m)
 	if err != nil {
@@ -75,36 +78,16 @@ func (r *readerResponse) RawNext() (interface{}, error) {
 
 	r.once.Do(func() { close(r.emitted) })
 
-	v := m.Get()
+	v, err := m.Get()
+
 	// because working with pointers to arrays is annoying
 	if t := reflect.TypeOf(v); t.Kind() == reflect.Ptr && t.Elem().Kind() == reflect.Slice {
 		v = reflect.ValueOf(v).Elem().Interface()
 	}
-	return v, nil
+	return v, err
 }
 
-func (r *readerResponse) Next() (interface{}, error) {
-	v, err := r.RawNext()
-	if err != nil {
-		return nil, err
-	}
-
-	if err, ok := v.(cmdkit.Error); ok {
-		v = &err
-	}
-
-	switch val := v.(type) {
-	case *cmdkit.Error:
-		r.err = val
-		return nil, ErrRcvdError
-	case Single:
-		return val.Value, nil
-	default:
-		return v, nil
-	}
-}
-
-type WriterResponseEmitter struct {
+type writerResponseEmitter struct {
 	// TODO maybe make those public?
 	w   io.Writer
 	c   io.Closer
@@ -115,20 +98,34 @@ type WriterResponseEmitter struct {
 	err    *cmdkit.Error
 
 	emitted bool
+	closed  bool
 }
 
-func (re *WriterResponseEmitter) SetEncoder(mkEnc func(io.Writer) Encoder) {
+func (re *writerResponseEmitter) SetEncoder(mkEnc func(io.Writer) Encoder) {
 	re.enc = mkEnc(re.w)
 }
 
-func (re *WriterResponseEmitter) SetError(v interface{}, errType cmdkit.ErrorType) {
-	err := re.Emit(&cmdkit.Error{Message: fmt.Sprint(v), Code: errType})
-	if err != nil {
-		panic(err)
+func (re *writerResponseEmitter) CloseWithError(err error) error {
+	if re.closed {
+		return ErrClosingClosedEmitter
 	}
+
+	if err == nil || err == io.EOF {
+		return re.Close()
+	}
+
+	cwe, ok := re.c.(interface {
+		CloseWithError(error) error
+	})
+	if ok {
+		re.closed = true
+		return cwe.CloseWithError(err)
+	}
+
+	return errors.New("provided closer does not support CloseWithError")
 }
 
-func (re *WriterResponseEmitter) SetLength(length uint64) {
+func (re *writerResponseEmitter) SetLength(length uint64) {
 	if re.emitted {
 		return
 	}
@@ -136,59 +133,76 @@ func (re *WriterResponseEmitter) SetLength(length uint64) {
 	*re.length = length
 }
 
-func (re *WriterResponseEmitter) Close() error {
+func (re *writerResponseEmitter) Close() error {
+	if re.closed {
+		return ErrClosingClosedEmitter
+	}
+
+	re.closed = true
 	return re.c.Close()
 }
 
-func (re *WriterResponseEmitter) Head() Head {
-	return Head{
-		Len: *re.length,
-		Err: re.err,
-	}
-}
-
-func (re *WriterResponseEmitter) Emit(v interface{}) error {
+func (re *writerResponseEmitter) Emit(v interface{}) error {
+	// channel emission iteration
 	if ch, ok := v.(chan interface{}); ok {
 		v = (<-chan interface{})(ch)
 	}
-
 	if ch, isChan := v.(<-chan interface{}); isChan {
-		for v = range ch {
-			err := re.Emit(v)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
+		return EmitChan(re, ch)
+	}
+
+	// Initially this library allowed commands to return errors by sending an
+	// error value along a stream. We removed that in favour of CloseWithError,
+	// so we want to make sure we catch situations where some code still uses the
+	// old error emitting semantics.
+	// Also errors may occur both as pointers and as plain values, so we need to
+	// check both.
+	debug.AssertNotError(v)
+
+	if re.closed {
+		return ErrClosedEmitter
 	}
 
 	re.emitted = true
 
-	if _, ok := v.(Single); ok {
-		defer re.Close()
+	var isSingle bool
+	if s, ok := v.(Single); ok {
+		v = s.Value
+		isSingle = true
 	}
 
-	return re.enc.Encode(v)
+	err := re.enc.Encode(v)
+	if err != nil {
+		return err
+	}
+
+	if isSingle {
+		return re.Close()
+	}
+
+	return nil
 }
 
 type MaybeError struct {
 	Value interface{} // needs to be a pointer
-	Error cmdkit.Error
+	Error *cmdkit.Error
 
 	isError bool
 }
 
-func (m *MaybeError) Get() interface{} {
+func (m *MaybeError) Get() (interface{}, error) {
 	if m.isError {
-		return m.Error
+		return nil, m.Error
 	}
-	return m.Value
+	return m.Value, nil
 }
 
 func (m *MaybeError) UnmarshalJSON(data []byte) error {
-	err := json.Unmarshal(data, &m.Error)
+	var e cmdkit.Error
+	err := json.Unmarshal(data, &e)
 	if err == nil {
 		m.isError = true
+		m.Error = &e
 		return nil
 	}
 

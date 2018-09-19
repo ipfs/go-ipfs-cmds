@@ -2,10 +2,9 @@ package cli
 
 import (
 	"bytes"
-	//"io"
+	"fmt"
 	"testing"
 
-	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-cmds"
 )
 
@@ -15,14 +14,14 @@ type writeCloser struct {
 
 func (wc writeCloser) Close() error { return nil }
 
-type tcSetError struct {
+type tcCloseWithError struct {
 	stdout, stderr     *bytes.Buffer
 	exStdout, exStderr string
 	exExit             int
 	f                  func(re ResponseEmitter, t *testing.T)
 }
 
-func (tc tcSetError) Run(t *testing.T) {
+func (tc tcCloseWithError) Run(t *testing.T) {
 	req := &cmds.Request{}
 
 	cmdsre, exitCh := NewResponseEmitter(tc.stdout, tc.stderr, nil, req)
@@ -47,9 +46,9 @@ func (tc tcSetError) Run(t *testing.T) {
 	t.Logf("stderr:\n---\n%s---\n", tc.stderr.Bytes())
 }
 
-func TestSetError(t *testing.T) {
-	tcs := []tcSetError{
-		tcSetError{
+func TestCloseWithError(t *testing.T) {
+	tcs := []tcCloseWithError{
+		tcCloseWithError{
 			stdout:   bytes.NewBuffer(nil),
 			stderr:   bytes.NewBuffer(nil),
 			exStdout: "a\n",
@@ -57,36 +56,28 @@ func TestSetError(t *testing.T) {
 			exExit:   1,
 			f: func(re ResponseEmitter, t *testing.T) {
 				re.Emit("a")
-				re.SetError("some error", cmdkit.ErrFatal)
+				re.CloseWithError(fmt.Errorf("some error"))
 				re.Emit("b")
 			},
 		},
-
-		tcSetError{
+		tcCloseWithError{
 			stdout:   bytes.NewBuffer(nil),
 			stderr:   bytes.NewBuffer(nil),
-			exStdout: "a\nb\n",
+			exStdout: "a\n",
 			exStderr: "Error: some error\n",
 			exExit:   1,
 			f: func(re ResponseEmitter, t *testing.T) {
-				defer re.Close()
 				re.Emit("a")
-				re.SetError("some error", cmdkit.ErrNormal)
-				re.Emit("b")
-			},
-		},
 
-		tcSetError{
-			stdout:   bytes.NewBuffer(nil),
-			stderr:   bytes.NewBuffer(nil),
-			exStdout: "a\nb\n",
-			exStderr: "Error: some error\n",
-			exExit:   3,
-			f: func(re ResponseEmitter, t *testing.T) {
-				re.Emit("a")
-				re.SetError("some error", cmdkit.ErrNormal)
-				re.Emit("b")
-				re.Exit(3)
+				err := re.CloseWithError(fmt.Errorf("some error"))
+				if err != nil {
+					t.Fatal("unexpected error:", err)
+				}
+
+				err = re.Close()
+				if err != cmds.ErrClosingClosedEmitter {
+					t.Fatal("expected double close error, got:", err)
+				}
 			},
 		},
 	}

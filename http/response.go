@@ -4,11 +4,11 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"reflect"
 	"strings"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-cmds"
-	"reflect"
 )
 
 var (
@@ -21,7 +21,7 @@ var (
 
 type Response struct {
 	length uint64
-	err    *cmdkit.Error
+	err    error
 
 	res *http.Response
 	req *cmds.Request
@@ -37,21 +37,32 @@ func (res *Response) Request() *cmds.Request {
 }
 
 func (res *Response) Error() *cmdkit.Error {
-	e := res.err
-	res.err = nil
-	return e
+	if res.err == io.EOF || res.err == nil {
+		return nil
+	}
+
+	switch err := res.err.(type) {
+	case *cmdkit.Error:
+		return err
+	case cmdkit.Error:
+		return &err
+	default:
+		// i.e. is a regular error
+		return &cmdkit.Error{Message: res.err.Error()}
+	}
 }
 
 func (res *Response) Length() uint64 {
 	return res.length
 }
 
-func (res *Response) RawNext() (interface{}, error) {
+func (res *Response) Next() (interface{}, error) {
 	if res.initErr != nil {
-		err := res.initErr
-		res.initErr = nil
+		return nil, res.initErr
+	}
 
-		return err, nil
+	if res.err != nil {
+		return nil, res.err
 	}
 
 	// nil decoder means stream not chunks
@@ -72,36 +83,36 @@ func (res *Response) RawNext() (interface{}, error) {
 		}
 		value = reflect.New(valueType).Interface()
 	}
+
 	m := &cmds.MaybeError{Value: value}
 	err := res.dec.Decode(m)
-
-	// last error was sent as value, now we get the same error from the headers. ignore and EOF!
-	if err != nil && res.err != nil && err.Error() == res.err.Error() {
-		err = io.EOF
-	}
-
-	return m.Get(), err
-}
-
-func (res *Response) Next() (interface{}, error) {
-	v, err := res.RawNext()
 	if err != nil {
-		return nil, err
+		if err == io.EOF {
+			// handle errors from headers
+			errStr := res.res.Header.Get(StreamErrHeader)
+			if errStr != "" {
+				err = &cmdkit.Error{Message: errStr}
+			}
+
+			res.err = err
+			return nil, err
+		} else {
+			// wrap all other errors
+			res.err = err
+			return nil, res.err
+		}
 	}
 
-	if err, ok := v.(cmdkit.Error); ok {
-		v = &err
+	v, err := m.Get()
+	if err != nil {
+		if e, ok := err.(*cmdkit.Error); ok {
+			res.err = e
+		} else {
+			res.err = &cmdkit.Error{Message: err.Error()}
+		}
 	}
 
-	switch val := v.(type) {
-	case *cmdkit.Error:
-		res.err = val
-		return nil, cmds.ErrRcvdError
-	case cmds.Single:
-		return val.Value, nil
-	default:
-		return v, nil
-	}
+	return v, err
 }
 
 // responseReader reads from the response body, and checks for an error

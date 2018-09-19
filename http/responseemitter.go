@@ -10,6 +10,7 @@ import (
 
 	"github.com/ipfs/go-ipfs-cmdkit"
 	cmds "github.com/ipfs/go-ipfs-cmds"
+	"github.com/ipfs/go-ipfs-cmds/debug"
 )
 
 var (
@@ -58,46 +59,45 @@ type responseEmitter struct {
 	encType cmds.EncodingType
 	req     *cmds.Request
 
+	l      sync.Mutex
 	length uint64
 	err    *cmdkit.Error
 
 	streaming bool
+	closed    bool
 	once      sync.Once
 	method    string
 }
 
 func (re *responseEmitter) Emit(value interface{}) error {
-	ch, isChan := value.(<-chan interface{})
-	if !isChan {
-		ch, isChan = value.(chan interface{})
+	// Initially this library allowed commands to return errors by sending an
+	// error value along a stream. We removed that in favour of CloseWithError,
+	// so we want to make sure we catch situations where some code still uses the
+	// old error emitting semantics and _panic_ in those situations.
+	debug.AssertNotError(value)
+
+	// if we got a channel, instead emit values received on there.
+	if ch, ok := value.(chan interface{}); ok {
+		value = (<-chan interface{})(ch)
+	}
+	if ch, isChan := value.(<-chan interface{}); isChan {
+		return cmds.EmitChan(re, ch)
 	}
 
-	if isChan {
-		for value = range ch {
-			err := re.Emit(value)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
+	re.once.Do(func() { re.preamble(value) })
+
+	re.l.Lock()
+	defer re.l.Unlock()
+
+	if re.closed {
+		return cmds.ErrClosedEmitter
 	}
 
 	var err error
 
-	re.once.Do(func() { re.preamble(value) })
-
 	// return immediately if this is a head request
 	if re.method == "HEAD" {
 		return nil
-	}
-
-	if single, ok := value.(cmds.Single); ok {
-		value = single.Value
-		defer re.Close()
-	}
-
-	if re.w == nil {
-		return fmt.Errorf("connection already closed / custom - http.respem - TODO")
 	}
 
 	// ignore those
@@ -105,37 +105,37 @@ func (re *responseEmitter) Emit(value interface{}) error {
 		return nil
 	}
 
-	if _, ok := value.(cmdkit.Error); ok {
-		log.Warning("fixme: got Error not *Error: ", value)
-		value = &value
+	var isSingle bool
+	if single, ok := value.(cmds.Single); ok {
+		value = single.Value
+		isSingle = true
+	}
+
+	if f, ok := re.w.(http.Flusher); ok {
+		defer f.Flush()
 	}
 
 	switch v := value.(type) {
+	case error:
+		return re.closeWithError(v)
 	case io.Reader:
 		err = flushCopy(re.w, v)
-	case *cmdkit.Error:
-		if re.streaming || v.Code == cmdkit.ErrFatal {
-			// abort by sending an error trailer
-			re.w.Header().Add(StreamErrHeader, v.Error())
-		} else {
-			err = re.enc.Encode(value)
-		}
 	default:
 		err = re.enc.Encode(value)
 	}
 
-	if f, ok := re.w.(http.Flusher); ok {
-		f.Flush()
-	}
-
-	if err != nil {
-		log.Error(err)
+	if isSingle && err == nil {
+		// only close when there were no encoding errors
+		err = re.closeWithError(nil)
 	}
 
 	return err
 }
 
 func (re *responseEmitter) SetLength(l uint64) {
+	re.l.Lock()
+	defer re.l.Unlock()
+
 	h := re.w.Header()
 	h.Set("X-Content-Length", strconv.FormatUint(l, 10))
 
@@ -143,16 +143,46 @@ func (re *responseEmitter) SetLength(l uint64) {
 }
 
 func (re *responseEmitter) Close() error {
-	re.once.Do(func() { re.preamble(nil) })
-	return nil
+	return re.CloseWithError(nil)
 }
 
-func (re *responseEmitter) SetError(v interface{}, errType cmdkit.ErrorType) {
-	err := re.Emit(&cmdkit.Error{Message: fmt.Sprint(v), Code: errType})
-	if err != nil {
-		log.Debug("http.SetError err=", err)
-		panic(err)
+func (re *responseEmitter) CloseWithError(err error) error {
+	re.l.Lock()
+	defer re.l.Unlock()
+
+	return re.closeWithError(err)
+}
+
+func (re *responseEmitter) closeWithError(err error) error {
+	if re.closed {
+		return cmds.ErrClosingClosedEmitter
 	}
+
+	if err == io.EOF {
+		err = nil
+	}
+	if e, ok := err.(cmdkit.Error); ok {
+		err = &e
+	}
+
+	setErrTrailer := true
+
+	// use preamble directly, we're already in critical section
+	// preamble needs to be before branch below, because the headers need to be written before writing the response
+	re.once.Do(func() {
+		re.doPreamble(err)
+
+		// do not set error trailer if we send the error as value in preamble
+		setErrTrailer = false
+	})
+
+	if setErrTrailer && err != nil {
+		re.w.Header().Set(StreamErrHeader, err.Error())
+	}
+
+	re.closed = true
+
+	return nil
 }
 
 // Flush the http connection
@@ -165,38 +195,20 @@ func (re *responseEmitter) Flush() {
 }
 
 func (re *responseEmitter) preamble(value interface{}) {
-	status := http.StatusOK
-	h := re.w.Header()
+	re.l.Lock()
+	defer re.l.Unlock()
 
-	// unpack value if it needs special treatment in the type switch below
-	if s, isSingle := value.(cmds.Single); isSingle {
-		if err, isErr := s.Value.(cmdkit.Error); isErr {
-			value = &err
-		}
+	re.doPreamble(value)
+}
 
-		if err, isErr := s.Value.(*cmdkit.Error); isErr {
-			value = err
-		}
-	}
-
-	var mime string
+func (re *responseEmitter) doPreamble(value interface{}) {
+	var (
+		h      = re.w.Header()
+		status = http.StatusOK
+		mime   string
+	)
 
 	switch v := value.(type) {
-	case *cmdkit.Error:
-		err := v
-		if err.Code == cmdkit.ErrClient {
-			status = http.StatusBadRequest
-		} else {
-			status = http.StatusInternalServerError
-		}
-
-		// if this is not a head request, the error will be sent as a trailer or as a value
-		if re.method == "HEAD" {
-			http.Error(re.w, err.Error(), status)
-			re.w = nil
-
-			return
-		}
 	case io.Reader:
 		// set streams output type to text to avoid issues with browsers rendering
 		// html pages on priveleged api ports
@@ -205,8 +217,16 @@ func (re *responseEmitter) preamble(value interface{}) {
 
 		mime = "text/plain"
 	case cmds.Single:
-	case nil:
-		h.Set(channelHeader, "1")
+		// don't set stream/channel header
+	case *cmdkit.Error:
+		err := v
+		if err.Code == cmdkit.ErrClient {
+			status = http.StatusBadRequest
+		} else {
+			status = http.StatusInternalServerError
+		}
+	case error:
+		status = http.StatusInternalServerError
 	default:
 		h.Set(channelHeader, "1")
 	}
@@ -233,6 +253,19 @@ func (re *responseEmitter) preamble(value interface{}) {
 	h.Set("Access-Control-Expose-Headers", AllowedExposedHeaders)
 
 	re.w.WriteHeader(status)
+
+	if err, ok := value.(error); ok {
+		if _, ok := err.(*cmdkit.Error); !ok {
+			err = &cmdkit.Error{Message: err.Error()}
+		}
+
+		err = re.enc.Encode(err)
+		if err != nil {
+			log.Error("error sending error value after non-200 response", err)
+		}
+
+		re.closed = true
+	}
 }
 
 type responseWriterer interface {

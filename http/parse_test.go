@@ -19,9 +19,10 @@ func TestParse(t *testing.T) {
 			"block": &cmds.Command{
 				Subcommands: map[string]*cmds.Command{
 					"put": &cmds.Command{
-						Run: func(req *cmds.Request, resp cmds.ResponseEmitter, env cmds.Environment) {
+						Run: func(req *cmds.Request, resp cmds.ResponseEmitter, env cmds.Environment) error {
 							defer resp.Close()
 							resp.Emit("done")
+							return nil
 						},
 					},
 				},
@@ -154,7 +155,7 @@ func (tc parseRespTestCase) test(t *testing.T) {
 	t.Log(resp.(*Response).dec)
 
 	for _, v := range tc.values {
-		val, err := resp.RawNext()
+		val, err := resp.Next()
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
@@ -163,7 +164,7 @@ func (tc parseRespTestCase) test(t *testing.T) {
 		}
 	}
 
-	_, err = resp.RawNext()
+	_, err = resp.Next()
 	if err != io.EOF {
 		t.Fatalf("expected EOF but got %v", err)
 	}

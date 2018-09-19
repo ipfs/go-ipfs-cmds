@@ -97,14 +97,6 @@ func (c *client) Execute(req *cmds.Request, re cmds.ResponseEmitter, env cmds.En
 		}
 	}
 
-	if cmd.PostRun != nil {
-		if typer, ok := re.(interface {
-			Type() cmds.PostRunType
-		}); ok && cmd.PostRun[typer.Type()] != nil {
-			re = cmd.PostRun[typer.Type()](req, re)
-		}
-	}
-
 	res, err := c.Send(req)
 	if err != nil {
 		if isConnRefused(err) {
@@ -113,24 +105,25 @@ func (c *client) Execute(req *cmds.Request, re cmds.ResponseEmitter, env cmds.En
 		return err
 	}
 
+	if cmd.PostRun != nil {
+		if typer, ok := re.(interface {
+			Type() cmds.PostRunType
+		}); ok && cmd.PostRun[typer.Type()] != nil {
+			err := cmd.PostRun[typer.Type()](res, re)
+			closeErr := re.CloseWithError(err)
+			if closeErr == cmds.ErrClosingClosedEmitter {
+				// ignore double close errors
+				return nil
+			}
+
+			return err
+		}
+	}
+
 	return cmds.Copy(re, res)
 }
 
-func (c *client) Send(req *cmds.Request) (cmds.Response, error) {
-	if req.Context == nil {
-		log.Warningf("no context set in request")
-		req.Context = context.Background()
-	}
-
-	// save user-provided encoding
-	previousUserProvidedEncoding, found := req.Options[cmds.EncLong].(string)
-
-	// override with json to send to server
-	req.SetOption(cmds.EncLong, cmds.JSON)
-
-	// stream channel output
-	req.SetOption(cmds.ChanOpt, true)
-
+func (c *client) toHTTPRequest(req *cmds.Request) (*http.Request, error) {
 	query, err := getQuery(req)
 	if err != nil {
 		return nil, err
@@ -169,17 +162,43 @@ func (c *client) Send(req *cmds.Request) (cmds.Response, error) {
 	httpReq = httpReq.WithContext(req.Context)
 	httpReq.Close = true
 
+	return httpReq, nil
+}
+
+func (c *client) Send(req *cmds.Request) (cmds.Response, error) {
+	if req.Context == nil {
+		log.Warningf("no context set in request")
+		req.Context = context.Background()
+	}
+
+	// save user-provided encoding
+	previousUserProvidedEncoding, found := req.Options[cmds.EncLong].(string)
+
+	// override with json to send to server
+	req.SetOption(cmds.EncLong, cmds.JSON)
+
+	// stream channel output
+	req.SetOption(cmds.ChanOpt, true)
+
+	// build http request
+	httpReq, err := c.toHTTPRequest(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// send http request
 	httpRes, err := c.httpClient.Do(httpReq)
 	if err != nil {
 		return nil, err
 	}
 
-	// using the overridden JSON encoding in request
+	// parse using the overridden JSON encoding in request
 	res, err := parseResponse(httpRes, req)
 	if err != nil {
 		return nil, err
 	}
 
+	// reset request encoding to what it was before
 	if found && len(previousUserProvidedEncoding) > 0 {
 		// reset to user provided encoding after sending request
 		// NB: if user has provided an encoding but it is the empty string,

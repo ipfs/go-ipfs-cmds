@@ -31,7 +31,7 @@ func (td *testDecoder) Decode(value interface{}) error {
 	return nil
 }
 
-func TestRawNextDecodesIntoNewStruct(t *testing.T) {
+func TestNextDecodesIntoNewStruct(t *testing.T) {
 	a1 := 1
 	b1 := 2
 	testCommand := &cmds.Command{
@@ -49,7 +49,7 @@ func TestRawNextDecodesIntoNewStruct(t *testing.T) {
 		dec: decoder,
 	}
 
-	v, err := response.RawNext()
+	v, err := response.Next()
 	if err != nil {
 		t.Fatal("error decoding response", err)
 	}
@@ -66,7 +66,7 @@ func TestRawNextDecodesIntoNewStruct(t *testing.T) {
 	decoder.a = &a2
 	decoder.b = nil
 
-	v2, err := response.RawNext()
+	v2, err := response.Next()
 	if err != nil {
 		t.Fatal("error decoding response", err)
 	}

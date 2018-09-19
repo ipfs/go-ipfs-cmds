@@ -83,7 +83,7 @@ func (tc *httpTestCase) test(t *testing.T) {
 	}
 
 	// server
-	server := getTestServer(t, tc.AllowOrigins)
+	_, server := getTestServer(t, tc.AllowOrigins)
 	if server == nil {
 		return
 	}

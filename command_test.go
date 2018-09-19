@@ -2,6 +2,8 @@ package cmds
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"testing"
 	"time"
@@ -9,39 +11,7 @@ import (
 	"github.com/ipfs/go-ipfs-cmdkit"
 )
 
-// nopClose implements io.Close and does nothing
-type nopCloser struct{}
-
-func (c nopCloser) Close() error { return nil }
-
-type testEmitter testing.T
-
-func (s *testEmitter) Close() error {
-	return nil
-}
-
-func (s *testEmitter) SetLength(_ uint64) {}
-func (s *testEmitter) SetError(err interface{}, code cmdkit.ErrorType) {
-	(*testing.T)(s).Error(err)
-}
-func (s *testEmitter) Emit(value interface{}) error {
-	return nil
-}
-
-// newTestEmitter fails the test if it receives an error.
-func newTestEmitter(t *testing.T) *testEmitter {
-	return (*testEmitter)(t)
-}
-
-// noop does nothing and can be used as a noop Run function
-func noop(req *Request, re ResponseEmitter, env Environment) {}
-
-// writecloser implements io.WriteCloser by embedding
-// an io.Writer and an io.Closer
-type writecloser struct {
-	io.Writer
-	io.Closer
-}
+// NOTE: helpers nopCloser, testEmitter, noop and writeCloser are defined in helpers_test.go
 
 // TestOptionValidation tests whether option type validation works
 func TestOptionValidation(t *testing.T) {
@@ -53,81 +23,50 @@ func TestOptionValidation(t *testing.T) {
 		Run: noop,
 	}
 
-	re := newTestEmitter(t)
-	req, err := NewRequest(context.Background(), nil, map[string]interface{}{
-		"beep": true,
-	}, nil, nil, cmd)
-	if err == nil {
-		t.Error("Should have failed (incorrect type)")
+	type testcase struct {
+		opts            map[string]interface{}
+		NewRequestError string
 	}
 
-	re = newTestEmitter(t)
-	req, err = NewRequest(context.Background(), nil, map[string]interface{}{
-		"beep": 5,
-	}, nil, nil, cmd)
-	if err != nil {
-		t.Error(err, "Should have passed")
-	}
-	cmd.Call(req, re, nil)
+	mkTest := func(tc testcase) func(*testing.T) {
+		return func(t *testing.T) {
+			re := newTestEmitter(t)
+			req, err := NewRequest(context.Background(), nil, tc.opts, nil, nil, cmd)
+			if tc.NewRequestError == "" {
+				if err != nil {
+					t.Errorf("unexpected error %q", err)
+				}
 
-	re = newTestEmitter(t)
-	req, err = NewRequest(context.Background(), nil, map[string]interface{}{
-		"beep": 5,
-		"boop": "test",
-	}, nil, nil, cmd)
-	if err != nil {
-		t.Error("Should have passed")
-	}
-
-	cmd.Call(req, re, nil)
-
-	re = newTestEmitter(t)
-	req, err = NewRequest(context.Background(), nil, map[string]interface{}{
-		"b": 5,
-		"B": "test",
-	}, nil, nil, cmd)
-	if err != nil {
-		t.Error("Should have passed")
+				cmd.Call(req, re, nil)
+			} else {
+				if err == nil {
+					t.Errorf("Should have failed with error %q", tc.NewRequestError)
+				} else if err.Error() != tc.NewRequestError {
+					t.Errorf("expected error %q, got %q", tc.NewRequestError, err)
+				}
+			}
+		}
 	}
 
-	cmd.Call(req, re, nil)
-
-	re = newTestEmitter(t)
-	req, err = NewRequest(context.Background(), nil, map[string]interface{}{
-		"foo": 5,
-	}, nil, nil, cmd)
-	if err != nil {
-		t.Error("Should have passed")
+	tcs := []testcase{
+		{
+			opts:            map[string]interface{}{"boop": true},
+			NewRequestError: `Option "boop" should be type "string", but got type "bool"`,
+		},
+		{opts: map[string]interface{}{"beep": 5}},
+		{opts: map[string]interface{}{"beep": 5, "boop": "test"}},
+		{opts: map[string]interface{}{"b": 5, "B": "test"}},
+		{opts: map[string]interface{}{"foo": 5}},
+		{opts: map[string]interface{}{EncLong: "json"}},
+		{opts: map[string]interface{}{"beep": "100"}},
+		{
+			opts:            map[string]interface{}{"beep": ":)"},
+			NewRequestError: `Could not convert value ":)" to type "int" (for option "-beep")`,
+		},
 	}
 
-	cmd.Call(req, re, nil)
-
-	re = newTestEmitter(t)
-	req, err = NewRequest(context.Background(), nil, map[string]interface{}{
-		EncLong: "json",
-	}, nil, nil, cmd)
-	if err != nil {
-		t.Error("Should have passed")
-	}
-
-	cmd.Call(req, re, nil)
-
-	re = newTestEmitter(t)
-	req, err = NewRequest(context.Background(), nil, map[string]interface{}{
-		"b": "100",
-	}, nil, nil, cmd)
-	if err != nil {
-		t.Error("Should have passed")
-	}
-
-	cmd.Call(req, re, nil)
-
-	re = newTestEmitter(t)
-	req, err = NewRequest(context.Background(), nil, map[string]interface{}{
-		"b": ":)",
-	}, nil, nil, cmd)
-	if err == nil {
-		t.Error("Should have failed (string value not convertible to int)")
+	for i, tc := range tcs {
+		t.Run(fmt.Sprint(i), mkTest(tc))
 	}
 }
 
@@ -228,7 +167,7 @@ type postRunTestCase struct {
 	length      uint64
 	err         *cmdkit.Error
 	emit        []interface{}
-	postRun     func(*Request, ResponseEmitter) ResponseEmitter
+	postRun     func(Response, ResponseEmitter) error
 	next        []interface{}
 	finalLength uint64
 }
@@ -245,43 +184,31 @@ func TestPostRun(t *testing.T) {
 			emit:        []interface{}{7},
 			finalLength: 4,
 			next:        []interface{}{14},
-			postRun: func(req *Request, re ResponseEmitter) ResponseEmitter {
-				re_, res := NewChanResponsePair(req)
+			postRun: func(res Response, re ResponseEmitter) error {
+				l := res.Length()
+				re.SetLength(l + 1)
 
-				go func() {
-					defer re.Close()
-					l := res.Length()
-					re.SetLength(l + 1)
-
-					for {
-						v, err := res.Next()
-						if err == io.EOF {
-							return
-						}
-						if err != nil {
-							re.SetError(err, cmdkit.ErrNormal)
-							t.Fatal(err)
-							return
-						}
-
-						i := v.(int)
-
-						err = re.Emit(2 * i)
-						if err != nil {
-							re.SetError(err, cmdkit.ErrNormal)
-							return
-						}
+				for {
+					v, err := res.Next()
+					t.Log("PostRun: Next returned", v, err)
+					if err != nil {
+						return err
 					}
-				}()
 
-				return re_
+					i := v.(int)
+
+					err = re.Emit(2 * i)
+					if err != nil {
+						return err
+					}
+				}
 			},
 		},
 	}
 
 	for _, tc := range testcases {
 		cmd := &Command{
-			Run: func(req *Request, re ResponseEmitter, env Environment) {
+			Run: func(req *Request, re ResponseEmitter, env Environment) error {
 				re.SetLength(tc.length)
 
 				for _, v := range tc.emit {
@@ -290,10 +217,7 @@ func TestPostRun(t *testing.T) {
 						t.Fatal(err)
 					}
 				}
-				err := re.Close()
-				if err != nil {
-					t.Fatal(err)
-				}
+				return nil
 			},
 			PostRun: PostRunMap{
 				CLI: tc.postRun,
@@ -326,8 +250,16 @@ func TestPostRun(t *testing.T) {
 			t.Fatal("wrong encoding type")
 		}
 
-		re, res := NewChanResponsePair(req)
-		re = cmd.PostRun[PostRunType(encType)](req, re)
+		postre, res := NewChanResponsePair(req)
+		re, postres := NewChanResponsePair(req)
+
+		go func() {
+			err := cmd.PostRun[PostRunType(encType)](postres, postre)
+			err = postre.CloseWithError(err)
+			if err != nil {
+				t.Error("error closing after PostRun: ", err)
+			}
+		}()
 
 		cmd.Call(req, re, nil)
 
@@ -341,6 +273,7 @@ func TestPostRun(t *testing.T) {
 
 			go func() {
 				v, err := res.Next()
+				t.Log("next returned", v, err)
 				if err != nil {
 					close(ch)
 					t.Fatal(err)
@@ -400,4 +333,46 @@ func TestCancel(t *testing.T) {
 		t.Log("res.Emit err:", err)
 	}
 	<-wait
+}
+
+type testEmitterWithError struct{ errorCount int }
+
+func (s *testEmitterWithError) Close() error {
+	return nil
+}
+
+func (s *testEmitterWithError) SetLength(_ uint64) {}
+
+func (s *testEmitterWithError) CloseWithError(err error) error {
+	s.errorCount++
+	return nil
+}
+
+func (s *testEmitterWithError) Emit(value interface{}) error {
+	return nil
+}
+
+func TestEmitterExpectError(t *testing.T) {
+	cmd := &Command{
+		Run: func(req *Request, re ResponseEmitter, env Environment) error {
+			return errors.New("an error occurred")
+		},
+	}
+
+	re := &testEmitterWithError{}
+	req, err := NewRequest(context.Background(), nil, nil, nil, nil, cmd)
+
+	if err != nil {
+		t.Error("Should have passed")
+	}
+
+	cmd.Call(req, re, nil)
+
+	switch re.errorCount {
+	case 0:
+		t.Errorf("expected SetError to be called")
+	case 1:
+	default:
+		t.Errorf("expected SetError to be called once, but was called %d times", re.errorCount)
+	}
 }
