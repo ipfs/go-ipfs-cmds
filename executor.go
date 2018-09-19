@@ -81,7 +81,23 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) (e
 		if typer, ok := re.(interface {
 			Type() PostRunType
 		}); ok && cmd.PostRun[typer.Type()] != nil {
-			re = cmd.PostRun[typer.Type()](req, re)
+			var (
+				res   Response
+				lower = re
+			)
+
+			re, res = NewChanResponsePair(req)
+
+			go func() {
+				err := cmd.PostRun[typer.Type()](res, lower)
+				if err != nil {
+					err2 := lower.Emit(cmdkit.Error{err.Error(), cmdkit.ErrNormal})
+					if err2 != nil {
+						log.Errorf("error trying to send error message\ncause:\n\t%serror:\n\t%s",
+							err, err2)
+					}
+				}
+			}()
 		}
 	}
 

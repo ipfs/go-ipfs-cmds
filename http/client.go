@@ -97,20 +97,20 @@ func (c *client) Execute(req *cmds.Request, re cmds.ResponseEmitter, env cmds.En
 		}
 	}
 
-	if cmd.PostRun != nil {
-		if typer, ok := re.(interface {
-			Type() cmds.PostRunType
-		}); ok && cmd.PostRun[typer.Type()] != nil {
-			re = cmd.PostRun[typer.Type()](req, re)
-		}
-	}
-
 	res, err := c.Send(req)
 	if err != nil {
 		if isConnRefused(err) {
 			err = ErrAPINotRunning
 		}
 		return err
+	}
+
+	if cmd.PostRun != nil {
+		if typer, ok := re.(interface {
+			Type() cmds.PostRunType
+		}); ok && cmd.PostRun[typer.Type()] != nil {
+			return cmd.PostRun[typer.Type()](res, re)
+		}
 	}
 
 	return cmds.Copy(re, res)
