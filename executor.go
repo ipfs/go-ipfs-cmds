@@ -38,6 +38,16 @@ type executor struct {
 	root *Command
 }
 
+// RequestLogger copies the `LogRequest` method from
+// `github.com/ipfs/go-ipfs/commands.Context`.
+// Copied from the `http` package as now the request are logged
+// both online (HTTP) and offline (CLI, `cmds`) but removed the `cmd`
+// import prefix, the `Request` already belongs to this package.
+// TODO: How to unify both?
+type RequestLogger interface {
+	LogRequest(*Request) func()
+}
+
 func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) (err error) {
 	cmd := req.Command
 
@@ -105,6 +115,12 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) (e
 		}
 
 	}()
+
+	if reqLogger, ok := env.(RequestLogger); ok {
+		done := reqLogger.LogRequest(req)
+		defer done()
+	}
+
 	cmd.Run(req, re, env)
 	return nil
 }
