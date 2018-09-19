@@ -456,6 +456,7 @@ const notRecursiveFmtStr = "'%s' is a directory, use the '-%s' flag to specify d
 const dirNotSupportedFmtStr = "Invalid path '%s', argument '%s' does not support directories"
 
 func appendFile(fpath string, argDef *cmdkit.Argument, recursive, hidden bool) (files.File, error) {
+	fpath = filepath.ToSlash(filepath.Clean(fpath))
 	if fpath == "." {
 		cwd, err := os.Getwd()
 		if err != nil {
@@ -467,8 +468,6 @@ func appendFile(fpath string, argDef *cmdkit.Argument, recursive, hidden bool) (
 		}
 		fpath = cwd
 	}
-
-	fpath = filepath.ToSlash(filepath.Clean(fpath))
 
 	stat, err := os.Lstat(fpath)
 	if err != nil {
