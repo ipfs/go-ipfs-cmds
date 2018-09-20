@@ -1,6 +1,7 @@
 package cmdkit
 
 import (
+	"math"
 	"reflect"
 	"strings"
 	"testing"
@@ -77,6 +78,11 @@ func TestParse(t *testing.T) {
 		{opt: IntOption("int2"), str: "-42", v: -42},
 		{opt: UintOption("uint1"), str: "23", v: uint(23)},
 		{opt: UintOption("uint2"), str: "-23", err: `strconv.ParseUint: parsing "-23": invalid syntax`},
+		{opt: Int64Option("int3"), str: "100001", v: int64(100001)},
+		{opt: Int64Option("int3"), str: "2147483648", v: int64(math.MaxInt32 + 1)},
+		{opt: Int64Option("int3"), str: "fly", err: `strconv.ParseInt: parsing "fly": invalid syntax`},
+		{opt: Uint64Option("uint3"), str: "23", v: uint64(23)},
+		{opt: Uint64Option("uint3"), str: "-23", err: `strconv.ParseUint: parsing "-23": invalid syntax`},
 		{opt: BoolOption("true"), str: "true", v: true},
 		{opt: BoolOption("true"), str: "", v: true},
 		{opt: BoolOption("false"), str: "false", v: false},

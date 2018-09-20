@@ -13,6 +13,8 @@ const (
 	Bool    = reflect.Bool
 	Int     = reflect.Int
 	Uint    = reflect.Uint
+	Int64   = reflect.Int64
+	Uint64  = reflect.Uint64
 	Float   = reflect.Float64
 	String  = reflect.String
 )
@@ -95,6 +97,20 @@ var converters = map[reflect.Kind]converter{
 		}
 		return uint(val), err
 	},
+	Int64: func(v string) (interface{}, error) {
+		val, err := strconv.ParseInt(v, 0, 64)
+		if err != nil {
+			return nil, err
+		}
+		return val, err
+	},
+	Uint64: func(v string) (interface{}, error) {
+		val, err := strconv.ParseUint(v, 0, 64)
+		if err != nil {
+			return nil, err
+		}
+		return val, err
+	},
 	Float: func(v string) (interface{}, error) {
 		return strconv.ParseFloat(v, 64)
 	},
@@ -152,6 +168,12 @@ func IntOption(names ...string) Option {
 func UintOption(names ...string) Option {
 	return NewOption(Uint, names...)
 }
+func Int64Option(names ...string) Option {
+	return NewOption(Int64, names...)
+}
+func Uint64Option(names ...string) Option {
+	return NewOption(Uint64, names...)
+}
 func FloatOption(names ...string) Option {
 	return NewOption(Float, names...)
 }
@@ -203,6 +225,28 @@ func (ov *OptionValue) Uint() (value uint, found bool, err error) {
 		return 0, false, nil
 	}
 	val, ok := ov.Value.(uint)
+	if !ok {
+		err = fmt.Errorf("expected type %T, got %T", val, ov.Value)
+	}
+	return val, ov.ValueFound, err
+}
+
+func (ov *OptionValue) Int64() (value int64, found bool, err error) {
+	if ov == nil || !ov.ValueFound && ov.Value == nil {
+		return 0, false, nil
+	}
+	val, ok := ov.Value.(int64)
+	if !ok {
+		err = fmt.Errorf("expected type %T, got %T", val, ov.Value)
+	}
+	return val, ov.ValueFound, err
+}
+
+func (ov *OptionValue) Uint64() (value uint64, found bool, err error) {
+	if ov == nil || !ov.ValueFound && ov.Value == nil {
+		return 0, false, nil
+	}
+	val, ok := ov.Value.(uint64)
 	if !ok {
 		err = fmt.Errorf("expected type %T, got %T", val, ov.Value)
 	}
