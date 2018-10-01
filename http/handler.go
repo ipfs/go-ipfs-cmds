@@ -109,6 +109,23 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// If we have a request body, make sure the preamble
+	// knows that it should close the body if it wants to
+	// write before completing reading.
+	// FIXME: https://github.com/ipfs/go-ipfs/issues/5168
+	// FIXME: https://github.com/golang/go/issues/15527
+	var bodyErrChan chan error
+	if r.Body != http.NoBody {
+		bodyErrChan = make(chan error)
+		bw := bodyWrapper{
+			ReadCloser: r.Body,
+			onError: func(err error) {
+				bodyErrChan <- err
+			},
+		}
+		r.Body = bw
+	}
+
 	req, err := parseRequest(ctx, r, h.root)
 	if err != nil {
 		if err == ErrNotFound {
@@ -145,7 +162,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 
-	re, err := NewResponseEmitter(w, r.Method, req)
+	re, err := NewResponseEmitter(w, r.Method, req, WithRequestBodyErrorChan(bodyErrChan))
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
@@ -162,13 +179,6 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if !skipAPIHeader(k) {
 			w.Header()[k] = v
 		}
-	}
-
-	// If we have a request body, close the connection when we're done.
-	// FIXME: https://github.com/ipfs/go-ipfs/issues/5168
-	// FIXME: https://github.com/golang/go/issues/15527
-	if r.Body != http.NoBody {
-		w.Header().Set("Connection", "close")
 	}
 
 	h.root.Call(req, re, h.env)

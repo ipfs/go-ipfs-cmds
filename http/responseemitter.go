@@ -28,7 +28,7 @@ var (
 )
 
 // NewResponeEmitter returns a new ResponseEmitter.
-func NewResponseEmitter(w http.ResponseWriter, method string, req *cmds.Request) (ResponseEmitter, error) {
+func NewResponseEmitter(w http.ResponseWriter, method string, req *cmds.Request, opts ...ResponseEmitterOption) (ResponseEmitter, error) {
 	encType, enc, err := cmds.GetEncoder(req, w, cmds.JSON)
 	if err != nil {
 		return nil, err
@@ -40,7 +40,22 @@ func NewResponseEmitter(w http.ResponseWriter, method string, req *cmds.Request)
 		method:  method,
 		req:     req,
 	}
+
+	for _, opt := range opts {
+		opt(re)
+	}
+
 	return re, nil
+}
+
+type ResponseEmitterOption func(*responseEmitter)
+
+func WithRequestBodyErrorChan(ch <-chan error) ResponseEmitterOption {
+	return func(re *responseEmitter) {
+		if ch != nil {
+			re.bodyErrChan = ch
+		}
+	}
 }
 
 type ResponseEmitter interface {
@@ -58,6 +73,8 @@ type responseEmitter struct {
 	l      sync.Mutex
 	length uint64
 	err    *cmdkit.Error
+
+	bodyErrChan <-chan error
 
 	streaming bool
 	closed    bool
@@ -251,6 +268,22 @@ func (re *responseEmitter) doPreamble(value interface{}) {
 
 	// Set up our potential trailer
 	h.Set("Trailer", StreamErrHeader)
+
+	// If we have a request body, make sure we close the body
+	// if we want to write before completing reading.
+	// FIXME: https://github.com/ipfs/go-ipfs/issues/5168
+	// FIXME: https://github.com/golang/go/issues/15527
+	if re.bodyErrChan != nil {
+		select {
+		case <-re.bodyErrChan:
+			// all good, we received an error, so the body is read completely.
+			// we handle the error where it occurs, here we just want to know that we're done
+		default:
+			// set connection close header, because we want to write
+			// even though the body is not yet read completely.
+			h.Set("Connection", "close")
+		}
+	}
 
 	switch v := value.(type) {
 	case *cmdkit.Error:
