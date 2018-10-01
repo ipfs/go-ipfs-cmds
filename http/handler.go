@@ -162,7 +162,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 
-	re, err := NewResponseEmitter(w, r.Method, req, WithRequestBodyErrorChan(bodyErrChan))
+	re, err := NewResponseEmitter(w, r.Method, req, withRequestBodyErrorChan(bodyErrChan))
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))

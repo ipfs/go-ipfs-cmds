@@ -41,6 +41,7 @@ func NewResponseEmitter(w http.ResponseWriter, method string, req *cmds.Request,
 		req:     req,
 	}
 
+	// apply functional options
 	for _, opt := range opts {
 		opt(re)
 	}
@@ -48,9 +49,13 @@ func NewResponseEmitter(w http.ResponseWriter, method string, req *cmds.Request,
 	return re, nil
 }
 
+// ResponseEmitterOption is the type describing options to the NewResponseEmitter function.
 type ResponseEmitterOption func(*responseEmitter)
 
-func WithRequestBodyErrorChan(ch <-chan error) ResponseEmitterOption {
+// withRequestBodyErrorChan return a ResponseEmitterOption needed to gracefully handle
+// the case where the handler wants to send data and the request data has not been read
+// completely yet.
+func withRequestBodyErrorChan(ch <-chan error) ResponseEmitterOption {
 	return func(re *responseEmitter) {
 		if ch != nil {
 			re.bodyErrChan = ch
