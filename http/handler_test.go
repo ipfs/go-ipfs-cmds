@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http/httptest"
 	"runtime"
 
@@ -197,6 +198,31 @@ var (
 				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
 					buf := bytes.NewBufferString("the reader call returns a reader.")
 					return re.Emit(buf)
+				},
+			},
+
+			"echo": &cmds.Command{
+				Arguments: []cmdkit.Argument{
+					cmdkit.FileArg("file", true, false, "a file"),
+				},
+				Type: "",
+				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+					err := re.Emit("i received:")
+					if err != nil {
+						return err
+					}
+
+					f, err := req.Files.NextFile()
+					if err != nil {
+						return err
+					}
+
+					data, err := ioutil.ReadAll(f)
+					if err != nil {
+						return err
+					}
+
+					return re.Emit(string(data))
 				},
 			},
 
