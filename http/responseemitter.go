@@ -52,13 +52,13 @@ func NewResponseEmitter(w http.ResponseWriter, method string, req *cmds.Request,
 // ResponseEmitterOption is the type describing options to the NewResponseEmitter function.
 type ResponseEmitterOption func(*responseEmitter)
 
-// withRequestBodyErrorChan return a ResponseEmitterOption needed to gracefully handle
+// withRequestBodyEOFChan return a ResponseEmitterOption needed to gracefully handle
 // the case where the handler wants to send data and the request data has not been read
 // completely yet.
-func withRequestBodyErrorChan(ch <-chan error) ResponseEmitterOption {
+func withRequestBodyEOFChan(ch <-chan struct{}) ResponseEmitterOption {
 	return func(re *responseEmitter) {
 		if ch != nil {
-			re.bodyErrChan = ch
+			re.bodyEOFChan = ch
 		}
 	}
 }
@@ -79,7 +79,7 @@ type responseEmitter struct {
 	length uint64
 	err    *cmdkit.Error
 
-	bodyErrChan <-chan error
+	bodyEOFChan <-chan struct{}
 
 	streaming bool
 	closed    bool
@@ -278,10 +278,10 @@ func (re *responseEmitter) doPreamble(value interface{}) {
 	// if we want to write before completing reading.
 	// FIXME: https://github.com/ipfs/go-ipfs/issues/5168
 	// FIXME: https://github.com/golang/go/issues/15527
-	if re.bodyErrChan != nil {
+	if re.bodyEOFChan != nil {
 		select {
-		case <-re.bodyErrChan:
-			// all good, we received an error, so the body is read completely.
+		case <-re.bodyEOFChan:
+			// all good, we received an EOF, so the body is read completely.
 			// we handle the error where it occurs, here we just want to know that we're done
 		default:
 			// set connection close header, because we want to write

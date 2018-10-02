@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"runtime/debug"
 	"strings"
+	"sync"
 	"time"
 
 	cmds "github.com/ipfs/go-ipfs-cmds"
@@ -114,13 +115,14 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// write before completing reading.
 	// FIXME: https://github.com/ipfs/go-ipfs/issues/5168
 	// FIXME: https://github.com/golang/go/issues/15527
-	var bodyErrChan chan error
+	var bodyEOFChan chan struct{}
 	if r.Body != http.NoBody {
-		bodyErrChan = make(chan error)
+		bodyEOFChan = make(chan struct{})
+		var once sync.Once
 		bw := bodyWrapper{
 			ReadCloser: r.Body,
-			onError: func(err error) {
-				bodyErrChan <- err
+			onEOF: func() {
+				once.Do(func() { close(bodyEOFChan) })
 			},
 		}
 		r.Body = bw
@@ -162,7 +164,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 
-	re, err := NewResponseEmitter(w, r.Method, req, withRequestBodyErrorChan(bodyErrChan))
+	re, err := NewResponseEmitter(w, r.Method, req, withRequestBodyEOFChan(bodyEOFChan))
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
