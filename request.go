@@ -6,7 +6,7 @@ import (
 	"reflect"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
-	"github.com/ipfs/go-ipfs-cmdkit/files"
+	"github.com/ipfs/go-ipfs-files"
 )
 
 // Request represents a call to a command from a consumer
