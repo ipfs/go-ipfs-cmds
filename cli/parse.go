@@ -14,7 +14,7 @@ import (
 
 	osh "github.com/Kubuxu/go-os-helper"
 	"github.com/ipfs/go-ipfs-cmdkit"
-	"github.com/ipfs/go-ipfs-cmdkit/files"
+	"github.com/ipfs/go-ipfs-files"
 	logging "github.com/ipfs/go-log"
 )
 
