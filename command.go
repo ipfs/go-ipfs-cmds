@@ -229,7 +229,7 @@ func (c *Command) CheckArguments(req *Request) error {
 		lastArg.Type == cmdkit.ArgString &&
 		req.Files != nil {
 
-		fi, err := req.Files.NextFile()
+		_, fi, err := req.Files.NextFile()
 		switch err {
 		case io.EOF:
 		case nil:

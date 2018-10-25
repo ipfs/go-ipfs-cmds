@@ -119,8 +119,8 @@ func (c *client) toHTTPRequest(req *cmds.Request) (*http.Request, error) {
 	if bodyArgs := req.BodyArgs(); bodyArgs != nil {
 		// In the end, this wraps a file reader in a file reader.
 		// However, such is life.
-		fileReader = files.NewMultiFileReader(files.NewSliceFile("", "", []files.File{
-			files.NewReaderFile("stdin", "", bodyArgs, nil),
+		fileReader = files.NewMultiFileReader(files.NewSliceFile([]files.FileEntry{
+			{File: files.NewReaderFile(bodyArgs, nil), Name: "stdin"},
 		}), true)
 		reader = fileReader
 	} else if req.Files != nil {

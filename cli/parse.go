@@ -10,9 +10,10 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/ipfs/go-ipfs-cmds"
+
 	osh "github.com/Kubuxu/go-os-helper"
 	"github.com/ipfs/go-ipfs-cmdkit"
-	"github.com/ipfs/go-ipfs-cmds"
 	"github.com/ipfs/go-ipfs-files"
 	logging "github.com/ipfs/go-log"
 )
@@ -245,7 +246,7 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 				stringArgs, inputs = append(stringArgs, inputs[0]), inputs[1:]
 			} else if stdin != nil && argDef.SupportsStdin && !fillingVariadic {
 				if r, err := maybeWrapStdin(stdin, msgStdinInfo); err == nil {
-					fileArgs[stdin.Name()] = files.NewReaderFile("stdin", "", r, nil)
+					fileArgs[stdin.Name()] = files.NewReaderFile(r, nil)
 					stdin = nil
 				}
 			}
@@ -262,7 +263,7 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 					}
 
 					fpath = stdin.Name()
-					file = files.NewReaderFile("", fpath, r, nil)
+					file = files.NewReaderFile(r, nil)
 				} else {
 					if derefArgs, _ := req.Options[cmds.DerefLong].(bool); derefArgs {
 						var err error // don't shadow fpath
@@ -278,7 +279,7 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 					file = nf
 				}
 
-				fileArgs[fpath] = file
+				fileArgs[path.Base(fpath)] = file
 			} else if stdin != nil && argDef.SupportsStdin &&
 				argDef.Required && !fillingVariadic {
 				r, err := maybeWrapStdin(stdin, msgStdinInfo)
@@ -287,7 +288,7 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 				}
 
 				fpath := stdin.Name()
-				fileArgs[fpath] = files.NewReaderFile("", fpath, r, nil)
+				fileArgs[path.Base(fpath)] = files.NewReaderFile(r, nil)
 			}
 		}
 
@@ -311,7 +312,7 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 
 	req.Arguments = stringArgs
 	if len(fileArgs) > 0 {
-		req.Files = files.NewSliceFile("", "", filesMapToSortedArr(fileArgs))
+		req.Files = files.NewSliceFile(filesMapToSortedArr(fileArgs))
 	}
 
 	return nil
@@ -427,7 +428,7 @@ func (st *parseState) parseLongOpt(optDefs map[string]cmdkit.Option) (string, in
 	optval, err := parseOpt(k, v, optDefs)
 	return k, optval, err
 }
-func filesMapToSortedArr(fs map[string]files.File) []files.File {
+func filesMapToSortedArr(fs map[string]files.File) []files.FileEntry {
 	var names []string
 	for name, _ := range fs {
 		names = append(names, name)
@@ -435,9 +436,9 @@ func filesMapToSortedArr(fs map[string]files.File) []files.File {
 
 	sort.Strings(names)
 
-	var out []files.File
+	var out []files.FileEntry
 	for _, f := range names {
-		out = append(out, fs[f])
+		out = append(out, files.FileEntry{File: fs[f], Name: f})
 	}
 
 	return out
@@ -458,7 +459,7 @@ func getArgDef(i int, argDefs []cmdkit.Argument) *cmdkit.Argument {
 }
 
 const notRecursiveFmtStr = "'%s' is a directory, use the '-%s' flag to specify directories"
-const dirNotSupportedFmtStr = "Invalid path '%s', argument '%s' does not support directories"
+const dirNotSupportedFmtStr = "invalid path '%s', argument '%s' does not support directories"
 
 func appendFile(fpath string, argDef *cmdkit.Argument, recursive, hidden bool) (files.File, error) {
 	fpath = filepath.ToSlash(filepath.Clean(fpath))
@@ -488,7 +489,7 @@ func appendFile(fpath string, argDef *cmdkit.Argument, recursive, hidden bool) (
 		}
 	}
 
-	return files.NewSerialFile(path.Base(fpath), fpath, hidden, stat)
+	return files.NewSerialFile(fpath, hidden, stat)
 }
 
 // Inform the user if a file is waiting on input
