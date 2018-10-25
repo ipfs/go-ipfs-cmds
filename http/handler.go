@@ -157,7 +157,11 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	re := NewResponseEmitter(w, r.Method, req)
+	re, err := NewResponseEmitter(w, r.Method, req)
+	if err != nil {
+		re.CloseWithError(err)
+		return
+	}
 	h.root.Call(req, re, h.env)
 }
 

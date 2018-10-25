@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"github.com/ipfs/go-ipfs-cmdkit"
 	"io"
 	"reflect"
 )
@@ -129,4 +130,33 @@ type TextEncoder struct {
 func (e TextEncoder) Encode(v interface{}) error {
 	_, err := fmt.Fprintf(e.w, "%s%s", v, e.suffix)
 	return err
+}
+
+// GetEncoders takes a request and returns returns the encoding type, an error encoder, and a value encoder.
+func GetEncoders(req *Request, w io.Writer) (encType EncodingType, valEnc, errEnc Encoder, err error) {
+	encType = GetEncoding(req)
+
+	if fn, ok := Encoders[encType]; ok {
+		errEnc = fn(req)(w)
+	} else {
+		return encType, nil, nil, cmdkit.Errorf(cmdkit.ErrClient, "invalid encoding: %s", encType)
+	}
+
+	// Only override the value encoder.
+	if fn, ok := req.Command.Encoders[encType]; ok {
+		valEnc = fn(req)(w)
+	} else {
+		valEnc = errEnc
+	}
+	return encType, valEnc, errEnc, nil
+}
+
+// GetDecoder takes a request and returns the encoding type and the decoder.
+func GetDecoder(req *Request, r io.Reader) (encType EncodingType, dec Decoder, err error) {
+	encType = GetEncoding(req)
+
+	if fn, ok := Decoders[encType]; ok {
+		return encType, fn(r), nil
+	}
+	return encType, nil, cmdkit.Errorf(cmdkit.ErrClient, "invalid encoding: %s", encType)
 }

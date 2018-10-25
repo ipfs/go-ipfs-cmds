@@ -66,10 +66,6 @@ func (re *responseEmitter) SetLength(l uint64) {
 	re.length = l
 }
 
-func (re *responseEmitter) SetEncoder(enc func(io.Writer) cmds.Encoder) {
-	re.enc = enc(re.stdout)
-}
-
 func (re *responseEmitter) CloseWithError(err error) error {
 	if err == nil {
 		return re.Close()

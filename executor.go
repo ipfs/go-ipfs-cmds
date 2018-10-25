@@ -49,26 +49,6 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) (e
 		return err
 	}
 
-	// If this ResponseEmitter encodes messages (e.g. http, cli or writer - but not chan),
-	// we need to update the encoding to the one specified by the command.
-	if ee, ok := re.(EncodingEmitter); ok {
-		encType := GetEncoding(req)
-
-		// use JSON if text was requested but the command doesn't have a text-encoder
-		if _, ok := cmd.Encoders[encType]; encType == Text && !ok {
-			encType = JSON
-		}
-
-		if enc, ok := cmd.Encoders[encType]; ok {
-			ee.SetEncoder(enc(req))
-		} else if enc, ok := Encoders[encType]; ok {
-			ee.SetEncoder(enc(req))
-		} else {
-			log.Errorf("unknown encoding %q, using json", encType)
-			ee.SetEncoder(Encoders[JSON](req))
-		}
-	}
-
 	if cmd.PreRun != nil {
 		err = cmd.PreRun(req, env)
 		if err != nil {
