@@ -9,11 +9,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-cmds"
 )
 
 func TestErrors(t *testing.T) {
 	type testcase struct {
+		opts       cmdkit.OptMap
 		path       []string
 		bodyStr    string
 		status     string
@@ -47,6 +49,25 @@ func TestErrors(t *testing.T) {
 		},
 
 		{
+			path: []string{"encode"},
+			opts: cmdkit.OptMap{
+				cmds.EncLong: cmds.Text,
+			},
+			status:  "500 Internal Server Error",
+			bodyStr: "an error occurred",
+		},
+
+		{
+			path: []string{"lateencode"},
+			opts: cmdkit.OptMap{
+				cmds.EncLong: cmds.Text,
+			},
+			status:     "200 OK",
+			bodyStr:    "hello\n",
+			errTrailer: "an error occurred",
+		},
+
+		{
 			path:    []string{"doubleclose"},
 			status:  "200 OK",
 			bodyStr: `"some value"` + "\n",
@@ -69,7 +90,7 @@ func TestErrors(t *testing.T) {
 		return func(t *testing.T) {
 			_, srv := getTestServer(t, nil) // handler_test:/^func getTestServer/
 			c := NewClient(srv.URL)
-			req, err := cmds.NewRequest(context.Background(), tc.path, nil, nil, nil, cmdRoot)
+			req, err := cmds.NewRequest(context.Background(), tc.path, tc.opts, nil, nil, cmdRoot)
 			if err != nil {
 				t.Fatal(err)
 			}
