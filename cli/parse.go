@@ -466,7 +466,7 @@ func appendFile(fpath string, argDef *cmdkit.Argument, recursive, hidden bool) (
 		if err != nil {
 			return nil, err
 		}
-		fpath = cwd
+		fpath = filepath.ToSlash(cwd)
 	}
 
 	stat, err := os.Lstat(fpath)
