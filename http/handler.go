@@ -159,7 +159,8 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	re, err := NewResponseEmitter(w, r.Method, req)
 	if err != nil {
-		re.CloseWithError(err)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(err.Error()))
 		return
 	}
 	h.root.Call(req, re, h.env)
