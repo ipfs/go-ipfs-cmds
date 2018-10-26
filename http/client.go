@@ -75,22 +75,6 @@ func NewClient(address string, opts ...ClientOpt) Client {
 func (c *client) Execute(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
 	cmd := req.Command
 
-	// If this ResponseEmitter encodes messages (e.g. http, cli or writer - but not chan),
-	// we need to update the encoding to the one specified by the command.
-	if ee, ok := re.(cmds.EncodingEmitter); ok {
-		encType := cmds.GetEncoding(req)
-
-		// note the difference: cmd.Encoders vs. cmds.Encoders
-		if enc, ok := cmd.Encoders[encType]; ok {
-			ee.SetEncoder(enc(req))
-		} else if enc, ok := cmds.Encoders[encType]; ok {
-			ee.SetEncoder(enc(req))
-		} else {
-			log.Errorf("unknown encoding %q, using json", encType)
-			ee.SetEncoder(cmds.Encoders[cmds.JSON](req))
-		}
-	}
-
 	if cmd.PreRun != nil {
 		err := cmd.PreRun(req, env)
 		if err != nil {

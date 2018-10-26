@@ -28,23 +28,20 @@ var (
 )
 
 // NewResponeEmitter returns a new ResponseEmitter.
-func NewResponseEmitter(w http.ResponseWriter, method string, req *cmds.Request) ResponseEmitter {
-	encType := cmds.GetEncoding(req)
-
-	var enc cmds.Encoder
-
-	if _, ok := cmds.Encoders[encType]; ok {
-		enc = cmds.Encoders[encType](req)(w)
+func NewResponseEmitter(w http.ResponseWriter, method string, req *cmds.Request) (ResponseEmitter, error) {
+	encType, valEnc, errEnc, err := cmds.GetEncoders(req, w)
+	if err != nil {
+		return nil, err
 	}
-
 	re := &responseEmitter{
 		w:       w,
 		encType: encType,
-		enc:     enc,
+		errEnc:  errEnc,
+		valEnc:  valEnc,
 		method:  method,
 		req:     req,
 	}
-	return re
+	return re, nil
 }
 
 type ResponseEmitter interface {
@@ -55,7 +52,8 @@ type ResponseEmitter interface {
 type responseEmitter struct {
 	w http.ResponseWriter
 
-	enc     cmds.Encoder
+	errEnc  cmds.Encoder
+	valEnc  cmds.Encoder // overrides the normal encoder
 	encType cmds.EncodingType
 	req     *cmds.Request
 
@@ -121,7 +119,7 @@ func (re *responseEmitter) Emit(value interface{}) error {
 	case io.Reader:
 		err = flushCopy(re.w, v)
 	default:
-		err = re.enc.Encode(value)
+		err = re.valEnc.Encode(value)
 	}
 
 	if isSingle && err == nil {
@@ -259,7 +257,7 @@ func (re *responseEmitter) doPreamble(value interface{}) {
 			err = &cmdkit.Error{Message: err.Error()}
 		}
 
-		err = re.enc.Encode(err)
+		err = re.errEnc.Encode(err)
 		if err != nil {
 			log.Error("error sending error value after non-200 response", err)
 		}
@@ -270,10 +268,6 @@ func (re *responseEmitter) doPreamble(value interface{}) {
 
 type responseWriterer interface {
 	Lower() http.ResponseWriter
-}
-
-func (re *responseEmitter) SetEncoder(enc func(io.Writer) cmds.Encoder) {
-	re.enc = enc(re.w)
 }
 
 func flushCopy(w io.Writer, r io.Reader) error {

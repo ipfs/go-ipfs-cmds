@@ -38,7 +38,10 @@ func TestMarshalling(t *testing.T) {
 
 	buf := bytes.NewBuffer(nil)
 	wc := writecloser{Writer: buf, Closer: nopCloser{}}
-	re := NewWriterResponseEmitter(wc, req, Encoders[JSON])
+	re, err := NewWriterResponseEmitter(wc, req)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	err = re.Emit(TestOutput{"beep", "boop", 1337})
 	if err != nil {

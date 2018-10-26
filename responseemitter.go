@@ -50,12 +50,6 @@ type ResponseEmitter interface {
 	Emit(value interface{}) error
 }
 
-type EncodingEmitter interface {
-	ResponseEmitter
-
-	SetEncoder(func(io.Writer) Encoder)
-}
-
 // Copy sends all values received on res to re. If res is closed, it closes re.
 func Copy(re ResponseEmitter, res Response) error {
 	re.SetLength(res.Length())

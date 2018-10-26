@@ -82,6 +82,34 @@ var (
 				},
 				Type: "",
 			},
+			"encode": &cmds.Command{
+				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+					return errors.New("an error occurred")
+				},
+				Type: "",
+				Encoders: cmds.EncoderMap{
+					cmds.Text: cmds.MakeTypedEncoder(func(req *cmds.Request, w io.Writer, v string) error {
+						fmt.Fprintln(w, v)
+						return nil
+					}),
+				},
+			},
+			"lateencode": &cmds.Command{
+				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+					re.Emit("hello")
+					return errors.New("an error occurred")
+				},
+				Type: "",
+				Encoders: cmds.EncoderMap{
+					cmds.Text: cmds.MakeTypedEncoder(func(req *cmds.Request, w io.Writer, v string) error {
+						fmt.Fprintln(w, v)
+						if v != "hello" {
+							return fmt.Errorf("expected hello, got %s", v)
+						}
+						return nil
+					}),
+				},
+			},
 			"doubleclose": &cmds.Command{
 				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
 					t, ok := getTestingT(env)

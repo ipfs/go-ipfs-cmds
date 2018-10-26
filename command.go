@@ -104,20 +104,6 @@ func (c *Command) call(req *Request, re ResponseEmitter, env Environment) error 
 		return err
 	}
 
-	// If this ResponseEmitter encodes messages (e.g. http, cli or writer - but not chan),
-	// we need to update the encoding to the one specified by the command.
-	if re_, ok := re.(EncodingEmitter); ok {
-		encType := GetEncoding(req)
-
-		if enc, ok := cmd.Encoders[encType]; ok {
-			re_.SetEncoder(enc(req))
-		} else if enc, ok := Encoders[encType]; ok {
-			re_.SetEncoder(enc(req))
-		} else {
-			return fmt.Errorf("unknown encoding %q", encType)
-		}
-	}
-
 	return cmd.Run(req, re, env)
 }
 

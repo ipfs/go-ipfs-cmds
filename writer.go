@@ -11,28 +11,34 @@ import (
 	"github.com/ipfs/go-ipfs-cmds/debug"
 )
 
-func NewWriterResponseEmitter(w io.WriteCloser, req *Request, enc func(*Request) func(io.Writer) Encoder) ResponseEmitter {
+func NewWriterResponseEmitter(w io.WriteCloser, req *Request) (ResponseEmitter, error) {
+	_, valEnc, _, err := GetEncoders(req, w)
+	if err != nil {
+		return nil, err
+	}
+
 	re := &writerResponseEmitter{
 		w:   w,
 		c:   w,
 		req: req,
+		enc: valEnc,
 	}
 
-	if enc != nil {
-		re.enc = enc(req)(w)
-	}
-
-	return re
+	return re, nil
 }
 
-func NewReaderResponse(r io.Reader, encType EncodingType, req *Request) Response {
+func NewReaderResponse(r io.Reader, req *Request) (Response, error) {
+	encType, dec, err := GetDecoder(req, r)
+	if err != nil {
+		return nil, err
+	}
 	return &readerResponse{
 		req:     req,
 		r:       r,
 		encType: encType,
-		dec:     Decoders[encType](r),
+		dec:     dec,
 		emitted: make(chan struct{}),
-	}
+	}, nil
 }
 
 type readerResponse struct {
@@ -99,10 +105,6 @@ type writerResponseEmitter struct {
 
 	emitted bool
 	closed  bool
-}
-
-func (re *writerResponseEmitter) SetEncoder(mkEnc func(io.Writer) Encoder) {
-	re.enc = mkEnc(re.w)
 }
 
 func (re *writerResponseEmitter) CloseWithError(err error) error {

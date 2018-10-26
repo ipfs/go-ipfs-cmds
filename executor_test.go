@@ -50,7 +50,10 @@ func TestExecutor(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	re := NewWriterResponseEmitter(wc{&buf, nopCloser{}}, req, Encoders[Text])
+	re, err := NewWriterResponseEmitter(wc{&buf, nopCloser{}}, req)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	x := NewExecutor(root)
 	x.Execute(req, re, &env)

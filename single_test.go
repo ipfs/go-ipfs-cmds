@@ -59,8 +59,14 @@ func TestSingleWriter(t *testing.T) {
 	}
 
 	pr, pw := io.Pipe()
-	re := NewWriterResponseEmitter(pw, req, Encoders["json"])
-	res := NewReaderResponse(pr, "json", req)
+	re, err := NewWriterResponseEmitter(pw, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := NewReaderResponse(pr, req)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	var wg sync.WaitGroup
 
