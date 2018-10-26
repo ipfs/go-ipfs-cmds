@@ -132,31 +132,22 @@ func (e TextEncoder) Encode(v interface{}) error {
 	return err
 }
 
-// GetEncoders takes a request and returns returns the encoding type, an error encoder, and a value encoder.
-func GetEncoders(req *Request, w io.Writer) (encType EncodingType, valEnc, errEnc Encoder, err error) {
-	encType = GetEncoding(req)
+// GetEncoder takes a request and returns returns the encoding type and the encoder.
+func GetEncoder(req *Request, w io.Writer, def EncodingType) (encType EncodingType, enc Encoder, err error) {
+	encType = GetEncoding(req, def)
 
-	if fn, ok := Encoders[encType]; ok {
-		errEnc = fn(req)(w)
-	} else {
-		return encType, nil, nil, cmdkit.Errorf(cmdkit.ErrClient, "invalid encoding: %s", encType)
+	var (
+		fn EncoderFunc
+		ok bool
+	)
+	if req.Command != nil {
+		fn, ok = req.Command.Encoders[encType]
 	}
-
-	// Only override the value encoder.
-	if fn, ok := req.Command.Encoders[encType]; ok {
-		valEnc = fn(req)(w)
-	} else {
-		valEnc = errEnc
+	if !ok {
+		fn, ok = Encoders[encType]
 	}
-	return encType, valEnc, errEnc, nil
-}
-
-// GetDecoder takes a request and returns the encoding type and the decoder.
-func GetDecoder(req *Request, r io.Reader) (encType EncodingType, dec Decoder, err error) {
-	encType = GetEncoding(req)
-
-	if fn, ok := Decoders[encType]; ok {
-		return encType, fn(r), nil
+	if !ok {
+		return encType, nil, cmdkit.Errorf(cmdkit.ErrClient, "invalid encoding: %s", encType)
 	}
-	return encType, nil, cmdkit.Errorf(cmdkit.ErrClient, "invalid encoding: %s", encType)
+	return encType, fn(req)(w), nil
 }

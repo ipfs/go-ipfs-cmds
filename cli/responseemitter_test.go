@@ -23,8 +23,10 @@ type tcCloseWithError struct {
 
 func (tc tcCloseWithError) Run(t *testing.T) {
 	req := &cmds.Request{}
-
-	cmdsre, exitCh := NewResponseEmitter(tc.stdout, tc.stderr, nil, req)
+	cmdsre, exitCh, err := NewResponseEmitter(tc.stdout, tc.stderr, req)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	re := cmdsre.(ResponseEmitter)
 

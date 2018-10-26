@@ -29,15 +29,14 @@ var (
 
 // NewResponeEmitter returns a new ResponseEmitter.
 func NewResponseEmitter(w http.ResponseWriter, method string, req *cmds.Request) (ResponseEmitter, error) {
-	encType, valEnc, errEnc, err := cmds.GetEncoders(req, w)
+	encType, enc, err := cmds.GetEncoder(req, w, cmds.JSON)
 	if err != nil {
 		return nil, err
 	}
 	re := &responseEmitter{
 		w:       w,
 		encType: encType,
-		errEnc:  errEnc,
-		valEnc:  valEnc,
+		enc:     enc,
 		method:  method,
 		req:     req,
 	}
@@ -52,8 +51,7 @@ type ResponseEmitter interface {
 type responseEmitter struct {
 	w http.ResponseWriter
 
-	errEnc  cmds.Encoder
-	valEnc  cmds.Encoder // overrides the normal encoder
+	enc     cmds.Encoder
 	encType cmds.EncodingType
 	req     *cmds.Request
 
@@ -119,7 +117,7 @@ func (re *responseEmitter) Emit(value interface{}) error {
 	case io.Reader:
 		err = flushCopy(re.w, v)
 	default:
-		err = re.valEnc.Encode(value)
+		err = re.enc.Encode(value)
 	}
 
 	if isSingle && err == nil {
@@ -156,11 +154,22 @@ func (re *responseEmitter) closeWithError(err error) error {
 		return cmds.ErrClosingClosedEmitter
 	}
 
-	if err == io.EOF {
+	switch err {
+	case nil:
+		// no error
+	case io.EOF:
+		// not a real error
 		err = nil
-	}
-	if e, ok := err.(cmdkit.Error); ok {
-		err = &e
+	default:
+		// make sure this is *always* of type *cmdkit.Error
+		switch e := err.(type) {
+		case cmdkit.Error:
+			err = &e
+		case *cmdkit.Error:
+		case nil:
+		default:
+			err = &cmdkit.Error{Message: err.Error(), Code: cmdkit.ErrNormal}
+		}
 	}
 
 	setErrTrailer := true
@@ -199,14 +208,54 @@ func (re *responseEmitter) preamble(value interface{}) {
 	re.doPreamble(value)
 }
 
+func (re *responseEmitter) sendErr(err *cmdkit.Error) {
+	// Handle error encoding. *Try* to obey the requested encoding, fallback
+	// on json.
+	encType := re.encType
+	enc, ok := cmds.Encoders[encType]
+	if !ok {
+		encType = cmds.JSON
+		enc = cmds.Encoders[encType]
+	}
+
+	// Set the appropriate MIME Type
+	re.w.Header().Set(contentTypeHeader, mimeTypes[encType])
+
+	// Set the status from the error code.
+	status := http.StatusInternalServerError
+	if err.Code == cmdkit.ErrClient {
+		status = http.StatusBadRequest
+	}
+	re.w.WriteHeader(status)
+
+	// Finally, send the errr
+	if err := enc(re.req)(re.w).Encode(err); err != nil {
+		log.Error("error sending error value after non-200 response", err)
+	}
+
+	re.closed = true
+}
+
 func (re *responseEmitter) doPreamble(value interface{}) {
 	var (
-		h      = re.w.Header()
-		status = http.StatusOK
-		mime   string
+		h    = re.w.Header()
+		mime string
 	)
 
+	// Common Headers
+
+	// set 'allowed' headers
+	h.Set("Access-Control-Allow-Headers", AllowedExposedHeaders)
+	// expose those headers
+	h.Set("Access-Control-Expose-Headers", AllowedExposedHeaders)
+
+	// Set up our potential trailer
+	h.Set("Trailer", StreamErrHeader)
+
 	switch v := value.(type) {
+	case *cmdkit.Error:
+		re.sendErr(v)
+		return
 	case io.Reader:
 		// set streams output type to text to avoid issues with browsers rendering
 		// html pages on priveleged api ports
@@ -216,21 +265,9 @@ func (re *responseEmitter) doPreamble(value interface{}) {
 		mime = "text/plain"
 	case cmds.Single:
 		// don't set stream/channel header
-	case *cmdkit.Error:
-		err := v
-		if err.Code == cmdkit.ErrClient {
-			status = http.StatusBadRequest
-		} else {
-			status = http.StatusInternalServerError
-		}
-	case error:
-		status = http.StatusInternalServerError
 	default:
 		h.Set(channelHeader, "1")
 	}
-
-	// Set up our potential trailer
-	h.Set("Trailer", StreamErrHeader)
 
 	if mime == "" {
 		var ok bool
@@ -245,25 +282,7 @@ func (re *responseEmitter) doPreamble(value interface{}) {
 
 	h.Set(contentTypeHeader, mime)
 
-	// set 'allowed' headers
-	h.Set("Access-Control-Allow-Headers", AllowedExposedHeaders)
-	// expose those headers
-	h.Set("Access-Control-Expose-Headers", AllowedExposedHeaders)
-
-	re.w.WriteHeader(status)
-
-	if err, ok := value.(error); ok {
-		if _, ok := err.(*cmdkit.Error); !ok {
-			err = &cmdkit.Error{Message: err.Error()}
-		}
-
-		err = re.errEnc.Encode(err)
-		if err != nil {
-			log.Error("error sending error value after non-200 response", err)
-		}
-
-		re.closed = true
-	}
+	re.w.WriteHeader(http.StatusOK)
 }
 
 type responseWriterer interface {

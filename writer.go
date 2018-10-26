@@ -12,7 +12,7 @@ import (
 )
 
 func NewWriterResponseEmitter(w io.WriteCloser, req *Request) (ResponseEmitter, error) {
-	_, valEnc, _, err := GetEncoders(req, w)
+	_, valEnc, err := GetEncoder(req, w, Undefined)
 	if err != nil {
 		return nil, err
 	}
@@ -28,15 +28,16 @@ func NewWriterResponseEmitter(w io.WriteCloser, req *Request) (ResponseEmitter, 
 }
 
 func NewReaderResponse(r io.Reader, req *Request) (Response, error) {
-	encType, dec, err := GetDecoder(req, r)
-	if err != nil {
-		return nil, err
+	encType := GetEncoding(req, Undefined)
+	dec, ok := Decoders[encType]
+	if !ok {
+		return nil, cmdkit.Errorf(cmdkit.ErrClient, "unknown encoding: %s", encType)
 	}
 	return &readerResponse{
 		req:     req,
 		r:       r,
 		encType: encType,
-		dec:     dec,
+		dec:     dec(r),
 		emitted: make(chan struct{}),
 	}, nil
 }

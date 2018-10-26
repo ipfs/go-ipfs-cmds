@@ -134,12 +134,10 @@ func Run(ctx context.Context, root *cmds.Command,
 	}
 
 	// first if condition checks the command's encoder map, second checks global encoder map (cmd vs. cmds)
-	if enc, ok := cmd.Encoders[encType]; ok {
-		re, exitCh = NewResponseEmitter(stdout, stderr, enc, req)
-	} else if enc, ok := cmds.Encoders[encType]; ok {
-		re, exitCh = NewResponseEmitter(stdout, stderr, enc, req)
-	} else {
-		return fmt.Errorf("could not find matching encoder for enctype %#v", encType)
+	re, exitCh, err = NewResponseEmitter(stdout, stderr, req)
+	if err != nil {
+		printErr(err)
+		return err
 	}
 
 	errCh := make(chan error, 1)

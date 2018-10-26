@@ -21,7 +21,10 @@ func main() {
 	req.Options["encoding"] = cmds.Text
 
 	// create an emitter
-	re, retCh := cli.NewResponseEmitter(os.Stdout, os.Stderr, req.Command.Encoders["Text"], req)
+	re, retCh, err := cli.NewResponseEmitter(os.Stdout, os.Stderr, req)
+	if err != nil {
+		panic(err)
+	}
 
 	if pr, ok := req.Command.PostRun[cmds.CLI]; ok {
 		var (
