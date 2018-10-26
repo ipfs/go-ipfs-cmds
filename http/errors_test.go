@@ -68,6 +68,35 @@ func TestErrors(t *testing.T) {
 		},
 
 		{
+			path: []string{"protoencode"},
+			opts: cmdkit.OptMap{
+				cmds.EncLong: cmds.Protobuf,
+			},
+			status:  "500 Internal Server Error",
+			bodyStr: `{"Message":"an error occurred","Code":0,"Type":"error"}` + "\n",
+		},
+
+		{
+			path: []string{"protolateencode"},
+			opts: cmdkit.OptMap{
+				cmds.EncLong: cmds.Protobuf,
+			},
+			status:     "200 OK",
+			bodyStr:    "hello\n",
+			errTrailer: "an error occurred",
+		},
+
+		{
+			// bad encoding
+			path: []string{"error"},
+			opts: cmdkit.OptMap{
+				cmds.EncLong: "foobar",
+			},
+			status:  "400 Bad Request",
+			bodyStr: `invalid encoding: foobar`,
+		},
+
+		{
 			path:    []string{"doubleclose"},
 			status:  "200 OK",
 			bodyStr: `"some value"` + "\n",
