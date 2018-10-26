@@ -14,25 +14,21 @@ import (
 
 var _ ResponseEmitter = &responseEmitter{}
 
-func NewResponseEmitter(stdout, stderr io.Writer, enc func(*cmds.Request) func(io.Writer) cmds.Encoder, req *cmds.Request) (cmds.ResponseEmitter, <-chan int) {
+func NewResponseEmitter(stdout, stderr io.Writer, req *cmds.Request) (cmds.ResponseEmitter, <-chan int, error) {
 	ch := make(chan int)
-	encType := cmds.GetEncoding(req)
-
-	if enc == nil {
-		enc = func(*cmds.Request) func(io.Writer) cmds.Encoder {
-			return func(io.Writer) cmds.Encoder {
-				return nil
-			}
-		}
+	encType, enc, err := cmds.GetEncoder(req, stdout, cmds.TextNewline)
+	if err != nil {
+		close(ch)
+		return nil, ch, err
 	}
 
 	return &responseEmitter{
 		stdout:  stdout,
 		stderr:  stderr,
 		encType: encType,
-		enc:     enc(req)(stdout),
+		enc:     enc,
 		ch:      ch,
-	}, ch
+	}, ch, err
 }
 
 // ResponseEmitter extends cmds.ResponseEmitter to give better control over the command line

@@ -139,19 +139,17 @@ func (req *Request) convertOptions(root *Command) error {
 }
 
 // GetEncoding returns the EncodingType set in a request, falling back to JSON
-func GetEncoding(req *Request) EncodingType {
-	encIface := req.Options[EncLong]
-	if encIface == nil {
-		return JSON
-	}
-
-	switch enc := encIface.(type) {
+func GetEncoding(req *Request, def EncodingType) EncodingType {
+	switch enc := req.Options[EncLong].(type) {
 	case string:
 		return EncodingType(enc)
 	case EncodingType:
 		return enc
 	default:
-		return JSON
+		if def == "" {
+			return DefaultOutputEncoding
+		}
+		return def
 	}
 }
 

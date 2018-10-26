@@ -145,6 +145,13 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 
+	re, err := NewResponseEmitter(w, r.Method, req)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
 	if reqLogger, ok := h.env.(requestLogger); ok {
 		done := reqLogger.LogRequest(req)
 		defer done()
@@ -157,11 +164,6 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	re, err := NewResponseEmitter(w, r.Method, req)
-	if err != nil {
-		re.CloseWithError(err)
-		return
-	}
 	h.root.Call(req, re, h.env)
 }
 

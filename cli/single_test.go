@@ -16,7 +16,10 @@ func TestSingle(t *testing.T) {
 
 	var bufout, buferr bytes.Buffer
 
-	re, exitCh := NewResponseEmitter(&bufout, &buferr, cmds.Encoders["cli"], req)
+	re, exitCh, err := NewResponseEmitter(&bufout, &buferr, req)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	wait := make(chan struct{})
 
