@@ -92,16 +92,23 @@ func MakeTypedEncoder(f interface{}) func(*Request) func(io.Writer) Encoder {
 	}
 
 	valType := t.In(2)
+	valTypePtr := reflect.PtrTo(valType)
 
 	return MakeEncoder(func(req *Request, w io.Writer, i interface{}) error {
-		if reflect.TypeOf(i) != valType {
+		iType := reflect.TypeOf(i)
+		iValue := reflect.ValueOf(i)
+		switch iType {
+		case valType:
+		case valTypePtr:
+			iValue = iValue.Elem()
+		default:
 			return fmt.Errorf("unexpected type %T, expected %v", i, valType)
 		}
 
 		out := val.Call([]reflect.Value{
 			reflect.ValueOf(req),
 			reflect.ValueOf(w),
-			reflect.ValueOf(i),
+			iValue,
 		})
 
 		err, ok := out[0].Interface().(error)
