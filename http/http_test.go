@@ -6,21 +6,31 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"reflect"
 	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/ipfs/go-ipfs-cmds"
+
 	"github.com/ipfs/go-ipfs-files"
 )
+
+func newReaderPathFile(t *testing.T, path string, reader io.ReadCloser, stat os.FileInfo) files.File {
+	f, err := files.NewReaderPathFile(path, reader, stat)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return f
+}
 
 func TestHTTP(t *testing.T) {
 	type testcase struct {
 		path    []string
 		v       interface{}
 		vs      []interface{}
-		file    files.File
+		file    files.Directory
 		r       string
 		err     error
 		sendErr error
@@ -63,17 +73,14 @@ func TestHTTP(t *testing.T) {
 
 		{
 			path: []string{"echo"},
-			file: files.NewSliceFile(
-				"",
-				"",
-				[]files.File{
-					files.NewReaderFile(
-						"stdin",
-						"/dev/stdin",
-						readCloser{
-							Reader: bytes.NewBufferString("This is the body of the request!"),
-							Closer: nopCloser{},
-						}, nil)}),
+			file: files.NewMapDirectory(map[string]files.Node{
+				"stdin": newReaderPathFile(t,
+					"/dev/stdin",
+					readCloser{
+						Reader: bytes.NewBufferString("This is the body of the request!"),
+						Closer: nopCloser{},
+					}, nil),
+			}),
 			vs:    []interface{}{"i received:", "This is the body of the request!"},
 			close: true,
 		},

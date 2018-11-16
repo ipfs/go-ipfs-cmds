@@ -7,7 +7,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/ipfs/go-ipfs-cmds"
@@ -216,7 +215,7 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 	}
 
 	stringArgs := make([]string, 0, numInputs)
-	fileArgs := make(map[string]files.File)
+	fileArgs := make(map[string]files.Node)
 
 	// the index of the current argument definition
 	iArgDef := 0
@@ -246,7 +245,10 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 				stringArgs, inputs = append(stringArgs, inputs[0]), inputs[1:]
 			} else if stdin != nil && argDef.SupportsStdin && !fillingVariadic {
 				if r, err := maybeWrapStdin(stdin, msgStdinInfo); err == nil {
-					fileArgs[stdin.Name()] = files.NewReaderFile(r, nil)
+					fileArgs["stdin"], err = files.NewReaderPathFile(stdin.Name(), r, nil)
+					if err != nil {
+						return err
+					}
 					stdin = nil
 				}
 			}
@@ -255,31 +257,47 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 				// treat stringArg values as file paths
 				fpath := inputs[0]
 				inputs = inputs[1:]
-				var file files.File
+				var file files.Node
 				if fpath == "-" {
 					r, err := maybeWrapStdin(stdin, msgStdinInfo)
 					if err != nil {
 						return err
 					}
 
-					fpath = stdin.Name()
-					file = files.NewReaderFile(r, nil)
+					fpath = ""
+					file, err = files.NewReaderPathFile(stdin.Name(), r, nil)
+					if err != nil {
+						return err
+					}
 				} else {
-					if derefArgs, _ := req.Options[cmds.DerefLong].(bool); derefArgs {
-						var err error // don't shadow fpath
+					fpath = filepath.ToSlash(filepath.Clean(fpath))
+					derefArgs, _ := req.Options[cmds.DerefLong].(bool)
+					var err error
+
+					switch {
+					case fpath == ".":
+						cwd, err := os.Getwd()
+						if err != nil {
+							return err
+						}
+						fpath = filepath.ToSlash(cwd)
+						fallthrough
+					case derefArgs:
 						if fpath, err = filepath.EvalSymlinks(fpath); err != nil {
 							return err
 						}
 					}
+
 					nf, err := appendFile(fpath, argDef, isRecursive(req), isHidden(req))
 					if err != nil {
 						return err
 					}
 
+					fpath = path.Base(fpath)
 					file = nf
 				}
 
-				fileArgs[path.Base(fpath)] = file
+				fileArgs[fpath] = file
 			} else if stdin != nil && argDef.SupportsStdin &&
 				argDef.Required && !fillingVariadic {
 				r, err := maybeWrapStdin(stdin, msgStdinInfo)
@@ -287,8 +305,10 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 					return err
 				}
 
-				fpath := stdin.Name()
-				fileArgs[path.Base(fpath)] = files.NewReaderFile(r, nil)
+				fileArgs[""], err = files.NewReaderPathFile(stdin.Name(), r, nil)
+				if err != nil {
+					return err
+				}
 			}
 		}
 
@@ -312,7 +332,7 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 
 	req.Arguments = stringArgs
 	if len(fileArgs) > 0 {
-		req.Files = files.NewSliceFile(filesMapToSortedArr(fileArgs))
+		req.Files = files.NewMapDirectory(fileArgs)
 	}
 
 	return nil
@@ -428,21 +448,6 @@ func (st *parseState) parseLongOpt(optDefs map[string]cmdkit.Option) (string, in
 	optval, err := parseOpt(k, v, optDefs)
 	return k, optval, err
 }
-func filesMapToSortedArr(fs map[string]files.File) []files.FileEntry {
-	var names []string
-	for name, _ := range fs {
-		names = append(names, name)
-	}
-
-	sort.Strings(names)
-
-	var out []files.FileEntry
-	for _, f := range names {
-		out = append(out, files.FileEntry{File: fs[f], Name: f})
-	}
-
-	return out
-}
 
 func getArgDef(i int, argDefs []cmdkit.Argument) *cmdkit.Argument {
 	if i < len(argDefs) {
@@ -461,20 +466,7 @@ func getArgDef(i int, argDefs []cmdkit.Argument) *cmdkit.Argument {
 const notRecursiveFmtStr = "'%s' is a directory, use the '-%s' flag to specify directories"
 const dirNotSupportedFmtStr = "invalid path '%s', argument '%s' does not support directories"
 
-func appendFile(fpath string, argDef *cmdkit.Argument, recursive, hidden bool) (files.File, error) {
-	fpath = filepath.ToSlash(filepath.Clean(fpath))
-	if fpath == "." {
-		cwd, err := os.Getwd()
-		if err != nil {
-			return nil, err
-		}
-		cwd, err = filepath.EvalSymlinks(cwd)
-		if err != nil {
-			return nil, err
-		}
-		fpath = filepath.ToSlash(cwd)
-	}
-
+func appendFile(fpath string, argDef *cmdkit.Argument, recursive, hidden bool) (files.Node, error) {
 	stat, err := os.Lstat(fpath)
 	if err != nil {
 		return nil, err
