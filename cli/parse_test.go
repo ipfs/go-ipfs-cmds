@@ -34,7 +34,14 @@ func sameKVs(a kvs, b kvs) bool {
 		return false
 	}
 	for k, v := range a {
-		if v != b[k] {
+		if ks, ok := v.([]string); ok {
+			bks, _ := b[k].([]string)
+			for i := 0; i < len(ks); i++ {
+				if ks[i] != bks[i] {
+					return false
+				}
+			}
+		} else if v != b[k] {
 			return false
 		}
 	}
@@ -73,6 +80,7 @@ func TestOptionParsing(t *testing.T) {
 		Options: []cmdkit.Option{
 			cmdkit.StringOption("string", "s", "a string"),
 			cmdkit.BoolOption("bool", "b", "a bool"),
+			cmdkit.StringsOption("strings", "r", "strings array"),
 		},
 		Subcommands: map[string]*cmds.Command{
 			"test": &cmds.Command{},
@@ -142,6 +150,7 @@ func TestOptionParsing(t *testing.T) {
 	test("-b test false", kvs{"bool": true}, words{"false"})
 	test("-b --string foo test bar", kvs{"bool": true, "string": "foo"}, words{"bar"})
 	test("-b=false --string bar", kvs{"bool": false, "string": "bar"}, words{})
+	test("--strings a --strings b", kvs{"strings": []string{"a", "b"}}, words{})
 	testFail("foo test")
 	test("defaults", kvs{"opt": "def"}, words{})
 	test("defaults -o foo", kvs{"opt": "foo"}, words{})

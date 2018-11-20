@@ -124,13 +124,19 @@ L:
 				return err
 			}
 
-			if _, exists := opts[k]; exists {
+			if _, exists := opts[k]; exists && optDefs[k].Type() != cmdkit.Strings {
 				return fmt.Errorf("multiple values for option %q", k)
 			}
-
 			k = optDefs[k].Name()
-			opts[k] = v
-
+			if optDefs[k].Type() == cmdkit.Strings {
+				if res, ok := opts[k].([]string); ok {
+					opts[k] = append(res, v.(string))
+				} else {
+					opts[k] = []string{v.(string)}
+				}
+			} else {
+				opts[k] = v
+			}
 		case strings.HasPrefix(param, "-") && param != "-":
 			// short options
 			kvs, err := st.parseShortOpts(optDefs)
@@ -141,11 +147,18 @@ L:
 			for _, kv := range kvs {
 				kv.Key = optDefs[kv.Key].Names()[0]
 
-				if _, exists := opts[kv.Key]; exists {
+				if _, exists := opts[kv.Key]; exists && optDefs[kv.Key].Type() != cmdkit.Strings {
 					return fmt.Errorf("multiple values for option %q", kv.Key)
 				}
-
-				opts[kv.Key] = kv.Value
+				if optDefs[kv.Key].Type() == cmdkit.Strings {
+					if res, ok := opts[kv.Key].([]string); ok {
+						opts[kv.Key] = append(res, kv.Key)
+					} else {
+						opts[kv.Key] = []string{kv.Key}
+					}
+				} else {
+					opts[kv.Key] = kv.Value
+				}
 			}
 		default:
 			arg := param
@@ -326,7 +339,6 @@ func parseOpt(opt, value string, opts map[string]cmdkit.Option) (interface{}, er
 	if !ok {
 		return nil, fmt.Errorf("unknown option %q", opt)
 	}
-
 	v, err := optDef.Parse(value)
 	if err != nil {
 		return nil, err

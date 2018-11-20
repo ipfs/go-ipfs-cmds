@@ -108,7 +108,7 @@ func (req *Request) convertOptions(root *Command) error {
 		}
 
 		kind := reflect.TypeOf(v).Kind()
-		if kind != opt.Type() {
+		if kind != opt.Type() && opt.Type() != cmdkit.Strings {
 			if str, ok := v.(string); ok {
 				val, err := opt.Parse(str)
 				if err != nil {
