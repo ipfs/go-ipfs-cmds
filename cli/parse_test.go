@@ -6,12 +6,11 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"runtime"
 	"strings"
 	"testing"
 
-	"github.com/ipfs/go-ipfs-cmdkit"
-	"github.com/ipfs/go-ipfs-cmds"
+	cmdkit "github.com/ipfs/go-ipfs-cmdkit"
+	cmds "github.com/ipfs/go-ipfs-cmds"
 )
 
 type kvs map[string]interface{}
@@ -154,10 +153,6 @@ func TestOptionParsing(t *testing.T) {
 }
 
 func TestArgumentParsing(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("stdin handling doesn't yet work on windows")
-	}
-
 	rootCmd := &cmds.Command{
 		Subcommands: map[string]*cmds.Command{
 			"noarg": {},
