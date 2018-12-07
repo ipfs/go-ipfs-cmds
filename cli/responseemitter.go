@@ -1,13 +1,13 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"sync"
 	"syscall"
 
-	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-cmds"
 	"github.com/ipfs/go-ipfs-cmds/debug"
 )
@@ -63,19 +63,16 @@ func (re *responseEmitter) SetLength(l uint64) {
 }
 
 func (re *responseEmitter) CloseWithError(err error) error {
-	if err == nil {
+	var msg string
+	switch err {
+	case nil:
 		return re.Close()
-	}
-
-	if e, ok := err.(cmdkit.Error); ok {
-		err = &e
-	}
-
-	e, ok := err.(*cmdkit.Error)
-	if !ok {
-		e = &cmdkit.Error{
-			Message: err.Error(),
-		}
+	case context.Canceled:
+		msg = "canceled"
+	case context.DeadlineExceeded:
+		msg = "timed out"
+	default:
+		msg = err.Error()
 	}
 
 	re.l.Lock()
@@ -87,7 +84,7 @@ func (re *responseEmitter) CloseWithError(err error) error {
 
 	re.exit = 1 // TODO we could let err carry an exit code
 
-	_, err = fmt.Fprintln(re.stderr, "Error:", e.Message)
+	_, err = fmt.Fprintln(re.stderr, "Error:", msg)
 	if err != nil {
 		return err
 	}
