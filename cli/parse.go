@@ -10,10 +10,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ipfs/go-ipfs-cmds"
-
 	osh "github.com/Kubuxu/go-os-helper"
 	"github.com/ipfs/go-ipfs-cmdkit"
+	"github.com/ipfs/go-ipfs-cmds"
 	"github.com/ipfs/go-ipfs-files"
 	logging "github.com/ipfs/go-log"
 )
@@ -265,6 +264,12 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 					fpath = stdin.Name()
 					file = files.NewReaderFile("", fpath, r, nil)
 				} else {
+					if derefArgs, _ := req.Options[cmds.DerefLong].(bool); derefArgs {
+						var err error // don't shadow fpath
+						if fpath, err = filepath.EvalSymlinks(fpath); err != nil {
+							return err
+						}
+					}
 					nf, err := appendFile(fpath, argDef, isRecursive(req), isHidden(req))
 					if err != nil {
 						return err
