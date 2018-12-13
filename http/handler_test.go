@@ -14,6 +14,7 @@ import (
 
 	cmdkit "github.com/ipfs/go-ipfs-cmdkit"
 	cmds "github.com/ipfs/go-ipfs-cmds"
+	files "github.com/ipfs/go-ipfs-files"
 )
 
 type VersionOutput struct {
@@ -212,12 +213,12 @@ var (
 						return err
 					}
 
-					f, err := req.Files.NextFile()
-					if err != nil {
-						return err
+					it := req.Files.Entries()
+					if !it.Next() {
+						return it.Err()
 					}
 
-					data, err := ioutil.ReadAll(f)
+					data, err := ioutil.ReadAll(files.FileFromEntry(it))
 					if err != nil {
 						return err
 					}

@@ -11,10 +11,10 @@ package cmds
 import (
 	"errors"
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
+	"github.com/ipfs/go-ipfs-files"
 
 	logging "github.com/ipfs/go-log"
 )
@@ -229,16 +229,15 @@ func (c *Command) CheckArguments(req *Request) error {
 		lastArg.Type == cmdkit.ArgString &&
 		req.Files != nil {
 
-		fi, err := req.Files.NextFile()
-		switch err {
-		case io.EOF:
-		case nil:
-			req.bodyArgs = newArguments(fi)
+		it := req.Files.Entries()
+		if it.Next() {
+			req.bodyArgs = newArguments(files.FileFromEntry(it))
 			// Can't pass files and stdin arguments.
 			req.Files = nil
-		default:
-			// io error.
-			return err
+		} else {
+			if it.Err() != nil {
+				return it.Err()
+			}
 		}
 	}
 

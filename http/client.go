@@ -115,12 +115,14 @@ func (c *client) toHTTPRequest(req *cmds.Request) (*http.Request, error) {
 	}
 
 	var fileReader *files.MultiFileReader
-	var reader io.Reader
+	var reader io.Reader // in case we have no body to send we need to provide
+	// untyped nil to http.NewRequest
+
 	if bodyArgs := req.BodyArgs(); bodyArgs != nil {
 		// In the end, this wraps a file reader in a file reader.
 		// However, such is life.
-		fileReader = files.NewMultiFileReader(files.NewSliceFile("", "", []files.File{
-			files.NewReaderFile("stdin", "", bodyArgs, nil),
+		fileReader = files.NewMultiFileReader(files.NewMapDirectory(map[string]files.Node{
+			"stdin": files.NewReaderFile(bodyArgs),
 		}), true)
 		reader = fileReader
 	} else if req.Files != nil {

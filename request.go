@@ -18,14 +18,14 @@ type Request struct {
 	Arguments []string
 	Options   cmdkit.OptMap
 
-	Files files.File
+	Files files.Directory
 
 	bodyArgs *arguments
 }
 
 // NewRequest returns a request initialized with given arguments
 // An non-nil error will be returned if the provided option values are invalid
-func NewRequest(ctx context.Context, path []string, opts cmdkit.OptMap, args []string, file files.File, root *Command) (*Request, error) {
+func NewRequest(ctx context.Context, path []string, opts cmdkit.OptMap, args []string, file files.Directory, root *Command) (*Request, error) {
 	if opts == nil {
 		opts = make(cmdkit.OptMap)
 	}
