@@ -28,7 +28,7 @@ var (
 )
 
 // NewResponeEmitter returns a new ResponseEmitter.
-func NewResponseEmitter(w http.ResponseWriter, method string, req *cmds.Request) (ResponseEmitter, error) {
+func NewResponseEmitter(w http.ResponseWriter, method string, req *cmds.Request, opts ...ResponseEmitterOption) (ResponseEmitter, error) {
 	encType, enc, err := cmds.GetEncoder(req, w, cmds.JSON)
 	if err != nil {
 		return nil, err
@@ -40,7 +40,27 @@ func NewResponseEmitter(w http.ResponseWriter, method string, req *cmds.Request)
 		method:  method,
 		req:     req,
 	}
+
+	// apply functional options
+	for _, opt := range opts {
+		opt(re)
+	}
+
 	return re, nil
+}
+
+// ResponseEmitterOption is the type describing options to the NewResponseEmitter function.
+type ResponseEmitterOption func(*responseEmitter)
+
+// withRequestBodyEOFChan return a ResponseEmitterOption needed to gracefully handle
+// the case where the handler wants to send data and the request data has not been read
+// completely yet.
+func withRequestBodyEOFChan(ch <-chan struct{}) ResponseEmitterOption {
+	return func(re *responseEmitter) {
+		if ch != nil {
+			re.bodyEOFChan = ch
+		}
+	}
 }
 
 type ResponseEmitter interface {
@@ -58,6 +78,8 @@ type responseEmitter struct {
 	l      sync.Mutex
 	length uint64
 	err    *cmdkit.Error
+
+	bodyEOFChan <-chan struct{}
 
 	streaming bool
 	closed    bool
@@ -251,6 +273,22 @@ func (re *responseEmitter) doPreamble(value interface{}) {
 
 	// Set up our potential trailer
 	h.Set("Trailer", StreamErrHeader)
+
+	// If we have a request body, make sure we close the body
+	// if we want to write before completing reading.
+	// FIXME: https://github.com/ipfs/go-ipfs/issues/5168
+	// FIXME: https://github.com/golang/go/issues/15527
+	if re.bodyEOFChan != nil {
+		select {
+		case <-re.bodyEOFChan:
+			// all good, we received an EOF, so the body is read completely.
+			// we handle the error where it occurs, here we just want to know that we're done
+		default:
+			// set connection close header, because we want to write
+			// even though the body is not yet read completely.
+			h.Set("Connection", "close")
+		}
+	}
 
 	switch v := value.(type) {
 	case *cmdkit.Error:
