@@ -25,6 +25,7 @@ func TestHTTP(t *testing.T) {
 		err     error
 		sendErr error
 		wait    bool
+		close   bool
 	}
 
 	tcs := []testcase{
@@ -73,7 +74,8 @@ func TestHTTP(t *testing.T) {
 							Reader: bytes.NewBufferString("This is the body of the request!"),
 							Closer: nopCloser{},
 						}, nil)}),
-			vs: []interface{}{"i received:", "This is the body of the request!"},
+			vs:    []interface{}{"i received:", "This is the body of the request!"},
+			close: true,
 		},
 	}
 
@@ -199,6 +201,10 @@ func TestHTTP(t *testing.T) {
 				if buf.String() != tc.r {
 					t.Errorf("expected return string %q but got %q", tc.r, buf.String())
 				}
+			}
+
+			if tc.close && !res.(*Response).res.Close {
+				t.Error("expected the connection to be closed by the server but it wasn't")
 			}
 
 			wait, ok := getWaitChan(env)
