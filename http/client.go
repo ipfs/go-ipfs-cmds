@@ -2,7 +2,6 @@ package http
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -18,10 +17,6 @@ import (
 
 const (
 	ApiUrlFormat = "%s%s/%s?%s"
-)
-
-var (
-	ErrAPINotRunning = errors.New("api not running")
 )
 
 var OptionSkipMap = map[string]bool{
@@ -85,7 +80,7 @@ func (c *client) Execute(req *cmds.Request, re cmds.ResponseEmitter, env cmds.En
 	res, err := c.Send(req)
 	if err != nil {
 		if isConnRefused(err) {
-			err = ErrAPINotRunning
+			err = fmt.Errorf("cannot connect to the api. Is the deamon running? To run as a standalone CLI command remove the api file in `$IPFS_PATH/api`")
 		}
 		return err
 	}
