@@ -22,7 +22,7 @@ func TestSynopsisGenerator(t *testing.T) {
 			},
 		},
 	}
-	syn := generateSynopsis(command, "cmd")
+	syn := generateSynopsis(terminalWidth, command, "cmd")
 	t.Logf("Synopsis is: %s", syn)
 	if !strings.HasPrefix(syn, "cmd ") {
 		t.Fatal("Synopsis should start with command name")

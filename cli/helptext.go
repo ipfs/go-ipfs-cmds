@@ -12,12 +12,13 @@ import (
 )
 
 const (
-	requiredArg = "<%v>"
-	optionalArg = "[<%v>]"
-	variadicArg = "%v..."
-	shortFlag   = "-%v"
-	longFlag    = "--%v"
-	optionType  = "(%v)"
+	terminalWidth = 80
+	requiredArg   = "<%v>"
+	optionalArg   = "[<%v>]"
+	variadicArg   = "%v..."
+	shortFlag     = "-%v"
+	longFlag      = "--%v"
+	optionType    = "(%v)"
 
 	whitespace = "\r\n\t "
 
@@ -165,22 +166,24 @@ func LongHelp(rootName string, root *cmds.Command, path []string, out io.Writer)
 		MoreHelp:    (cmd != root),
 	}
 
+	width := terminalWidth - len(indentStr)
+
 	if len(cmd.Helptext.LongDescription) > 0 {
 		fields.Description = cmd.Helptext.LongDescription
 	}
 
 	// autogen fields that are empty
 	if len(fields.Arguments) == 0 {
-		fields.Arguments = strings.Join(argumentText(cmd), "\n")
+		fields.Arguments = strings.Join(argumentText(width, cmd), "\n")
 	}
 	if len(fields.Options) == 0 {
-		fields.Options = strings.Join(optionText(cmd), "\n")
+		fields.Options = strings.Join(optionText(width, cmd), "\n")
 	}
 	if len(fields.Subcommands) == 0 {
 		fields.Subcommands = strings.Join(subcommandText(cmd, rootName, path), "\n")
 	}
 	if len(fields.Synopsis) == 0 {
-		fields.Synopsis = generateSynopsis(cmd, pathStr)
+		fields.Synopsis = generateSynopsis(width, cmd, pathStr)
 	}
 
 	// trim the extra newlines (see TrimNewlines doc)
@@ -221,12 +224,14 @@ func ShortHelp(rootName string, root *cmds.Command, path []string, out io.Writer
 		MoreHelp:    (cmd != root),
 	}
 
+	width := terminalWidth - len(indentStr)
+
 	// autogen fields that are empty
 	if len(fields.Subcommands) == 0 {
 		fields.Subcommands = strings.Join(subcommandText(cmd, rootName, path), "\n")
 	}
 	if len(fields.Synopsis) == 0 {
-		fields.Synopsis = generateSynopsis(cmd, pathStr)
+		fields.Synopsis = generateSynopsis(width, cmd, pathStr)
 	}
 
 	// trim the extra newlines (see TrimNewlines doc)
@@ -238,8 +243,17 @@ func ShortHelp(rootName string, root *cmds.Command, path []string, out io.Writer
 	return shortHelpTemplate.Execute(out, fields)
 }
 
-func generateSynopsis(cmd *cmds.Command, path string) string {
+func generateSynopsis(width int, cmd *cmds.Command, path string) string {
 	res := path
+	currentLineLength := len(res)
+	appendText := func(text string) {
+		if currentLineLength+len(text)+1 > width {
+			res += "\n" + strings.Repeat(" ", len(path))
+			currentLineLength = len(path)
+		}
+		currentLineLength += len(text) + 1
+		res += " " + text
+	}
 	for _, opt := range cmd.Options {
 		valopt, ok := cmd.Helptext.SynopsisOptionsValues[opt.Name()]
 		if !ok {
@@ -267,10 +281,10 @@ func generateSynopsis(cmd *cmds.Command, path string) string {
 				}
 			}
 		}
-		res = fmt.Sprintf("%s [%s]", res, sopt)
+		appendText("[" + sopt + "]")
 	}
 	if len(cmd.Arguments) > 0 {
-		res = fmt.Sprintf("%s [--]", res)
+		appendText("[--]")
 	}
 	for _, arg := range cmd.Arguments {
 		sarg := fmt.Sprintf("<%s>", arg.Name)
@@ -281,12 +295,12 @@ func generateSynopsis(cmd *cmds.Command, path string) string {
 		if !arg.Required {
 			sarg = fmt.Sprintf("[%s]", sarg)
 		}
-		res = fmt.Sprintf("%s %s", res, sarg)
+		appendText(sarg)
 	}
 	return strings.Trim(res, " ")
 }
 
-func argumentText(cmd *cmds.Command) []string {
+func argumentText(width int, cmd *cmds.Command) []string {
 	lines := make([]string, len(cmd.Arguments))
 
 	for i, arg := range cmd.Arguments {
@@ -294,10 +308,38 @@ func argumentText(cmd *cmds.Command) []string {
 	}
 	lines = align(lines)
 	for i, arg := range cmd.Arguments {
-		lines[i] += " - " + arg.Description
+		lines[i] += " - "
+		lines[i] = appendWrapped(lines[i], arg.Description, width)
 	}
 
 	return lines
+}
+
+func appendWrapped(prefix, text string, width int) string {
+	offset := len(prefix)
+	bWidth := width - offset
+
+	text = strings.Trim(text, whitespace)
+	// Let the terminal handle wrapping if it's to small. Otherwise
+	// we get really small lines.
+	if bWidth < 40 {
+		prefix += text
+		return prefix
+	}
+
+	for len(text) > bWidth {
+		idx := strings.LastIndexAny(text[:bWidth], whitespace)
+		if idx < 0 {
+			idx = strings.IndexAny(text, whitespace)
+		}
+		if idx < 0 {
+			break
+		}
+		prefix += text[:idx] + "\n" + strings.Repeat(" ", offset)
+		text = strings.TrimLeft(text[idx:], whitespace)
+	}
+	prefix += text
+	return prefix
 }
 
 func optionFlag(flag string) string {
@@ -308,7 +350,7 @@ func optionFlag(flag string) string {
 	}
 }
 
-func optionText(cmd ...*cmds.Command) []string {
+func optionText(width int, cmd ...*cmds.Command) []string {
 	// get a slice of the options we want to list out
 	options := make([]cmds.Option, 0)
 	for _, c := range cmd {
@@ -336,7 +378,8 @@ func optionText(cmd ...*cmds.Command) []string {
 
 	// add option descriptions to output
 	for i, opt := range options {
-		lines[i] += " - " + opt.Description()
+		lines[i] += " - "
+		lines[i] = appendWrapped(lines[i], opt.Description(), width)
 	}
 
 	return lines
