@@ -171,7 +171,7 @@ func TestWildcardOrigin(t *testing.T) {
 			Origin:       origin,
 			AllowOrigins: allowedOrigins,
 			ResHeaders: map[string]string{
-				ACAOrigin:                       origin,
+				ACAOrigin:                       "*",
 				ACAMethods:                      "",
 				ACACredentials:                  "",
 				"Access-Control-Max-Age":        "",
@@ -259,7 +259,7 @@ func TestWildcardReferer(t *testing.T) {
 			Origin:       origin,
 			AllowOrigins: allowedOrigins,
 			ResHeaders: map[string]string{
-				ACAOrigin:                       origin,
+				ACAOrigin:                       "*",
 				ACAMethods:                      "",
 				ACACredentials:                  "",
 				"Access-Control-Max-Age":        "",
@@ -289,7 +289,7 @@ func TestAllowedMethod(t *testing.T) {
 	gtc := func(method string, ok bool) httpTestCase {
 		code := http.StatusOK
 		hdrs := map[string]string{
-			ACAOrigin:                       "http://localhost",
+			ACAOrigin:                       "*",
 			ACAMethods:                      method,
 			ACACredentials:                  "",
 			"Access-Control-Max-Age":        "",
