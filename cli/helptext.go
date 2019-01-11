@@ -317,35 +317,14 @@ func optionText(cmd ...*cmds.Command) []string {
 		}
 	}
 
-	// add option names to output (with each name aligned)
-	lines := make([]string, 0)
-	j := 0
-	for {
-		done := true
-		i := 0
-		for _, opt := range options {
-			if len(lines) < i+1 {
-				lines = append(lines, "")
-			}
-
-			names := sortByLength(opt.Names())
-			if len(names) >= j+1 {
-				lines[i] += optionFlag(names[j])
-			}
-			if len(names) > j+1 {
-				lines[i] += ", "
-				done = false
-			}
-
-			i++
+	// add option names to output
+	lines := make([]string, len(options))
+	for i, opt := range options {
+		flags := sortByLength(opt.Names())
+		for j, f := range flags {
+			flags[j] = optionFlag(f)
 		}
-
-		if done {
-			break
-		}
-
-		lines = align(lines)
-		j++
+		lines[i] = strings.Join(flags, ", ")
 	}
 	lines = align(lines)
 
