@@ -180,7 +180,7 @@ func LongHelp(rootName string, root *cmds.Command, path []string, out io.Writer)
 		fields.Options = strings.Join(optionText(width, cmd), "\n")
 	}
 	if len(fields.Subcommands) == 0 {
-		fields.Subcommands = strings.Join(subcommandText(cmd, rootName, path), "\n")
+		fields.Subcommands = strings.Join(subcommandText(width, cmd, rootName, path), "\n")
 	}
 	if len(fields.Synopsis) == 0 {
 		fields.Synopsis = generateSynopsis(width, cmd, pathStr)
@@ -228,7 +228,7 @@ func ShortHelp(rootName string, root *cmds.Command, path []string, out io.Writer
 
 	// autogen fields that are empty
 	if len(fields.Subcommands) == 0 {
-		fields.Subcommands = strings.Join(subcommandText(cmd, rootName, path), "\n")
+		fields.Subcommands = strings.Join(subcommandText(width, cmd, rootName, path), "\n")
 	}
 	if len(fields.Synopsis) == 0 {
 		fields.Synopsis = generateSynopsis(width, cmd, pathStr)
@@ -385,7 +385,7 @@ func optionText(width int, cmd ...*cmds.Command) []string {
 	return lines
 }
 
-func subcommandText(cmd *cmds.Command, rootName string, path []string) []string {
+func subcommandText(width int, cmd *cmds.Command, rootName string, path []string) []string {
 	prefix := fmt.Sprintf("%v %v", rootName, strings.Join(path, " "))
 	if len(path) > 0 {
 		prefix += " "
@@ -414,7 +414,8 @@ func subcommandText(cmd *cmds.Command, rootName string, path []string) []string 
 
 	lines = align(lines)
 	for i, sub := range subcmds {
-		lines[i] += " - " + sub.Helptext.Tagline
+		lines[i] += " - "
+		lines[i] = appendWrapped(lines[i], sub.Helptext.Tagline, width)
 	}
 
 	return lines
