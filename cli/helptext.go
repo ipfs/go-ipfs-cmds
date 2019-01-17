@@ -95,7 +95,8 @@ const longHelpFormat = `USAGE
 {{end}}{{if .Subcommands}}SUBCOMMANDS
 {{.Subcommands}}
 
-{{.Indent}}Use '{{.Path}} <subcmd> --help' for more information about each command.
+{{.Indent}}For more information about each command, use:
+{{.Indent}}'{{.Path}} <subcmd> --help'
 {{end}}
 `
 const shortHelpFormat = `USAGE
@@ -108,7 +109,8 @@ const shortHelpFormat = `USAGE
 SUBCOMMANDS
 {{.Subcommands}}
 {{end}}{{if .MoreHelp}}
-Use '{{.Path}} --help' for more information about this command.
+{{.Indent}}For more information about each command, use:
+{{.Indent}}'{{.Path}} <subcmd> --help'
 {{end}}
 `
 
