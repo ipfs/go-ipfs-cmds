@@ -29,7 +29,6 @@ type helpFields struct {
 	Indent      string
 	Usage       string
 	Path        string
-	ArgUsage    string
 	Tagline     string
 	Arguments   string
 	Options     string
@@ -49,7 +48,7 @@ type helpFields struct {
 //	`
 func (f *helpFields) TrimNewlines() {
 	f.Path = strings.Trim(f.Path, "\n")
-	f.ArgUsage = strings.Trim(f.ArgUsage, "\n")
+	f.Usage = strings.Trim(f.Usage, "\n")
 	f.Tagline = strings.Trim(f.Tagline, "\n")
 	f.Arguments = strings.Trim(f.Arguments, "\n")
 	f.Options = strings.Trim(f.Options, "\n")
@@ -67,6 +66,7 @@ func (f *helpFields) IndentAll() {
 		return indentString(s, indentStr)
 	}
 
+	f.Usage = indent(f.Usage)
 	f.Arguments = indent(f.Arguments)
 	f.Options = indent(f.Options)
 	f.Synopsis = indent(f.Synopsis)
@@ -74,10 +74,8 @@ func (f *helpFields) IndentAll() {
 	f.Description = indent(f.Description)
 }
 
-const usageFormat = "{{if .Usage}}{{.Usage}}{{else}}{{.Path}}{{if .ArgUsage}} {{.ArgUsage}}{{end}} - {{.Tagline}}{{end}}"
-
 const longHelpFormat = `USAGE
-{{.Indent}}{{template "usage" .}}
+{{.Usage}}
 
 {{if .Synopsis}}SYNOPSIS
 {{.Synopsis}}
@@ -101,7 +99,7 @@ const longHelpFormat = `USAGE
 {{end}}
 `
 const shortHelpFormat = `USAGE
-{{.Indent}}{{template "usage" .}}
+{{.Usage}}
 {{if .Synopsis}}
 {{.Synopsis}}
 {{end}}{{if .Description}}
@@ -114,14 +112,12 @@ Use '{{.Path}} --help' for more information about this command.
 {{end}}
 `
 
-var usageTemplate *template.Template
 var longHelpTemplate *template.Template
 var shortHelpTemplate *template.Template
 
 func init() {
-	usageTemplate = template.Must(template.New("usage").Parse(usageFormat))
-	longHelpTemplate = template.Must(usageTemplate.New("longHelp").Parse(longHelpFormat))
-	shortHelpTemplate = template.Must(usageTemplate.New("shortHelp").Parse(shortHelpFormat))
+	longHelpTemplate = template.Must(template.New("longHelp").Parse(longHelpFormat))
+	shortHelpTemplate = template.Must(template.New("shortHelp").Parse(shortHelpFormat))
 }
 
 var ErrNoHelpRequested = errors.New("no help requested")
@@ -155,7 +151,6 @@ func LongHelp(rootName string, root *cmds.Command, path []string, out io.Writer)
 	fields := helpFields{
 		Indent:      indentStr,
 		Path:        pathStr,
-		ArgUsage:    usageText(cmd),
 		Tagline:     cmd.Helptext.Tagline,
 		Arguments:   cmd.Helptext.Arguments,
 		Options:     cmd.Helptext.Options,
@@ -173,6 +168,11 @@ func LongHelp(rootName string, root *cmds.Command, path []string, out io.Writer)
 	}
 
 	// autogen fields that are empty
+	if len(cmd.Helptext.Usage) > 0 {
+		fields.Usage = cmd.Helptext.Usage
+	} else {
+		fields.Usage = commandUsageText(width, cmd, rootName, path)
+	}
 	if len(fields.Arguments) == 0 {
 		fields.Arguments = strings.Join(argumentText(width, cmd), "\n")
 	}
@@ -215,18 +215,21 @@ func ShortHelp(rootName string, root *cmds.Command, path []string, out io.Writer
 	fields := helpFields{
 		Indent:      indentStr,
 		Path:        pathStr,
-		ArgUsage:    usageText(cmd),
 		Tagline:     cmd.Helptext.Tagline,
 		Synopsis:    cmd.Helptext.Synopsis,
 		Description: cmd.Helptext.ShortDescription,
 		Subcommands: cmd.Helptext.Subcommands,
-		Usage:       cmd.Helptext.Usage,
 		MoreHelp:    (cmd != root),
 	}
 
 	width := terminalWidth - len(indentStr)
 
 	// autogen fields that are empty
+	if len(cmd.Helptext.Usage) > 0 {
+		fields.Usage = cmd.Helptext.Usage
+	} else {
+		fields.Usage = commandUsageText(width, cmd, rootName, path)
+	}
 	if len(fields.Subcommands) == 0 {
 		fields.Subcommands = strings.Join(subcommandText(width, cmd, rootName, path), "\n")
 	}
@@ -419,6 +422,17 @@ func subcommandText(width int, cmd *cmds.Command, rootName string, path []string
 	}
 
 	return lines
+}
+
+func commandUsageText(width int, cmd *cmds.Command, rootName string, path []string) string {
+	text := fmt.Sprintf("%v %v", rootName, strings.Join(path, " "))
+	argUsage := usageText(cmd)
+	if len(argUsage) > 0 {
+		text += " " + argUsage
+	}
+	text += " - "
+	text = appendWrapped(text, cmd.Helptext.Tagline, width)
+	return text
 }
 
 func usageText(cmd *cmds.Command) string {
