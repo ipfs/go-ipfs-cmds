@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	terminalWidth = 80
+	terminalWidth = 100
 	requiredArg   = "<%v>"
 	optionalArg   = "[<%v>]"
 	variadicArg   = "%v..."
@@ -325,9 +325,8 @@ func appendWrapped(prefix, text string, width int) string {
 	bWidth := width - offset
 
 	text = strings.Trim(text, whitespace)
-	// Let the terminal handle wrapping if it's to small. Otherwise
-	// we get really small lines.
-	if bWidth < 40 {
+	// Minimum help-text width is 30 characters.
+	if bWidth < 30 {
 		prefix += text
 		return prefix
 	}
