@@ -46,6 +46,12 @@
       "hash": "QmXWZCd8jfaHmt4UDSnjKmGcrQMw95bDGWqEeVLVJjoANX",
       "name": "go-ipfs-files",
       "version": "2.0.3"
+    },
+    {
+      "author": "lanzafame",
+      "hash": "QmZGMjvC43zAHEdVuhKxhHMpzAxJh5ajNtMaZ1L5Ko2GCC",
+      "name": "opencensus-go",
+      "version": "0.0.1"
     }
   ],
   "gxVersion": "0.10.0",

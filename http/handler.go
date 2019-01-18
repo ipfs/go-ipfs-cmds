@@ -14,6 +14,7 @@ import (
 	cmds "github.com/ipfs/go-ipfs-cmds"
 	logging "github.com/ipfs/go-log"
 	cors "github.com/rs/cors"
+	"go.opencensus.io/trace"
 )
 
 var log = logging.Logger("cmds/http")
@@ -87,6 +88,8 @@ type requestLogger interface {
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	span := trace.FromContext(r.Context())
+	defer span.End()
 	log.Debug("incoming API request: ", r.URL)
 
 	defer func() {
@@ -97,10 +100,10 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	ctx := h.env.Context()
+	ctx := trace.NewContext(h.env.Context(), span)
 	if ctx == nil {
 		log.Error("no root context found, using background")
-		ctx = context.Background()
+		ctx = trace.NewContext(context.Background(), span)
 	}
 
 	if !allowOrigin(r, h.cfg) || !allowReferer(r, h.cfg) {
