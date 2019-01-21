@@ -49,7 +49,7 @@
     },
     {
       "author": "lanzafame",
-      "hash": "QmZGMjvC43zAHEdVuhKxhHMpzAxJh5ajNtMaZ1L5Ko2GCC",
+      "hash": "QmYRHQCRVSznLwaR8kXtVH4KSZU5fqFPPSkxv9xsJV2QCY",
       "name": "opencensus-go",
       "version": "0.0.1"
     }
@@ -59,6 +59,6 @@
   "license": "MIT",
   "name": "go-ipfs-cmds",
   "releaseCmd": "git commit -a -m \"gx publish $VERSION\"",
-  "version": "2.0.10"
+  "version": "2.0.11"
 }
 
