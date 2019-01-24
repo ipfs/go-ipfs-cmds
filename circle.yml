@@ -15,7 +15,7 @@ dependencies:
     - cd "$HOME/.go_workspace/src/$IMPORT_PATH" && make deps
 
   cache_directories:
-    - "~/.go_workspace/src/gx/ipfs"
+    - "~/.go_workspace/src/mod"
 
 test:
   override:

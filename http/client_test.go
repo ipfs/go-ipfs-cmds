@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	cmds "github.com/ipfs/go-ipfs-cmds"
+	cmds "github.com/ipfs/go-ipfs-cmds/v3"
 )
 
 func TestClientUserAgent(t *testing.T) {

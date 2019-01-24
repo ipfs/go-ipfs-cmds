@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	cmdkit "github.com/ipfs/go-ipfs-cmdkit"
-	cmds "github.com/ipfs/go-ipfs-cmds"
+	cmds "github.com/ipfs/go-ipfs-cmds/v3"
 )
 
 func TestParse(t *testing.T) {

@@ -9,8 +9,8 @@ import (
 	"sync"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
-	cmds "github.com/ipfs/go-ipfs-cmds"
-	"github.com/ipfs/go-ipfs-cmds/debug"
+	cmds "github.com/ipfs/go-ipfs-cmds/v3"
+	"github.com/ipfs/go-ipfs-cmds/v3/debug"
 )
 
 var (

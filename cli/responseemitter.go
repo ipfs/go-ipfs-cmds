@@ -8,8 +8,8 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/ipfs/go-ipfs-cmds"
-	"github.com/ipfs/go-ipfs-cmds/debug"
+	"github.com/ipfs/go-ipfs-cmds/v3"
+	"github.com/ipfs/go-ipfs-cmds/v3/debug"
 )
 
 var _ ResponseEmitter = &responseEmitter{}

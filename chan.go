@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
-	"github.com/ipfs/go-ipfs-cmds/debug"
+	"github.com/ipfs/go-ipfs-cmds/v3/debug"
 )
 
 func NewChanResponsePair(req *Request) (ResponseEmitter, Response) {

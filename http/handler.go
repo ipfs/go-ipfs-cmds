@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	cmds "github.com/ipfs/go-ipfs-cmds"
+	cmds "github.com/ipfs/go-ipfs-cmds/v3"
 	logging "github.com/ipfs/go-log"
 	cors "github.com/rs/cors"
 )

@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/ipfs/go-ipfs-cmds"
+	"github.com/ipfs/go-ipfs-cmds/v3"
 )
 
 func assertHeaders(t *testing.T, resHeaders http.Header, reqHeaders map[string]string) {

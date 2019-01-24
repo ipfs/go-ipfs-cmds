@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ipfs/go-ipfs-cmds"
+	"github.com/ipfs/go-ipfs-cmds/v3"
 
 	osh "github.com/Kubuxu/go-os-helper"
 	"github.com/ipfs/go-ipfs-cmdkit"

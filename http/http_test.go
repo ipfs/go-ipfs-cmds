@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ipfs/go-ipfs-cmds"
+	"github.com/ipfs/go-ipfs-cmds/v3"
 
 	"github.com/ipfs/go-ipfs-files"
 )

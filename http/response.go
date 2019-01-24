@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
-	"github.com/ipfs/go-ipfs-cmds"
+	"github.com/ipfs/go-ipfs-cmds/v3"
 )
 
 var (

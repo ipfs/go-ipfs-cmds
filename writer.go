@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
-	"github.com/ipfs/go-ipfs-cmds/debug"
+	"github.com/ipfs/go-ipfs-cmds/v3/debug"
 )
 
 func NewWriterResponseEmitter(w io.WriteCloser, req *Request) (ResponseEmitter, error) {
