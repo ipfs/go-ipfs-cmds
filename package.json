@@ -8,9 +8,9 @@
   },
   "gxDependencies": [
     {
-      "hash": "QmcuXC5cxs79ro2cUuHs4HQ2bkDLJUYokwL8aivcX6HW3C",
+      "hash": "QmbkT7eMTyXfpeyB3ZMxxcxg7XH8t6uXp49jqzz4HB7BGF",
       "name": "go-log",
-      "version": "1.5.8"
+      "version": "1.5.9"
     },
     {
       "author": "rs",
@@ -53,6 +53,6 @@
   "license": "MIT",
   "name": "go-ipfs-cmds",
   "releaseCmd": "git commit -a -m \"gx publish $VERSION\"",
-  "version": "2.0.13"
+  "version": "2.0.14"
 }
 
