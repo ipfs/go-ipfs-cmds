@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
-	"github.com/ipfs/go-ipfs-cmds/debug"
 )
 
 func NewWriterResponseEmitter(w io.WriteCloser, req *Request) (ResponseEmitter, error) {
@@ -153,14 +152,6 @@ func (re *writerResponseEmitter) Emit(v interface{}) error {
 	if ch, isChan := v.(<-chan interface{}); isChan {
 		return EmitChan(re, ch)
 	}
-
-	// Initially this library allowed commands to return errors by sending an
-	// error value along a stream. We removed that in favour of CloseWithError,
-	// so we want to make sure we catch situations where some code still uses the
-	// old error emitting semantics.
-	// Also errors may occur both as pointers and as plain values, so we need to
-	// check both.
-	debug.AssertNotError(v)
 
 	if re.closed {
 		return ErrClosedEmitter

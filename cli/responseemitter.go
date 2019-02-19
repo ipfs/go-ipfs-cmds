@@ -9,7 +9,6 @@ import (
 	"syscall"
 
 	"github.com/ipfs/go-ipfs-cmds"
-	"github.com/ipfs/go-ipfs-cmds/debug"
 )
 
 var _ ResponseEmitter = &responseEmitter{}
@@ -136,12 +135,6 @@ func (re *responseEmitter) Emit(v interface{}) error {
 		v = val.Value
 		isSingle = true
 	}
-
-	// Initially this library allowed commands to return errors by sending an
-	// error value along a stream. We removed that in favour of CloseWithError,
-	// so we want to make sure we catch situations where some code still uses the
-	// old error emitting semantics and _panic_ in those situations.
-	debug.AssertNotError(v)
 
 	// channel emission iteration
 	if ch, ok := v.(chan interface{}); ok {
