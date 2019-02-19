@@ -92,7 +92,7 @@ func Run(ctx context.Context, root *cmds.Command,
 			printHelp(false, stderr)
 		}
 
-		return err
+		return errParse
 	}
 
 	// here we handle the cases where
@@ -120,11 +120,6 @@ func Run(ctx context.Context, root *cmds.Command,
 		return err
 	}
 
-	var (
-		re     cmds.ResponseEmitter
-		exitCh <-chan int
-	)
-
 	encTypeStr, _ := req.Options[cmds.EncLong].(string)
 	encType := cmds.EncodingType(encTypeStr)
 
@@ -133,23 +128,17 @@ func Run(ctx context.Context, root *cmds.Command,
 		req.Options[cmds.EncLong] = cmds.JSON
 	}
 
-	// first if condition checks the command's encoder map, second checks global encoder map (cmd vs. cmds)
-	re, exitCh, err = NewResponseEmitter(stdout, stderr, req)
+	re, err := NewResponseEmitter(stdout, stderr, req)
 	if err != nil {
 		printErr(err)
 		return err
 	}
 
-	errCh := make(chan error, 1)
-	go func() {
-		err := exctr.Execute(req, re, env)
-		if err != nil {
-			errCh <- err
-		}
-	}()
-
-	select {
-	case err := <-errCh:
+	// Execute the command.
+	err = exctr.Execute(req, re, env)
+	// If we get an error here, don't bother reading the status from the
+	// response emitter. It may not even be closed.
+	if err != nil {
 		printErr(err)
 
 		if kiterr, ok := err.(*cmdkit.Error); ok {
@@ -160,12 +149,10 @@ func Run(ctx context.Context, root *cmds.Command,
 		}
 
 		return err
-
-	case code := <-exitCh:
-		if code != 0 {
-			return ExitError(code)
-		}
 	}
 
+	if code := re.Status(); code != 0 {
+		return ExitError(code)
+	}
 	return nil
 }

@@ -23,17 +23,17 @@ type tcCloseWithError struct {
 
 func (tc tcCloseWithError) Run(t *testing.T) {
 	req := &cmds.Request{}
-	cmdsre, exitCh, err := NewResponseEmitter(tc.stdout, tc.stderr, req)
+	cmdsre, err := NewResponseEmitter(tc.stdout, tc.stderr, req)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	re := cmdsre.(ResponseEmitter)
 
-	go tc.f(re, t)
+	tc.f(re, t)
 
-	if exitCode := <-exitCh; exitCode != tc.exExit {
-		t.Fatalf("expected exit code %d, got %d", tc.exExit, exitCode)
+	if re.Status() != tc.exExit {
+		t.Fatalf("expected exit code %d, got %d", tc.exExit, re.Status())
 	}
 
 	if tc.stdout.String() != tc.exStdout {

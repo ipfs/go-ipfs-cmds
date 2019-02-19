@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/ipfs/go-ipfs-cmdkit"
-	"github.com/ipfs/go-ipfs-cmds/debug"
 )
 
 func NewChanResponsePair(req *Request) (ResponseEmitter, Response) {
@@ -129,12 +128,6 @@ func (re *chanResponseEmitter) Emit(v interface{}) error {
 
 	re.wl.Lock()
 	defer re.wl.Unlock()
-
-	// Initially this library allowed commands to return errors by sending an
-	// error value along a stream. We removed that in favour of CloseWithError,
-	// so we want to make sure we catch situations where some code still uses the
-	// old error emitting semantics and _panic_ in those situations.
-	debug.AssertNotError(v)
 
 	// unblock Length()
 	select {

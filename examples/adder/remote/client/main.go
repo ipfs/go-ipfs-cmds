@@ -31,29 +31,20 @@ func main() {
 	req.Options["encoding"] = cmds.Text
 
 	// create an emitter
-	re, retCh, err := cli.NewResponseEmitter(os.Stdout, os.Stderr, req)
+	re, err := cli.NewResponseEmitter(os.Stdout, os.Stderr, req)
 	if err != nil {
 		panic(err)
 	}
 
-	wait := make(chan struct{})
 	// copy received result into cli emitter
-	go func() {
-		var err error
+	if pr, ok := req.Command.PostRun[cmds.CLI]; ok {
+		err = pr(res, re)
+	} else {
+		err = cmds.Copy(re, res)
+	}
+	if err != nil {
+		re.CloseWithError(err)
+	}
 
-		if pr, ok := req.Command.PostRun[cmds.CLI]; ok {
-			err = pr(res, re)
-		} else {
-			err = cmds.Copy(re, res)
-		}
-		if err != nil {
-			re.CloseWithError(err)
-		}
-		close(wait)
-	}()
-
-	// wait until command has returned and exit
-	ret := <-retCh
-	<-wait
-	os.Exit(ret)
+	os.Exit(re.Status())
 }

@@ -21,11 +21,13 @@ func main() {
 	req.Options["encoding"] = cmds.Text
 
 	// create an emitter
-	re, retCh, err := cli.NewResponseEmitter(os.Stdout, os.Stderr, req)
+	cliRe, err := cli.NewResponseEmitter(os.Stdout, os.Stderr, req)
 	if err != nil {
 		panic(err)
 	}
 
+	wait := make(chan struct{})
+	var re cmds.ResponseEmitter = cliRe
 	if pr, ok := req.Command.PostRun[cmds.CLI]; ok {
 		var (
 			res   cmds.Response
@@ -35,24 +37,18 @@ func main() {
 		re, res = cmds.NewChanResponsePair(req)
 
 		go func() {
+			defer close(wait)
 			err := pr(res, lower)
 			if err != nil {
 				fmt.Println("error: ", err)
 			}
 		}()
+	} else {
+		close(wait)
 	}
 
-	wait := make(chan struct{})
-	// call command in background
-	go func() {
-		defer close(wait)
-
-		adder.RootCmd.Call(req, re, nil)
-	}()
-
-	// wait until command has returned and exit
-	ret := <-retCh
+	adder.RootCmd.Call(req, re, nil)
 	<-wait
 
-	os.Exit(ret)
+	os.Exit(cliRe.Status())
 }

@@ -16,7 +16,7 @@ func TestSingle(t *testing.T) {
 
 	var bufout, buferr bytes.Buffer
 
-	re, exitCh, err := NewResponseEmitter(&bufout, &buferr, req)
+	re, err := NewResponseEmitter(&bufout, &buferr, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,7 +40,9 @@ func TestSingle(t *testing.T) {
 		wait <- struct{}{}
 	}()
 
-	exitCode := <-exitCh
+	<-wait
+
+	exitCode := re.Status()
 	if exitCode != 0 {
 		t.Errorf("expected exit code 0, got: %v", exitCode)
 	}
@@ -50,5 +52,4 @@ func TestSingle(t *testing.T) {
 		t.Fatalf("expected %#v, got %#v", "test\n", str)
 	}
 
-	<-wait
 }
