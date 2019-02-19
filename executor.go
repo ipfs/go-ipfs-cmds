@@ -2,7 +2,6 @@ package cmds
 
 import (
 	"context"
-	"runtime/debug"
 )
 
 type Executor interface {
@@ -37,14 +36,14 @@ type executor struct {
 	root *Command
 }
 
-func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) (err error) {
+func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) error {
 	cmd := req.Command
 
 	if cmd.Run == nil {
 		return ErrNotCallable
 	}
 
-	err = cmd.CheckArguments(req)
+	err := cmd.CheckArguments(req)
 	if err != nil {
 		return err
 	}
@@ -58,7 +57,6 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) (e
 
 	// contains the error returned by PostRun
 	errCh := make(chan error, 1)
-
 	if cmd.PostRun != nil {
 		if typer, ok := re.(interface {
 			Type() PostRunType
@@ -71,22 +69,8 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) (e
 			re, res = NewChanResponsePair(req)
 
 			go func() {
-				var closeErr error
-
 				defer close(errCh)
-
-				err := cmd.PostRun[typer.Type()](res, lower)
-				closeErr = lower.CloseWithError(err)
-				if closeErr == ErrClosingClosedEmitter {
-					// ignore double close errors
-					closeErr = nil
-				}
-				errCh <- closeErr
-
-				if closeErr != nil && err != nil {
-					log.Errorf("error closing connection: %s", closeErr)
-					log.Errorf("close caused by error: %s", err)
-				}
+				errCh <- lower.CloseWithError(cmd.PostRun[typer.Type()](res, lower))
 			}()
 		}
 	} else {
@@ -94,42 +78,17 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) (e
 		close(errCh)
 	}
 
-	defer func() {
-		// catch panics in Run (esp. from re.SetError)
-		if v := recover(); v != nil {
-			log.Errorf("panic in command handler at %s", debug.Stack())
-
-			// if they are errors
-			if err, ok := v.(error); ok {
-				// use them as return error
-				closeErr := re.CloseWithError(err)
-				if closeErr == ErrClosingClosedEmitter {
-					// ignore double close errors
-					closeErr = nil
-				} else if closeErr != nil {
-					log.Errorf("error closing connection: %s", closeErr)
-					if err != nil {
-						log.Errorf("close caused by error: %s", err)
-					}
-				}
-			} else {
-				// otherwise keep panicking.
-				panic(v)
-			}
-
-			// wait for PostRun to finish
-			<-errCh
-		}
-	}()
-	err = cmd.Run(req, re, env)
-	err = re.CloseWithError(err)
-	if err == ErrClosingClosedEmitter {
-		// ignore double close errors
-		return nil
-	} else if err != nil {
-		return err
+	runCloseErr := re.CloseWithError(cmd.Run(req, re, env))
+	postCloseErr := <-errCh
+	switch runCloseErr {
+	case ErrClosingClosedEmitter, nil:
+	default:
+		return runCloseErr
 	}
-
-	// return error from the PostRun Close
-	return <-errCh
+	switch postCloseErr {
+	case ErrClosingClosedEmitter, nil:
+	default:
+		return postCloseErr
+	}
+	return nil
 }
