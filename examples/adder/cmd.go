@@ -184,8 +184,6 @@ var RootCmd = &cmds.Command{
 			PostRun: cmds.PostRunMap{
 				cmds.CLI: func(res cmds.Response, re cmds.ResponseEmitter) error {
 					clire := re.(cli.ResponseEmitter)
-
-					defer re.Close()
 					defer fmt.Println()
 
 					// length of line at last iteration
@@ -193,7 +191,7 @@ var RootCmd = &cmds.Command{
 
 					var exit int
 					defer func() {
-						clire.Exit(exit)
+						clire.SetStatus(exit)
 					}()
 
 					for {

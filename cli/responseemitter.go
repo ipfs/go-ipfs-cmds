@@ -14,21 +14,15 @@ import (
 
 var _ ResponseEmitter = &responseEmitter{}
 
-func NewResponseEmitter(stdout, stderr io.Writer, req *cmds.Request) (cmds.ResponseEmitter, <-chan int, error) {
-	ch := make(chan int)
+func NewResponseEmitter(stdout, stderr io.Writer, req *cmds.Request) (ResponseEmitter, error) {
 	encType, enc, err := cmds.GetEncoder(req, stdout, cmds.TextNewline)
-	if err != nil {
-		close(ch)
-		return nil, ch, err
-	}
 
 	return &responseEmitter{
 		stdout:  stdout,
 		stderr:  stderr,
 		encType: encType,
 		enc:     enc,
-		ch:      ch,
-	}, ch, err
+	}, err
 }
 
 // ResponseEmitter extends cmds.ResponseEmitter to give better control over the command line
@@ -37,7 +31,12 @@ type ResponseEmitter interface {
 
 	Stdout() io.Writer
 	Stderr() io.Writer
-	Exit(int)
+
+	// SetStatus sets the exit status for this command.
+	SetStatus(int)
+
+	// Status returns the exit status for the command.
+	Status() int
 }
 
 type responseEmitter struct {
@@ -50,8 +49,6 @@ type responseEmitter struct {
 	encType cmds.EncodingType
 	exit    int
 	closed  bool
-
-	ch chan<- int
 }
 
 func (re *responseEmitter) Type() cmds.PostRunType {
@@ -62,36 +59,6 @@ func (re *responseEmitter) SetLength(l uint64) {
 	re.length = l
 }
 
-func (re *responseEmitter) CloseWithError(err error) error {
-	var msg string
-	switch err {
-	case nil:
-		return re.Close()
-	case context.Canceled:
-		msg = "canceled"
-	case context.DeadlineExceeded:
-		msg = "timed out"
-	default:
-		msg = err.Error()
-	}
-
-	re.l.Lock()
-	defer re.l.Unlock()
-
-	if re.closed {
-		return cmds.ErrClosingClosedEmitter
-	}
-
-	re.exit = 1 // TODO we could let err carry an exit code
-
-	_, err = fmt.Fprintln(re.stderr, "Error:", msg)
-	if err != nil {
-		return err
-	}
-
-	return re.close()
-}
-
 func (re *responseEmitter) isClosed() bool {
 	re.l.Lock()
 	defer re.l.Unlock()
@@ -100,24 +67,39 @@ func (re *responseEmitter) isClosed() bool {
 }
 
 func (re *responseEmitter) Close() error {
+	return re.CloseWithError(nil)
+}
+
+func (re *responseEmitter) CloseWithError(err error) error {
 	re.l.Lock()
 	defer re.l.Unlock()
 
-	return re.close()
-}
-
-func (re *responseEmitter) close() error {
 	if re.closed {
 		return cmds.ErrClosingClosedEmitter
 	}
+	re.closed = true
 
-	re.ch <- re.exit
-	close(re.ch)
+	var msg string
+	if err != nil {
+		if re.exit == 0 {
+			// Default "error" exit code.
+			re.exit = 1
+		}
+		switch err {
+		case context.Canceled:
+			msg = "canceled"
+		case context.DeadlineExceeded:
+			msg = "timed out"
+		default:
+			msg = err.Error()
+		}
+
+		fmt.Fprintln(re.stderr, "Error:", msg)
+	}
 
 	defer func() {
 		re.stdout = nil
 		re.stderr = nil
-		re.closed = true
 	}()
 
 	// ignore error if the operating system doesn't support syncing std{out,err}
@@ -131,23 +113,19 @@ func (re *responseEmitter) close() error {
 		return false
 	}
 
+	var errStderr, errStdout error
 	if f, ok := re.stderr.(*os.File); ok {
-		err := f.Sync()
-		if err != nil {
-			if !ignoreError(err) {
-				return err
-			}
-		}
+		errStderr = f.Sync()
 	}
 	if f, ok := re.stdout.(*os.File); ok {
-		err := f.Sync()
-		if err != nil {
-			if !ignoreError(err) {
-				return err
-			}
-		}
+		errStdout = f.Sync()
 	}
-
+	if errStderr != nil && !ignoreError(errStderr) {
+		return errStderr
+	}
+	if errStdout != nil && !ignoreError(errStdout) {
+		return errStdout
+	}
 	return nil
 }
 
@@ -220,11 +198,16 @@ func (re *responseEmitter) Stdout() io.Writer {
 	return re.stdout
 }
 
-// Exit sends code to the channel that was returned by NewResponseEmitter, so main() can pass it to os.Exit()
-func (re *responseEmitter) Exit(code int) {
-	defer re.Close()
-
+// SetStatus sets the exit status of the command.
+func (re *responseEmitter) SetStatus(code int) {
 	re.l.Lock()
 	defer re.l.Unlock()
 	re.exit = code
+}
+
+// Status _returns_ the exit status of the command.
+func (re *responseEmitter) Status() int {
+	re.l.Lock()
+	defer re.l.Unlock()
+	return re.exit
 }
