@@ -92,7 +92,7 @@ func Run(ctx context.Context, root *cmds.Command,
 			printHelp(false, stderr)
 		}
 
-		return err
+		return errParse
 	}
 
 	// here we handle the cases where
