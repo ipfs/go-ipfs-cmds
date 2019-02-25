@@ -6,13 +6,14 @@ import (
 	"io"
 	"os"
 	"sync"
-	"syscall"
 
 	"github.com/ipfs/go-ipfs-cmds"
 )
 
 var _ ResponseEmitter = &responseEmitter{}
 
+// NewResponseEmitter constructs a new response emitter that writes results to
+// the console.
 func NewResponseEmitter(stdout, stderr io.Writer, req *cmds.Request) (ResponseEmitter, error) {
 	encType, enc, err := cmds.GetEncoder(req, stdout, cmds.TextNewline)
 
@@ -101,17 +102,6 @@ func (re *responseEmitter) CloseWithError(err error) error {
 		re.stderr = nil
 	}()
 
-	// ignore error if the operating system doesn't support syncing std{out,err}
-	ignoreError := func(err error) bool {
-		if perr, ok := err.(*os.PathError); ok &&
-			perr.Op == "sync" && (perr.Err == syscall.EINVAL ||
-			perr.Err == syscall.ENOTSUP) {
-			return true
-		}
-
-		return false
-	}
-
 	var errStderr, errStdout error
 	if f, ok := re.stderr.(*os.File); ok {
 		errStderr = f.Sync()
@@ -119,10 +109,12 @@ func (re *responseEmitter) CloseWithError(err error) error {
 	if f, ok := re.stdout.(*os.File); ok {
 		errStdout = f.Sync()
 	}
-	if errStderr != nil && !ignoreError(errStderr) {
+
+	// ignore error if the operating system doesn't support syncing std{out,err}
+	if errStderr != nil && !isSyncNotSupportedErr(errStderr) {
 		return errStderr
 	}
-	if errStdout != nil && !ignoreError(errStdout) {
+	if errStdout != nil && !isSyncNotSupportedErr(errStdout) {
 		return errStdout
 	}
 	return nil
