@@ -12,6 +12,8 @@ import (
 
 var _ ResponseEmitter = &responseEmitter{}
 
+// NewResponseEmitter constructs a new response emitter that writes results to
+// the console.
 func NewResponseEmitter(stdout, stderr io.Writer, req *cmds.Request) (ResponseEmitter, error) {
 	encType, enc, err := cmds.GetEncoder(req, stdout, cmds.TextNewline)
 
