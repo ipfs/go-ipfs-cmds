@@ -10,7 +10,7 @@ const invalid_file_handle syscall.Errno = 0x6
 
 func isErrnoNotSupported(err error) bool {
 	switch err {
-	case syscall.EINVAL, syscall.ENOTSUP, invalid_file_handle:
+	case syscall.EINVAL, syscall.ENOTSUP, syscall.ENOTTY, invalid_file_handle:
 		return true
 	}
 	return false

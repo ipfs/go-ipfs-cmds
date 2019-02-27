@@ -8,7 +8,7 @@ import (
 
 func isErrnoNotSupported(err error) bool {
 	switch err {
-	case syscall.EINVAL, syscall.ENOTSUP:
+	case syscall.EINVAL, syscall.ENOTSUP, syscall.ENOTTY:
 		return true
 	}
 	return false
