@@ -61,12 +61,7 @@ func Copy(re ResponseEmitter, res Response) error {
 				return re.Close()
 			}
 
-			closeErr := re.CloseWithError(err)
-			if closeErr != nil {
-				log.Errorf("error closing emitter with error %q: %s", err, closeErr)
-			}
-
-			return err
+			return re.CloseWithError(err)
 		}
 
 		err = re.Emit(v)
