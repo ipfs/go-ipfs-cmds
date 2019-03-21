@@ -43,9 +43,9 @@
     },
     {
       "author": "magik6k",
-      "hash": "QmQmhotPUzVrMEWNK3x1R5jQ5ZHWyL7tVUrmRPjrBrvyCb",
+      "hash": "QmRHcZ5ngUxZo8phLR3fpoqk9wA7VdGc5mhwkGSnB2nZ9F",
       "name": "go-ipfs-files",
-      "version": "2.0.6"
+      "version": "2.0.7"
     }
   ],
   "gxVersion": "0.10.0",
