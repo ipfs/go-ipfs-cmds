@@ -91,16 +91,35 @@ func MakeTypedEncoder(f interface{}) func(*Request) func(io.Writer) Encoder {
 		panic("MakeTypedEncoder must receive a function matching func(*Request, io.Writer, ...)")
 	}
 
-	valType := t.In(2)
-	valTypePtr := reflect.PtrTo(valType)
+	var (
+		valType, valTypeAlt reflect.Type
+	)
+
+	valType = t.In(2)
+	valTypeIsPtr := valType.Kind() == reflect.Ptr
+	if valTypeIsPtr {
+		valTypeAlt = valType.Elem()
+	} else {
+		valTypeAlt = reflect.PtrTo(valType)
+	}
 
 	return MakeEncoder(func(req *Request, w io.Writer, i interface{}) error {
 		iType := reflect.TypeOf(i)
 		iValue := reflect.ValueOf(i)
 		switch iType {
 		case valType:
-		case valTypePtr:
-			iValue = iValue.Elem()
+		case valTypeAlt:
+			if valTypeIsPtr {
+				if iValue.CanAddr() {
+					iValue = iValue.Addr()
+				} else {
+					oldValue := iValue
+					iValue = reflect.New(iType)
+					iValue.Elem().Set(oldValue)
+				}
+			} else {
+				iValue = iValue.Elem()
+			}
 		default:
 			return fmt.Errorf("unexpected type %T, expected %v", i, valType)
 		}
