@@ -69,7 +69,7 @@ func Parse(ctx context.Context, input []string, stdin *os.File, root *cmds.Comma
 }
 
 func isHidden(req *cmds.Request) bool {
-	h, ok := req.Options["hidden"].(bool)
+	h, ok := req.Options[cmds.Hidden].(bool)
 	return h && ok
 }
 
