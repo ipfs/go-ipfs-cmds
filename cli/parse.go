@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -269,6 +270,8 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 					if err != nil {
 						return err
 					}
+				} else if u := isURL(fpath); u != nil {
+					file = files.NewWebFile(u)
 				} else {
 					fpath = filepath.ToSlash(filepath.Clean(fpath))
 					derefArgs, _ := req.Options[cmds.DerefLong].(bool)
@@ -336,6 +339,23 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 	}
 
 	return nil
+}
+
+// isURL returns a url.URL for valid http:// and https:// URLs, otherwise it returns nil.
+func isURL(path string) *url.URL {
+	u, err := url.Parse(path)
+	if err != nil {
+		return nil
+	}
+	if u.Host == "" {
+		return nil
+	}
+	switch u.Scheme {
+	default:
+		return nil
+	case "http", "https":
+		return u
+	}
 }
 
 func splitkv(opt string) (k, v string, ok bool) {

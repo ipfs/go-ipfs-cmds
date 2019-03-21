@@ -513,3 +513,24 @@ func TestBodyArgs(t *testing.T) {
 		}
 	}
 }
+
+func Test_isURL(t *testing.T) {
+	for _, u := range []string{
+		"http://www.example.com",
+		"https://www.example.com",
+	} {
+		if isURL(u) == nil {
+			t.Errorf("expected url: %s", u)
+		}
+	}
+
+	for _, u := range []string{
+		"adir/afile",
+		"http:/ /afile",
+		"http:/a/file",
+	} {
+		if isURL(u) != nil {
+			t.Errorf("expected non-url: %s", u)
+		}
+	}
+}
