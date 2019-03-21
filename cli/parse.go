@@ -78,6 +78,11 @@ func isRecursive(req *cmds.Request) bool {
 	return rec && ok
 }
 
+func stdinName(req *cmds.Request) string {
+	name, _ := req.Options[cmds.StdinName].(string)
+	return name
+}
+
 type parseState struct {
 	cmdline []string
 	i       int
@@ -264,7 +269,7 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 						return err
 					}
 
-					fpath = ""
+					fpath = stdinName(req)
 					file, err = files.NewReaderPathFile(stdin.Name(), r, nil)
 					if err != nil {
 						return err
@@ -305,7 +310,7 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 					return err
 				}
 
-				fileArgs[""], err = files.NewReaderPathFile(stdin.Name(), r, nil)
+				fileArgs[stdinName(req)], err = files.NewReaderPathFile(stdin.Name(), r, nil)
 				if err != nil {
 					return err
 				}
