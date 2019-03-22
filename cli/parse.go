@@ -276,6 +276,17 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 						return err
 					}
 				} else if u := isURL(fpath); u != nil {
+					base := urlBase(u)
+					fpath = base
+					if _, ok := fileArgs[fpath]; ok {
+						// Ensure a unique fpath by suffixing ' (n)'.
+						for i := 1; ; i++ {
+							fpath = fmt.Sprintf("%s (%d)", base, i)
+							if _, ok := fileArgs[fpath]; !ok {
+								break
+							}
+						}
+					}
 					file = files.NewWebFile(u)
 				} else {
 					fpath = filepath.ToSlash(filepath.Clean(fpath))
@@ -361,6 +372,13 @@ func isURL(path string) *url.URL {
 	case "http", "https":
 		return u
 	}
+}
+
+func urlBase(u *url.URL) string {
+	if u.Path == "" {
+		return u.Host
+	}
+	return path.Base(u.Path)
 }
 
 func splitkv(opt string) (k, v string, ok bool) {
