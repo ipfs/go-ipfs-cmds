@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -531,6 +532,24 @@ func Test_isURL(t *testing.T) {
 	} {
 		if isURL(u) != nil {
 			t.Errorf("expected non-url: %s", u)
+		}
+	}
+}
+
+func Test_urlBase(t *testing.T) {
+	for _, test := range []struct{ url, base string }{
+		{"http://host", "host"},
+		{"http://host/test", "test"},
+		{"http://host/test?param=val", "test"},
+		{"http://host/test?param=val&param2=val", "test"},
+	} {
+		u, err := url.Parse(test.url)
+		if err != nil {
+			t.Errorf("failed to parse %q: %v", test.url, err)
+			continue
+		}
+		if got := urlBase(u); got != test.base {
+			t.Errorf("expected %q but got %q", test.base, got)
 		}
 	}
 }
