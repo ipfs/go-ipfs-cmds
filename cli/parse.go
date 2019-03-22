@@ -70,13 +70,18 @@ func Parse(ctx context.Context, input []string, stdin *os.File, root *cmds.Comma
 }
 
 func isHidden(req *cmds.Request) bool {
-	h, ok := req.Options["hidden"].(bool)
+	h, ok := req.Options[cmds.Hidden].(bool)
 	return h && ok
 }
 
 func isRecursive(req *cmds.Request) bool {
 	rec, ok := req.Options[cmds.RecLong].(bool)
 	return rec && ok
+}
+
+func stdinName(req *cmds.Request) string {
+	name, _ := req.Options[cmds.StdinName].(string)
+	return name
 }
 
 type parseState struct {
@@ -265,7 +270,7 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 						return err
 					}
 
-					fpath = ""
+					fpath = stdinName(req)
 					file, err = files.NewReaderPathFile(stdin.Name(), r, nil)
 					if err != nil {
 						return err
@@ -308,7 +313,7 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 					return err
 				}
 
-				fileArgs[""], err = files.NewReaderPathFile(stdin.Name(), r, nil)
+				fileArgs[stdinName(req)], err = files.NewReaderPathFile(stdin.Name(), r, nil)
 				if err != nil {
 					return err
 				}

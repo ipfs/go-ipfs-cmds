@@ -15,6 +15,9 @@ const (
 	OptShortHelp = "h"
 	OptLongHelp  = "help"
 	DerefLong    = "dereference-args"
+	StdinName    = "stdin-name"
+	Hidden       = "hidden"
+	HiddenShort  = "H"
 )
 
 // options that are used by this package
@@ -23,3 +26,5 @@ var OptionRecursivePath = cmdkit.BoolOption(RecLong, RecShort, "Add directory pa
 var OptionStreamChannels = cmdkit.BoolOption(ChanOpt, "Stream channel output")
 var OptionTimeout = cmdkit.StringOption(TimeoutOpt, "Set a global timeout on the command")
 var OptionDerefArgs = cmdkit.BoolOption(DerefLong, "Symlinks supplied in arguments are dereferenced")
+var OptionStdinName = cmdkit.StringOption(StdinName, "Assign a name if the file source is stdin.")
+var OptionHidden = cmdkit.BoolOption(Hidden, HiddenShort, "Include files that are hidden. Only takes effect on recursive add.")
