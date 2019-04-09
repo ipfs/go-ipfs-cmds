@@ -12,7 +12,7 @@ func isErrnoNotSupported(err error) bool {
 		// Operation not supported
 		syscall.EINVAL, syscall.EROFS, syscall.ENOTSUP,
 		// File descriptor doesn't support syncing (found on MacOS).
-		syscall.ENOTTY,
+		syscall.ENOTTY, syscall.ENODEV,
 		// MacOS is weird. It returns EBADF when calling fsync on stdout
 		// when piped.
 		//
