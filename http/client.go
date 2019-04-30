@@ -96,7 +96,7 @@ func (c *client) Execute(req *cmds.Request, re cmds.ResponseEmitter, env cmds.En
 				return nil
 			}
 
-			return err
+			return closeErr
 		}
 	}
 
