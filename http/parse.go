@@ -1,7 +1,8 @@
 package http
 
 import (
-	"context"
+	"crypto/rand"
+	"encoding/base32"
 	"fmt"
 	"io/ioutil"
 	"mime"
@@ -12,10 +13,11 @@ import (
 	"github.com/ipfs/go-ipfs-cmds"
 
 	"github.com/ipfs/go-ipfs-files"
+	logging "github.com/ipfs/go-log"
 )
 
 // parseRequest parses the data in a http.Request and returns a command Request object
-func parseRequest(ctx context.Context, r *http.Request, root *cmds.Command) (*cmds.Request, error) {
+func parseRequest(r *http.Request, root *cmds.Command) (*cmds.Request, error) {
 	if r.URL.Path[0] == '/' {
 		r.URL.Path = r.URL.Path[1:]
 	}
@@ -134,6 +136,7 @@ func parseRequest(ctx context.Context, r *http.Request, root *cmds.Command) (*cm
 		return nil, fmt.Errorf("File argument '%s' is required", requiredFile)
 	}
 
+	ctx := logging.ContextWithLoggable(r.Context(), uuidLoggable())
 	req, err := cmds.NewRequest(ctx, pth, opts, args, f, root)
 	if err != nil {
 		return nil, err
@@ -228,4 +231,13 @@ func parseResponse(httpRes *http.Response, req *cmds.Request) (cmds.Response, er
 	}
 
 	return res, nil
+}
+
+func uuidLoggable() logging.Loggable {
+	ids := make([]byte, 16)
+	rand.Read(ids)
+
+	return logging.Metadata{
+		"requestId": base32.HexEncoding.EncodeToString(ids),
+	}
 }

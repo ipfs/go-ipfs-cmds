@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	nethttp "net/http"
 
 	"github.com/ipfs/go-ipfs-cmds/examples/adder"
@@ -10,10 +9,6 @@ import (
 )
 
 type env struct{}
-
-func (env) Context() context.Context {
-	return context.TODO()
-}
 
 func main() {
 	h := http.NewHandler(env{}, adder.RootCmd, http.NewServerConfig())

@@ -28,10 +28,6 @@ type env struct {
 	ch chan struct{}
 }
 
-func (e env) Context() context.Context {
-	return context.Background()
-}
-
 func TestRunWaits(t *testing.T) {
 	flag := make(chan struct{}, 1)
 
