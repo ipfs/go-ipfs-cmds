@@ -8,8 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ipfs/go-ipfs-cmdkit"
-	cmds "github.com/ipfs/go-ipfs-cmds"
+	"github.com/ipfs/go-ipfs-cmds"
 )
 
 // ExitError is the error used when a specific exit code needs to be returned.
@@ -141,10 +140,10 @@ func Run(ctx context.Context, root *cmds.Command,
 	if err != nil {
 		printErr(err)
 
-		if kiterr, ok := err.(*cmdkit.Error); ok {
+		if kiterr, ok := err.(*cmds.Error); ok {
 			err = *kiterr
 		}
-		if kiterr, ok := err.(cmdkit.Error); ok && kiterr.Code == cmdkit.ErrClient {
+		if kiterr, ok := err.(cmds.Error); ok && kiterr.Code == cmds.ErrClient {
 			printMetaHelp(stderr)
 		}
 

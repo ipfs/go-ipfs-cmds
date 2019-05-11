@@ -1,4 +1,4 @@
-package cmdkit
+package cmds
 
 import (
 	"math"

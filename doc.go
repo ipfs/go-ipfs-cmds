@@ -34,7 +34,7 @@
 		type ResponseEmitter interface {
 			io.Closer
 			SetLength(length uint64)
-			SetError(err interface{}, code cmdkit.ErrorType)
+			SetError(err interface{}, code ErrorType)
 			Emit(value interface{}) error
 		}
 
@@ -55,7 +55,7 @@
 
 		type Response interface {
 			Request() Request
-			Error() *cmdkit.Error
+			Error() *Error
 			Length() uint64
 			Next() (interface{}, error)
 		}

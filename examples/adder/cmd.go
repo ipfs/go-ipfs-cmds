@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-cmds"
 	"github.com/ipfs/go-ipfs-cmds/cli"
 )
@@ -26,8 +25,8 @@ var RootCmd = &cmds.Command{
 	Subcommands: map[string]*cmds.Command{
 		// the simplest way to make an adder
 		"simpleAdd": &cmds.Command{
-			Arguments: []cmdkit.Argument{
-				cmdkit.StringArg("summands", true, true, "values that are supposed to be summed"),
+			Arguments: []cmds.Argument{
+				cmds.StringArg("summands", true, true, "values that are supposed to be summed"),
 			},
 			Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
 				sum := 0
@@ -50,8 +49,8 @@ var RootCmd = &cmds.Command{
 		},
 		// a bit more sophisticated
 		"encodeAdd": &cmds.Command{
-			Arguments: []cmdkit.Argument{
-				cmdkit.StringArg("summands", true, true, "values that are supposed to be summed"),
+			Arguments: []cmds.Argument{
+				cmds.StringArg("summands", true, true, "values that are supposed to be summed"),
 			},
 			Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
 				sum := 0
@@ -96,8 +95,8 @@ var RootCmd = &cmds.Command{
 		},
 		// the best UX
 		"postRunAdd": &cmds.Command{
-			Arguments: []cmdkit.Argument{
-				cmdkit.StringArg("summands", true, true, "values that are supposed to be summed"),
+			Arguments: []cmds.Argument{
+				cmds.StringArg("summands", true, true, "values that are supposed to be summed"),
 			},
 			// this is the same as for encoderAdd
 			Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
@@ -154,8 +153,8 @@ var RootCmd = &cmds.Command{
 		},
 		// how to set program's return value
 		"exitAdd": &cmds.Command{
-			Arguments: []cmdkit.Argument{
-				cmdkit.StringArg("summands", true, true, "values that are supposed to be summed"),
+			Arguments: []cmds.Argument{
+				cmds.StringArg("summands", true, true, "values that are supposed to be summed"),
 			},
 			// this is the same as for encoderAdd
 			Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {

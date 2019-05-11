@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"github.com/ipfs/go-ipfs-cmdkit"
 	"io"
 	"reflect"
 )
@@ -173,7 +172,7 @@ func GetEncoder(req *Request, w io.Writer, def EncodingType) (encType EncodingTy
 		fn, ok = Encoders[encType]
 	}
 	if !ok {
-		return encType, nil, cmdkit.Errorf(cmdkit.ErrClient, "invalid encoding: %s", encType)
+		return encType, nil, Errorf(ErrClient, "invalid encoding: %s", encType)
 	}
 	return encType, fn(req)(w), nil
 }

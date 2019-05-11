@@ -7,7 +7,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-cmds"
 )
 
@@ -29,26 +28,26 @@ type Response struct {
 	rr  *responseReader
 	dec cmds.Decoder
 
-	initErr *cmdkit.Error
+	initErr *cmds.Error
 }
 
 func (res *Response) Request() *cmds.Request {
 	return res.req
 }
 
-func (res *Response) Error() *cmdkit.Error {
+func (res *Response) Error() *cmds.Error {
 	if res.err == io.EOF || res.err == nil {
 		return nil
 	}
 
 	switch err := res.err.(type) {
-	case *cmdkit.Error:
+	case *cmds.Error:
 		return err
-	case cmdkit.Error:
+	case cmds.Error:
 		return &err
 	default:
 		// i.e. is a regular error
-		return &cmdkit.Error{Message: res.err.Error()}
+		return &cmds.Error{Message: res.err.Error()}
 	}
 }
 
@@ -91,7 +90,7 @@ func (res *Response) Next() (interface{}, error) {
 			// handle errors from headers
 			errStr := res.res.Header.Get(StreamErrHeader)
 			if errStr != "" {
-				err = &cmdkit.Error{Message: errStr}
+				err = &cmds.Error{Message: errStr}
 			}
 
 			res.err = err
@@ -105,10 +104,10 @@ func (res *Response) Next() (interface{}, error) {
 
 	v, err := m.Get()
 	if err != nil {
-		if e, ok := err.(*cmdkit.Error); ok {
+		if e, ok := err.(*cmds.Error); ok {
 			res.err = e
 		} else {
-			res.err = &cmdkit.Error{Message: err.Error()}
+			res.err = &cmds.Error{Message: err.Error()}
 		}
 	}
 

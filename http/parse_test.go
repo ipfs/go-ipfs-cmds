@@ -9,7 +9,6 @@ import (
 	"reflect"
 	"testing"
 
-	cmdkit "github.com/ipfs/go-ipfs-cmdkit"
 	cmds "github.com/ipfs/go-ipfs-cmds"
 )
 
@@ -115,7 +114,7 @@ func TestParseRequest(t *testing.T) {
 				Command:   cmdRoot.Subcommands["version"],
 				Path:      []string{"version"},
 				Arguments: []string{},
-				Options: cmdkit.OptMap{
+				Options: cmds.OptMap{
 					"all":        true,
 					cmds.EncLong: cmds.JSON,
 				},

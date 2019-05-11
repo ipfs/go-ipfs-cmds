@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-files"
 
 	logging "github.com/ipfs/go-log"
@@ -33,8 +32,8 @@ type PostRunMap map[PostRunType]func(Response, ResponseEmitter) error
 // Command is a runnable command, with input arguments and options (flags).
 // It can also have Subcommands, to group units of work into sets.
 type Command struct {
-	Options   []cmdkit.Option
-	Arguments []cmdkit.Argument
+	Options   []Option
+	Arguments []Argument
 	PreRun    func(req *Request, env Environment) error
 
 	// Run is the function that processes the request to generate a response.
@@ -44,7 +43,7 @@ type Command struct {
 	Run      Function
 	PostRun  PostRunMap
 	Encoders EncoderMap
-	Helptext cmdkit.HelpText
+	Helptext HelpText
 
 	// External denotes that a command is actually an external binary.
 	// fewer checks and validations will be performed on such commands.
@@ -137,8 +136,8 @@ func (c *Command) Get(path []string) (*Command, error) {
 }
 
 // GetOptions returns the options in the given path of commands
-func (c *Command) GetOptions(path []string) (map[string]cmdkit.Option, error) {
-	options := make([]cmdkit.Option, 0, len(c.Options))
+func (c *Command) GetOptions(path []string) (map[string]Option, error) {
+	options := make([]Option, 0, len(c.Options))
 
 	cmds, err := c.Resolve(path)
 	if err != nil {
@@ -149,7 +148,7 @@ func (c *Command) GetOptions(path []string) (map[string]cmdkit.Option, error) {
 		options = append(options, cmd.Options...)
 	}
 
-	optionsMap := make(map[string]cmdkit.Option)
+	optionsMap := make(map[string]Option)
 	for _, opt := range options {
 		for _, name := range opt.Names() {
 			if _, found := optionsMap[name]; found {
@@ -226,7 +225,7 @@ func (c *Command) CheckArguments(req *Request) error {
 	lastArg := c.Arguments[len(c.Arguments)-1]
 	if req.bodyArgs == nil && // check this as we can end up calling CheckArguments multiple times. See #80.
 		lastArg.SupportsStdin &&
-		lastArg.Type == cmdkit.ArgString &&
+		lastArg.Type == ArgString &&
 		req.Files != nil {
 
 		it := req.Files.Entries()
@@ -245,7 +244,7 @@ func (c *Command) CheckArguments(req *Request) error {
 	requiredStringArgs := 0 // number of required string arguments
 	for _, argDef := range req.Command.Arguments {
 		// Is this a string?
-		if argDef.Type != cmdkit.ArgString {
+		if argDef.Type != ArgString {
 			// No, skip it.
 			continue
 		}
@@ -301,5 +300,5 @@ func (c *Command) ProcessHelp() {
 }
 
 func ClientError(msg string) error {
-	return &cmdkit.Error{Code: cmdkit.ErrClient, Message: msg}
+	return &Error{Code: ErrClient, Message: msg}
 }

@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io"
 	"testing"
-
-	"github.com/ipfs/go-ipfs-cmdkit"
 )
 
 func TestCopy(t *testing.T) {
@@ -116,7 +114,7 @@ func TestError(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		err = re.CloseWithError(&cmdkit.Error{Message: "foo"})
+		err = re.CloseWithError(&Error{Message: "foo"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -143,7 +141,7 @@ func TestError(t *testing.T) {
 		t.Errorf("expected nil value, got %#v", v)
 
 	}
-	e, ok := err.(*cmdkit.Error)
+	e, ok := err.(*Error)
 	if !ok {
 		t.Errorf("expected error to be %T, got %T", e, v)
 	} else {

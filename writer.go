@@ -6,8 +6,6 @@ import (
 	"io"
 	"reflect"
 	"sync"
-
-	"github.com/ipfs/go-ipfs-cmdkit"
 )
 
 func NewWriterResponseEmitter(w io.WriteCloser, req *Request) (ResponseEmitter, error) {
@@ -30,7 +28,7 @@ func NewReaderResponse(r io.Reader, req *Request) (Response, error) {
 	encType := GetEncoding(req, Undefined)
 	dec, ok := Decoders[encType]
 	if !ok {
-		return nil, cmdkit.Errorf(cmdkit.ErrClient, "unknown encoding: %s", encType)
+		return nil, Errorf(ErrClient, "unknown encoding: %s", encType)
 	}
 	return &readerResponse{
 		req:     req,
@@ -59,14 +57,14 @@ func (r *readerResponse) Request() *Request {
 	return r.req
 }
 
-func (r *readerResponse) Error() *cmdkit.Error {
+func (r *readerResponse) Error() *Error {
 	<-r.emitted
 
-	if err, ok := r.err.(*cmdkit.Error); ok {
+	if err, ok := r.err.(*Error); ok {
 		return err
 	}
 
-	return &cmdkit.Error{Message: r.err.Error()}
+	return &Error{Message: r.err.Error()}
 }
 
 func (r *readerResponse) Length() uint64 {
@@ -101,7 +99,7 @@ type writerResponseEmitter struct {
 	req *Request
 
 	length *uint64
-	err    *cmdkit.Error
+	err    *Error
 
 	emitted bool
 	closed  bool
@@ -179,7 +177,7 @@ func (re *writerResponseEmitter) Emit(v interface{}) error {
 
 type MaybeError struct {
 	Value interface{} // needs to be a pointer
-	Error *cmdkit.Error
+	Error *Error
 
 	isError bool
 }
@@ -192,7 +190,7 @@ func (m *MaybeError) Get() (interface{}, error) {
 }
 
 func (m *MaybeError) UnmarshalJSON(data []byte) error {
-	var e cmdkit.Error
+	var e Error
 	err := json.Unmarshal(data, &e)
 	if err == nil {
 		m.isError = true

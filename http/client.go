@@ -9,9 +9,8 @@ import (
 	"net/url"
 	"strings"
 
-	cmds "github.com/ipfs/go-ipfs-cmds"
+	"github.com/ipfs/go-ipfs-cmds"
 
-	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-files"
 )
 
@@ -210,7 +209,7 @@ func getQuery(req *cmds.Request) (string, error) {
 	for _, arg := range args {
 		argDef := argDefs[argDefIndex]
 		// skip ArgFiles
-		for argDef.Type == cmdkit.ArgFile {
+		for argDef.Type == cmds.ArgFile {
 			argDefIndex++
 			argDef = argDefs[argDefIndex]
 		}
