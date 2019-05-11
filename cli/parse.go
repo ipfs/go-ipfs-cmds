@@ -40,16 +40,6 @@ func Parse(ctx context.Context, input []string, stdin *os.File, root *cmds.Comma
 		return req, err
 	}
 
-	// This is an ugly hack to maintain our current CLI interface while fixing
-	// other stdin usage bugs. Let this serve as a warning, be careful about the
-	// choices you make, they will haunt you forever.
-	if len(req.Path) == 2 && req.Path[0] == "bootstrap" {
-		if (req.Path[1] == "add" && req.Options["default"] == true) ||
-			(req.Path[1] == "rm" && req.Options["all"] == true) {
-			stdin = nil
-		}
-	}
-
 	if err := parseArgs(req, root, stdin); err != nil {
 		return req, err
 	}
