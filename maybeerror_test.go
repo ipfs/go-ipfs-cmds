@@ -6,8 +6,6 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-
-	"github.com/ipfs/go-ipfs-cmdkit"
 )
 
 func errcmp(t *testing.T, exp, got error, msg string) {
@@ -43,7 +41,7 @@ type Bar struct {
 
 type ValueError struct {
 	DecodeError error
-	Error       *cmdkit.Error
+	Error       *Error
 	Value       interface{}
 }
 
@@ -63,7 +61,7 @@ func TestMaybeError(t *testing.T) {
 			Decoded: []ValueError{
 				ValueError{Value: &Foo{23}},
 				ValueError{Value: &Foo{42}},
-				ValueError{Error: &cmdkit.Error{Message: "some error", Code: 0}},
+				ValueError{Error: &Error{Message: "some error", Code: 0}},
 			},
 		},
 		{
@@ -73,7 +71,7 @@ func TestMaybeError(t *testing.T) {
 			Decoded: []ValueError{
 				ValueError{Value: &Foo{23}},
 				ValueError{Value: &Foo{42}},
-				ValueError{Error: &cmdkit.Error{Message: "some error", Code: 0}},
+				ValueError{Error: &Error{Message: "some error", Code: 0}},
 			},
 		},
 		{
@@ -83,7 +81,7 @@ func TestMaybeError(t *testing.T) {
 			Decoded: []ValueError{
 				ValueError{Value: &Bar{""}},
 				ValueError{Value: &Bar{"Qmabc"}},
-				ValueError{Error: &cmdkit.Error{Message: "some error", Code: 0}},
+				ValueError{Error: &Error{Message: "some error", Code: 0}},
 			},
 		},
 		{
@@ -93,7 +91,7 @@ func TestMaybeError(t *testing.T) {
 			Decoded: []ValueError{
 				ValueError{Value: &Bar{""}},
 				ValueError{Value: &Bar{"Qmabc"}},
-				ValueError{Error: &cmdkit.Error{Message: "some error", Code: 0}},
+				ValueError{Error: &Error{Message: "some error", Code: 0}},
 			},
 		},
 		{
@@ -103,7 +101,7 @@ func TestMaybeError(t *testing.T) {
 				ValueError{Value: map[string]interface{}{"Foo": "bar", "i": 4.0}},
 				ValueError{Value: "some string"},
 				ValueError{Value: 5.0},
-				ValueError{Error: &cmdkit.Error{Message: "some error", Code: 0}},
+				ValueError{Error: &Error{Message: "some error", Code: 0}},
 			},
 		},
 	}

@@ -10,10 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ipfs/go-ipfs-cmds"
-
 	osh "github.com/Kubuxu/go-os-helper"
-	"github.com/ipfs/go-ipfs-cmdkit"
+	"github.com/ipfs/go-ipfs-cmds"
 	"github.com/ipfs/go-ipfs-files"
 	logging "github.com/ipfs/go-log"
 )
@@ -101,7 +99,7 @@ func parse(req *cmds.Request, cmdline []string, root *cmds.Command) (err error) 
 	var (
 		path = make([]string, 0, len(cmdline))
 		args = make([]string, 0, len(cmdline))
-		opts = cmdkit.OptMap{}
+		opts = cmds.OptMap{}
 		cmd  = root
 	)
 
@@ -246,7 +244,7 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 
 		fillingVariadic := iArgDef+1 > len(argDefs)
 		switch argDef.Type {
-		case cmdkit.ArgString:
+		case cmds.ArgString:
 			if len(inputs) > 0 {
 				stringArgs, inputs = append(stringArgs, inputs[0]), inputs[1:]
 			} else if stdin != nil && argDef.SupportsStdin && !fillingVariadic {
@@ -258,7 +256,7 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 					stdin = nil
 				}
 			}
-		case cmdkit.ArgFile:
+		case cmds.ArgFile:
 			if len(inputs) > 0 {
 				// treat stringArg values as file paths
 				fpath := inputs[0]
@@ -390,7 +388,7 @@ func splitkv(opt string) (k, v string, ok bool) {
 	}
 }
 
-func parseOpt(opt, value string, opts map[string]cmdkit.Option) (interface{}, error) {
+func parseOpt(opt, value string, opts map[string]cmds.Option) (interface{}, error) {
 	optDef, ok := opts[opt]
 	if !ok {
 		return nil, fmt.Errorf("unknown option %q", opt)
@@ -408,7 +406,7 @@ type kv struct {
 	Value interface{}
 }
 
-func (st *parseState) parseShortOpts(optDefs map[string]cmdkit.Option) ([]kv, error) {
+func (st *parseState) parseShortOpts(optDefs map[string]cmds.Option) ([]kv, error) {
 	k, vStr, ok := splitkv(st.cmdline[st.i][1:])
 	kvs := make([]kv, 0, len(k))
 
@@ -431,7 +429,7 @@ func (st *parseState) parseShortOpts(optDefs map[string]cmdkit.Option) ([]kv, er
 			case !ok:
 				return nil, fmt.Errorf("unknown option %q", k)
 
-			case od.Type() == cmdkit.Bool:
+			case od.Type() == cmds.Bool:
 				// single char flags for bools
 				kvs = append(kvs, kv{
 					Key:   flag,
@@ -471,14 +469,14 @@ func (st *parseState) parseShortOpts(optDefs map[string]cmdkit.Option) ([]kv, er
 	return kvs, nil
 }
 
-func (st *parseState) parseLongOpt(optDefs map[string]cmdkit.Option) (string, interface{}, error) {
+func (st *parseState) parseLongOpt(optDefs map[string]cmds.Option) (string, interface{}, error) {
 	k, v, ok := splitkv(st.peek()[2:])
 	if !ok {
 		optDef, ok := optDefs[k]
 		if !ok {
 			return "", nil, fmt.Errorf("unknown option %q", k)
 		}
-		if optDef.Type() == cmdkit.Bool {
+		if optDef.Type() == cmds.Bool {
 			return k, true, nil
 		} else if st.i < len(st.cmdline)-1 {
 			st.i++
@@ -492,7 +490,7 @@ func (st *parseState) parseLongOpt(optDefs map[string]cmdkit.Option) (string, in
 	return k, optval, err
 }
 
-func getArgDef(i int, argDefs []cmdkit.Argument) *cmdkit.Argument {
+func getArgDef(i int, argDefs []cmds.Argument) *cmds.Argument {
 	if i < len(argDefs) {
 		// get the argument definition (usually just argDefs[i])
 		return &argDefs[i]
@@ -509,7 +507,7 @@ func getArgDef(i int, argDefs []cmdkit.Argument) *cmdkit.Argument {
 const notRecursiveFmtStr = "'%s' is a directory, use the '-%s' flag to specify directories"
 const dirNotSupportedFmtStr = "invalid path '%s', argument '%s' does not support directories"
 
-func appendFile(fpath string, argDef *cmdkit.Argument, recursive, hidden bool) (files.Node, error) {
+func appendFile(fpath string, argDef *cmds.Argument, recursive, hidden bool) (files.Node, error) {
 	stat, err := os.Lstat(fpath)
 	if err != nil {
 		return nil, err

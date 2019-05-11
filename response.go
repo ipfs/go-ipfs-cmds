@@ -1,14 +1,12 @@
 package cmds
 
-import (
-	"github.com/ipfs/go-ipfs-cmdkit"
-)
+import ()
 
 // Response is the result of a command request. Response is returned to the client.
 type Response interface {
 	Request() *Request
 
-	Error() *cmdkit.Error
+	Error() *Error
 	Length() uint64
 
 	// Next returns the next emitted value.

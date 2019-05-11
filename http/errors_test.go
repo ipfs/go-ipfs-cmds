@@ -9,13 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-cmds"
 )
 
 func TestErrors(t *testing.T) {
 	type testcase struct {
-		opts       cmdkit.OptMap
+		opts       cmds.OptMap
 		path       []string
 		bodyStr    string
 		status     string
@@ -50,7 +49,7 @@ func TestErrors(t *testing.T) {
 
 		{
 			path: []string{"encode"},
-			opts: cmdkit.OptMap{
+			opts: cmds.OptMap{
 				cmds.EncLong: cmds.Text,
 			},
 			status:  "500 Internal Server Error",
@@ -59,7 +58,7 @@ func TestErrors(t *testing.T) {
 
 		{
 			path: []string{"lateencode"},
-			opts: cmdkit.OptMap{
+			opts: cmds.OptMap{
 				cmds.EncLong: cmds.Text,
 			},
 			status:     "200 OK",
@@ -69,7 +68,7 @@ func TestErrors(t *testing.T) {
 
 		{
 			path: []string{"protoencode"},
-			opts: cmdkit.OptMap{
+			opts: cmds.OptMap{
 				cmds.EncLong: cmds.Protobuf,
 			},
 			status:  "500 Internal Server Error",
@@ -78,7 +77,7 @@ func TestErrors(t *testing.T) {
 
 		{
 			path: []string{"protolateencode"},
-			opts: cmdkit.OptMap{
+			opts: cmds.OptMap{
 				cmds.EncLong: cmds.Protobuf,
 			},
 			status:     "200 OK",
@@ -89,7 +88,7 @@ func TestErrors(t *testing.T) {
 		{
 			// bad encoding
 			path: []string{"error"},
-			opts: cmdkit.OptMap{
+			opts: cmds.OptMap{
 				cmds.EncLong: "foobar",
 			},
 			status:  "400 Bad Request",

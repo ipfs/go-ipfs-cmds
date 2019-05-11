@@ -4,8 +4,6 @@ import (
 	"context"
 	"io"
 	"sync"
-
-	"github.com/ipfs/go-ipfs-cmdkit"
 )
 
 func NewChanResponsePair(req *Request) (ResponseEmitter, Response) {
@@ -63,18 +61,18 @@ func (r *chanResponse) Request() *Request {
 	return r.req
 }
 
-func (r *chanResponse) Error() *cmdkit.Error {
+func (r *chanResponse) Error() *Error {
 	select {
 	case <-r.closeCh:
 		if r.err == nil || r.err == io.EOF {
 			return nil
 		}
 
-		if e, ok := r.err.(*cmdkit.Error); ok {
+		if e, ok := r.err.(*Error); ok {
 			return e
 		}
 
-		return &cmdkit.Error{Message: r.err.Error()}
+		return &Error{Message: r.err.Error()}
 	default:
 		return nil
 	}
@@ -194,7 +192,7 @@ func (re *chanResponseEmitter) closeWithError(err error) {
 		err = io.EOF
 	}
 
-	if e, ok := err.(cmdkit.Error); ok {
+	if e, ok := err.(Error); ok {
 		err = &e
 	}
 

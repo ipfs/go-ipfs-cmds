@@ -9,9 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	cmds "github.com/ipfs/go-ipfs-cmds"
+	"github.com/ipfs/go-ipfs-cmds"
 
-	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-files"
 )
 
@@ -92,7 +91,7 @@ func parseRequest(ctx context.Context, r *http.Request, root *cmds.Command) (*cm
 			numRequired--
 		}
 
-		if argDef.Type == cmdkit.ArgString {
+		if argDef.Type == cmds.ArgString {
 			if argDef.Variadic {
 				for _, s := range stringArgs {
 					args[valIndex] = s
@@ -108,7 +107,7 @@ func parseRequest(ctx context.Context, r *http.Request, root *cmds.Command) (*cm
 			} else {
 				break
 			}
-		} else if argDef.Type == cmdkit.ArgFile && argDef.Required && len(requiredFile) == 0 {
+		} else if argDef.Type == cmds.ArgFile && argDef.Required && len(requiredFile) == 0 {
 			requiredFile = argDef.Name
 		}
 	}
@@ -200,13 +199,13 @@ func parseResponse(httpRes *http.Response, req *cmds.Request) (cmds.Response, er
 
 	// If we ran into an error
 	if httpRes.StatusCode >= http.StatusBadRequest {
-		e := &cmdkit.Error{}
+		e := &cmds.Error{}
 
 		switch {
 		case httpRes.StatusCode == http.StatusNotFound:
 			// handle 404s
 			e.Message = "Command not found."
-			e.Code = cmdkit.ErrClient
+			e.Code = cmds.ErrClient
 		case contentType == plainText:
 			// handle non-marshalled errors
 			mes, err := ioutil.ReadAll(res.rr)
@@ -214,7 +213,7 @@ func parseResponse(httpRes *http.Response, req *cmds.Request) (cmds.Response, er
 				return nil, err
 			}
 			e.Message = string(mes)
-			e.Code = cmdkit.ErrNormal
+			e.Code = cmds.ErrNormal
 		case res.dec == nil:
 			return nil, fmt.Errorf("unknown error content type: %s", contentType)
 		default:

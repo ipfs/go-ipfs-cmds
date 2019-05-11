@@ -2,7 +2,6 @@ module github.com/ipfs/go-ipfs-cmds
 
 require (
 	github.com/Kubuxu/go-os-helper v0.0.1
-	github.com/ipfs/go-ipfs-cmdkit v0.0.1
 	github.com/ipfs/go-ipfs-files v0.0.2
 	github.com/ipfs/go-log v0.0.1
 	github.com/rs/cors v1.6.0

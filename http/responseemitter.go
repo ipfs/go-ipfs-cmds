@@ -8,8 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ipfs/go-ipfs-cmdkit"
-	cmds "github.com/ipfs/go-ipfs-cmds"
+	"github.com/ipfs/go-ipfs-cmds"
 )
 
 var (
@@ -76,7 +75,7 @@ type responseEmitter struct {
 
 	l      sync.Mutex
 	length uint64
-	err    *cmdkit.Error
+	err    *cmds.Error
 
 	bodyEOFChan <-chan struct{}
 
@@ -176,14 +175,14 @@ func (re *responseEmitter) closeWithError(err error) error {
 		// not a real error
 		err = nil
 	default:
-		// make sure this is *always* of type *cmdkit.Error
+		// make sure this is *always* of type *cmds.Error
 		switch e := err.(type) {
-		case cmdkit.Error:
+		case cmds.Error:
 			err = &e
-		case *cmdkit.Error:
+		case *cmds.Error:
 		case nil:
 		default:
-			err = &cmdkit.Error{Message: err.Error(), Code: cmdkit.ErrNormal}
+			err = &cmds.Error{Message: err.Error(), Code: cmds.ErrNormal}
 		}
 	}
 
@@ -223,7 +222,7 @@ func (re *responseEmitter) preamble(value interface{}) {
 	re.doPreamble(value)
 }
 
-func (re *responseEmitter) sendErr(err *cmdkit.Error) {
+func (re *responseEmitter) sendErr(err *cmds.Error) {
 	// Handle error encoding. *Try* to obey the requested encoding, fallback
 	// on json.
 	encType := re.encType
@@ -238,7 +237,7 @@ func (re *responseEmitter) sendErr(err *cmdkit.Error) {
 
 	// Set the status from the error code.
 	status := http.StatusInternalServerError
-	if err.Code == cmdkit.ErrClient {
+	if err.Code == cmds.ErrClient {
 		status = http.StatusBadRequest
 	}
 	re.w.WriteHeader(status)
@@ -284,7 +283,7 @@ func (re *responseEmitter) doPreamble(value interface{}) {
 	}
 
 	switch v := value.(type) {
-	case *cmdkit.Error:
+	case *cmds.Error:
 		re.sendErr(v)
 		return
 	case io.Reader:

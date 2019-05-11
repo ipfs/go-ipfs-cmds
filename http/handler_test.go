@@ -12,7 +12,6 @@ import (
 
 	"testing"
 
-	cmdkit "github.com/ipfs/go-ipfs-cmdkit"
 	cmds "github.com/ipfs/go-ipfs-cmds"
 	files "github.com/ipfs/go-ipfs-files"
 )
@@ -64,7 +63,7 @@ func getWaitChan(env cmds.Environment) (chan struct{}, bool) {
 
 var (
 	cmdRoot = &cmds.Command{
-		Options: []cmdkit.Option{
+		Options: []cmds.Option{
 			// global options, added to every command
 			cmds.OptionEncodingType,
 			cmds.OptionStreamChannels,
@@ -203,8 +202,8 @@ var (
 			},
 
 			"echo": &cmds.Command{
-				Arguments: []cmdkit.Argument{
-					cmdkit.FileArg("file", true, false, "a file"),
+				Arguments: []cmds.Argument{
+					cmds.FileArg("file", true, false, "a file"),
 				},
 				Type: "",
 				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
@@ -228,31 +227,31 @@ var (
 			},
 
 			"version": &cmds.Command{
-				Helptext: cmdkit.HelpText{
+				Helptext: cmds.HelpText{
 					Tagline:          "Show ipfs version information.",
 					ShortDescription: "Returns the current version of ipfs and exits.",
 				},
 				Type: VersionOutput{},
-				Options: []cmdkit.Option{
-					cmdkit.BoolOption("number", "n", "Only show the version number."),
-					cmdkit.BoolOption("commit", "Show the commit hash."),
-					cmdkit.BoolOption("repo", "Show repo version."),
-					cmdkit.BoolOption("all", "Show all version information"),
+				Options: []cmds.Option{
+					cmds.BoolOption("number", "n", "Only show the version number."),
+					cmds.BoolOption("commit", "Show the commit hash."),
+					cmds.BoolOption("repo", "Show repo version."),
+					cmds.BoolOption("all", "Show all version information"),
 				},
 				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
 					version, ok := getVersion(env)
 					if !ok {
-						return cmdkit.Errorf(cmdkit.ErrNormal, "couldn't get version")
+						return cmds.Errorf(cmds.ErrNormal, "couldn't get version")
 					}
 
 					repoVersion, ok := getRepoVersion(env)
 					if !ok {
-						return cmdkit.Errorf(cmdkit.ErrNormal, "couldn't get repo version")
+						return cmds.Errorf(cmds.ErrNormal, "couldn't get repo version")
 					}
 
 					commit, ok := getCommit(env)
 					if !ok {
-						return cmdkit.Errorf(cmdkit.ErrNormal, "couldn't get commit info")
+						return cmds.Errorf(cmds.ErrNormal, "couldn't get commit info")
 					}
 
 					re.Emit(&VersionOutput{

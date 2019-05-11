@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-files"
 )
 
@@ -16,7 +15,7 @@ type Request struct {
 
 	Path      []string
 	Arguments []string
-	Options   cmdkit.OptMap
+	Options   OptMap
 
 	Files files.Directory
 
@@ -25,9 +24,9 @@ type Request struct {
 
 // NewRequest returns a request initialized with given arguments
 // An non-nil error will be returned if the provided option values are invalid
-func NewRequest(ctx context.Context, path []string, opts cmdkit.OptMap, args []string, file files.Directory, root *Command) (*Request, error) {
+func NewRequest(ctx context.Context, path []string, opts OptMap, args []string, file files.Directory, root *Command) (*Request, error) {
 	if opts == nil {
-		opts = make(cmdkit.OptMap)
+		opts = make(OptMap)
 	}
 
 	cmd, err := root.Get(path)
@@ -160,7 +159,7 @@ func (req *Request) FillDefaults() error {
 		return err
 	}
 
-	optDefs := map[cmdkit.Option]struct{}{}
+	optDefs := map[Option]struct{}{}
 
 	for _, optDef := range optDefMap {
 		optDefs[optDef] = struct{}{}

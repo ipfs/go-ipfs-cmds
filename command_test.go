@@ -7,8 +7,6 @@ import (
 	"io"
 	"testing"
 	"time"
-
-	"github.com/ipfs/go-ipfs-cmdkit"
 )
 
 // NOTE: helpers nopCloser, testEmitter, noop and writeCloser are defined in helpers_test.go
@@ -16,9 +14,9 @@ import (
 // TestOptionValidation tests whether option type validation works
 func TestOptionValidation(t *testing.T) {
 	cmd := &Command{
-		Options: []cmdkit.Option{
-			cmdkit.IntOption("b", "beep", "enables beeper"),
-			cmdkit.StringOption("B", "boop", "password for booper"),
+		Options: []Option{
+			IntOption("b", "beep", "enables beeper"),
+			StringOption("B", "boop", "password for booper"),
 		},
 		Run: noop,
 	}
@@ -72,15 +70,15 @@ func TestOptionValidation(t *testing.T) {
 
 func TestRegistration(t *testing.T) {
 	cmdA := &Command{
-		Options: []cmdkit.Option{
-			cmdkit.IntOption("beep", "number of beeps"),
+		Options: []Option{
+			IntOption("beep", "number of beeps"),
 		},
 		Run: noop,
 	}
 
 	cmdB := &Command{
-		Options: []cmdkit.Option{
-			cmdkit.IntOption("beep", "number of beeps"),
+		Options: []Option{
+			IntOption("beep", "number of beeps"),
 		},
 		Run: noop,
 		Subcommands: map[string]*Command{
@@ -142,12 +140,12 @@ func TestWalking(t *testing.T) {
 
 func TestHelpProcessing(t *testing.T) {
 	cmdB := &Command{
-		Helptext: cmdkit.HelpText{
+		Helptext: HelpText{
 			ShortDescription: "This is other short",
 		},
 	}
 	cmdA := &Command{
-		Helptext: cmdkit.HelpText{
+		Helptext: HelpText{
 			ShortDescription: "This is short",
 		},
 		Subcommands: map[string]*Command{
@@ -165,7 +163,7 @@ func TestHelpProcessing(t *testing.T) {
 
 type postRunTestCase struct {
 	length      uint64
-	err         *cmdkit.Error
+	err         *Error
 	emit        []interface{}
 	postRun     func(Response, ResponseEmitter) error
 	next        []interface{}
