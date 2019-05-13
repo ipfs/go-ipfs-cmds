@@ -2,8 +2,6 @@ package http
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base32"
 	"errors"
 	"net/http"
 	"runtime/debug"
@@ -97,12 +95,6 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	ctx := h.env.Context()
-	if ctx == nil {
-		log.Error("no root context found, using background")
-		ctx = context.Background()
-	}
-
 	if !allowOrigin(r, h.cfg) || !allowReferer(r, h.cfg) {
 		w.WriteHeader(http.StatusForbidden)
 		w.Write([]byte("403 - Forbidden"))
@@ -128,7 +120,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		r.Body = bw
 	}
 
-	req, err := parseRequest(ctx, r, h.root)
+	req, err := parseRequest(r, h.root)
 	if err != nil {
 		if err == ErrNotFound {
 			w.WriteHeader(http.StatusNotFound)
@@ -152,18 +144,6 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer cancel()
 
-	req.Context = logging.ContextWithLoggable(req.Context, uuidLoggable())
-	if cn, ok := w.(http.CloseNotifier); ok {
-		clientGone := cn.CloseNotify()
-		go func() {
-			select {
-			case <-clientGone:
-			case <-req.Context.Done():
-			}
-			cancel()
-		}()
-	}
-
 	re, err := NewResponseEmitter(w, r.Method, req, withRequestBodyEOFChan(bodyEOFChan))
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -184,15 +164,6 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.root.Call(req, re, h.env)
-}
-
-func uuidLoggable() logging.Loggable {
-	ids := make([]byte, 16)
-	rand.Read(ids)
-
-	return logging.Metadata{
-		"requestId": base32.HexEncoding.EncodeToString(ids),
-	}
 }
 
 func sanitizedErrStr(err error) string {

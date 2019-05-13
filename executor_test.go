@@ -38,10 +38,6 @@ type wc struct {
 
 type env int
 
-func (e *env) Context() context.Context {
-	return context.Background()
-}
-
 func TestExecutor(t *testing.T) {
 	env := env(42)
 	req, err := NewRequest(context.Background(), []string{"test"}, nil, nil, nil, root)

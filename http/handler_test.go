@@ -2,7 +2,6 @@ package http
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -26,13 +25,8 @@ type VersionOutput struct {
 
 type testEnv struct {
 	version, commit, repoVersion string
-	rootCtx                      context.Context
 	t                            *testing.T
 	wait                         chan struct{}
-}
-
-func (env testEnv) Context() context.Context {
-	return env.rootCtx
 }
 
 func getCommit(env cmds.Environment) (string, bool) {
@@ -307,7 +301,6 @@ func getTestServer(t *testing.T, origins []string) (cmds.Environment, *httptest.
 		version:     "0.1.2",
 		commit:      "c0mm17", // yes, I know there's no 'm' in hex.
 		repoVersion: "4",
-		rootCtx:     context.Background(),
 		t:           t,
 		wait:        make(chan struct{}),
 	}

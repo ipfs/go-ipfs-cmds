@@ -8,12 +8,8 @@ type Executor interface {
 	Execute(req *Request, re ResponseEmitter, env Environment) error
 }
 
-// Environment is the environment passed to commands. The only required method
-// is Context.
-type Environment interface {
-	// Context returns the environment's context.
-	Context() context.Context
-}
+// Environment is the environment passed to commands.
+type Environment interface{}
 
 // MakeEnvironment takes a context and the request to construct the environment
 // that is passed to the command's Run function.

@@ -33,7 +33,7 @@ func TestParse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	req, err := parseRequest(nil, r, root)
+	req, err := parseRequest(r, root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +47,7 @@ func TestParse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	req, err = parseRequest(nil, r, root)
+	req, err = parseRequest(r, root)
 	if err != ErrNotFound {
 		t.Errorf("expected ErrNotFound, got: %v", err)
 	}
@@ -78,7 +78,7 @@ func (tc parseReqTestCase) test(t *testing.T) {
 	}
 	httpReq.URL.RawQuery = vs.Encode()
 
-	req, err := parseRequest(nil, httpReq, cmdRoot)
+	req, err := parseRequest(httpReq, cmdRoot)
 	if !errEq(err, tc.err) {
 		t.Fatalf("expected error to be %v, but got %v", tc.err, err)
 	}
