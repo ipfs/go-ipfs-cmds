@@ -1,10 +1,10 @@
 package http
 
 import (
-	"crypto/rand"
 	"encoding/base32"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"mime"
 	"net/http"
 	"strconv"
