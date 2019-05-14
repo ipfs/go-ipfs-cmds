@@ -4,20 +4,23 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"sort"
 	"strings"
 	"text/template"
 
-	"github.com/ipfs/go-ipfs-cmds"
+	cmds "github.com/ipfs/go-ipfs-cmds"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 const (
-	requiredArg = "<%v>"
-	optionalArg = "[<%v>]"
-	variadicArg = "%v..."
-	shortFlag   = "-%v"
-	longFlag    = "--%v"
-	optionType  = "(%v)"
+	defaultTerminalWidth = 80
+	requiredArg          = "<%v>"
+	optionalArg          = "[<%v>]"
+	variadicArg          = "%v..."
+	shortFlag            = "-%v"
+	longFlag             = "--%v"
+	optionType           = "(%v)"
 
 	whitespace = "\r\n\t "
 
@@ -28,7 +31,6 @@ type helpFields struct {
 	Indent      string
 	Usage       string
 	Path        string
-	ArgUsage    string
 	Tagline     string
 	Arguments   string
 	Options     string
@@ -48,7 +50,7 @@ type helpFields struct {
 //	`
 func (f *helpFields) TrimNewlines() {
 	f.Path = strings.Trim(f.Path, "\n")
-	f.ArgUsage = strings.Trim(f.ArgUsage, "\n")
+	f.Usage = strings.Trim(f.Usage, "\n")
 	f.Tagline = strings.Trim(f.Tagline, "\n")
 	f.Arguments = strings.Trim(f.Arguments, "\n")
 	f.Options = strings.Trim(f.Options, "\n")
@@ -66,6 +68,7 @@ func (f *helpFields) IndentAll() {
 		return indentString(s, indentStr)
 	}
 
+	f.Usage = indent(f.Usage)
 	f.Arguments = indent(f.Arguments)
 	f.Options = indent(f.Options)
 	f.Synopsis = indent(f.Synopsis)
@@ -73,10 +76,8 @@ func (f *helpFields) IndentAll() {
 	f.Description = indent(f.Description)
 }
 
-const usageFormat = "{{if .Usage}}{{.Usage}}{{else}}{{.Path}}{{if .ArgUsage}} {{.ArgUsage}}{{end}} - {{.Tagline}}{{end}}"
-
 const longHelpFormat = `USAGE
-{{.Indent}}{{template "usage" .}}
+{{.Usage}}
 
 {{if .Synopsis}}SYNOPSIS
 {{.Synopsis}}
@@ -96,11 +97,12 @@ const longHelpFormat = `USAGE
 {{end}}{{if .Subcommands}}SUBCOMMANDS
 {{.Subcommands}}
 
-{{.Indent}}Use '{{.Path}} <subcmd> --help' for more information about each command.
+{{.Indent}}For more information about each command, use:
+{{.Indent}}'{{.Path}} <subcmd> --help'
 {{end}}
 `
 const shortHelpFormat = `USAGE
-{{.Indent}}{{template "usage" .}}
+{{.Usage}}
 {{if .Synopsis}}
 {{.Synopsis}}
 {{end}}{{if .Description}}
@@ -109,18 +111,30 @@ const shortHelpFormat = `USAGE
 SUBCOMMANDS
 {{.Subcommands}}
 {{end}}{{if .MoreHelp}}
-Use '{{.Path}} --help' for more information about this command.
+{{.Indent}}For more information about each command, use:
+{{.Indent}}'{{.Path}} <subcmd> --help'
 {{end}}
 `
 
-var usageTemplate *template.Template
 var longHelpTemplate *template.Template
 var shortHelpTemplate *template.Template
 
+func getTerminalWidth(out io.Writer) int {
+	file, ok := out.(*os.File)
+	if ok {
+		if terminal.IsTerminal(int(file.Fd())) {
+			width, _, err := terminal.GetSize(int(file.Fd()))
+			if err == nil {
+				return width
+			}
+		}
+	}
+	return defaultTerminalWidth
+}
+
 func init() {
-	usageTemplate = template.Must(template.New("usage").Parse(usageFormat))
-	longHelpTemplate = template.Must(usageTemplate.New("longHelp").Parse(longHelpFormat))
-	shortHelpTemplate = template.Must(usageTemplate.New("shortHelp").Parse(shortHelpFormat))
+	longHelpTemplate = template.Must(template.New("longHelp").Parse(longHelpFormat))
+	shortHelpTemplate = template.Must(template.New("shortHelp").Parse(shortHelpFormat))
 }
 
 var ErrNoHelpRequested = errors.New("no help requested")
@@ -154,7 +168,6 @@ func LongHelp(rootName string, root *cmds.Command, path []string, out io.Writer)
 	fields := helpFields{
 		Indent:      indentStr,
 		Path:        pathStr,
-		ArgUsage:    usageText(cmd),
 		Tagline:     cmd.Helptext.Tagline,
 		Arguments:   cmd.Helptext.Arguments,
 		Options:     cmd.Helptext.Options,
@@ -165,22 +178,29 @@ func LongHelp(rootName string, root *cmds.Command, path []string, out io.Writer)
 		MoreHelp:    (cmd != root),
 	}
 
+	width := getTerminalWidth(out) - len(indentStr)
+
 	if len(cmd.Helptext.LongDescription) > 0 {
 		fields.Description = cmd.Helptext.LongDescription
 	}
 
 	// autogen fields that are empty
+	if len(cmd.Helptext.Usage) > 0 {
+		fields.Usage = cmd.Helptext.Usage
+	} else {
+		fields.Usage = commandUsageText(width, cmd, rootName, path)
+	}
 	if len(fields.Arguments) == 0 {
-		fields.Arguments = strings.Join(argumentText(cmd), "\n")
+		fields.Arguments = strings.Join(argumentText(width, cmd), "\n")
 	}
 	if len(fields.Options) == 0 {
-		fields.Options = strings.Join(optionText(cmd), "\n")
+		fields.Options = strings.Join(optionText(width, cmd), "\n")
 	}
 	if len(fields.Subcommands) == 0 {
-		fields.Subcommands = strings.Join(subcommandText(cmd, rootName, path), "\n")
+		fields.Subcommands = strings.Join(subcommandText(width, cmd, rootName, path), "\n")
 	}
 	if len(fields.Synopsis) == 0 {
-		fields.Synopsis = generateSynopsis(cmd, pathStr)
+		fields.Synopsis = generateSynopsis(width, cmd, pathStr)
 	}
 
 	// trim the extra newlines (see TrimNewlines doc)
@@ -212,21 +232,26 @@ func ShortHelp(rootName string, root *cmds.Command, path []string, out io.Writer
 	fields := helpFields{
 		Indent:      indentStr,
 		Path:        pathStr,
-		ArgUsage:    usageText(cmd),
 		Tagline:     cmd.Helptext.Tagline,
 		Synopsis:    cmd.Helptext.Synopsis,
 		Description: cmd.Helptext.ShortDescription,
 		Subcommands: cmd.Helptext.Subcommands,
-		Usage:       cmd.Helptext.Usage,
 		MoreHelp:    (cmd != root),
 	}
 
+	width := getTerminalWidth(out) - len(indentStr)
+
 	// autogen fields that are empty
+	if len(cmd.Helptext.Usage) > 0 {
+		fields.Usage = cmd.Helptext.Usage
+	} else {
+		fields.Usage = commandUsageText(width, cmd, rootName, path)
+	}
 	if len(fields.Subcommands) == 0 {
-		fields.Subcommands = strings.Join(subcommandText(cmd, rootName, path), "\n")
+		fields.Subcommands = strings.Join(subcommandText(width, cmd, rootName, path), "\n")
 	}
 	if len(fields.Synopsis) == 0 {
-		fields.Synopsis = generateSynopsis(cmd, pathStr)
+		fields.Synopsis = generateSynopsis(width, cmd, pathStr)
 	}
 
 	// trim the extra newlines (see TrimNewlines doc)
@@ -238,8 +263,17 @@ func ShortHelp(rootName string, root *cmds.Command, path []string, out io.Writer
 	return shortHelpTemplate.Execute(out, fields)
 }
 
-func generateSynopsis(cmd *cmds.Command, path string) string {
+func generateSynopsis(width int, cmd *cmds.Command, path string) string {
 	res := path
+	currentLineLength := len(res)
+	appendText := func(text string) {
+		if currentLineLength+len(text)+1 > width {
+			res += "\n" + strings.Repeat(" ", len(path))
+			currentLineLength = len(path)
+		}
+		currentLineLength += len(text) + 1
+		res += " " + text
+	}
 	for _, opt := range cmd.Options {
 		valopt, ok := cmd.Helptext.SynopsisOptionsValues[opt.Name()]
 		if !ok {
@@ -267,10 +301,10 @@ func generateSynopsis(cmd *cmds.Command, path string) string {
 				}
 			}
 		}
-		res = fmt.Sprintf("%s [%s]", res, sopt)
+		appendText("[" + sopt + "]")
 	}
 	if len(cmd.Arguments) > 0 {
-		res = fmt.Sprintf("%s [--]", res)
+		appendText("[--]")
 	}
 	for _, arg := range cmd.Arguments {
 		sarg := fmt.Sprintf("<%s>", arg.Name)
@@ -281,12 +315,12 @@ func generateSynopsis(cmd *cmds.Command, path string) string {
 		if !arg.Required {
 			sarg = fmt.Sprintf("[%s]", sarg)
 		}
-		res = fmt.Sprintf("%s %s", res, sarg)
+		appendText(sarg)
 	}
 	return strings.Trim(res, " ")
 }
 
-func argumentText(cmd *cmds.Command) []string {
+func argumentText(width int, cmd *cmds.Command) []string {
 	lines := make([]string, len(cmd.Arguments))
 
 	for i, arg := range cmd.Arguments {
@@ -294,10 +328,37 @@ func argumentText(cmd *cmds.Command) []string {
 	}
 	lines = align(lines)
 	for i, arg := range cmd.Arguments {
-		lines[i] += " - " + arg.Description
+		lines[i] += " - "
+		lines[i] = appendWrapped(lines[i], arg.Description, width)
 	}
 
 	return lines
+}
+
+func appendWrapped(prefix, text string, width int) string {
+	offset := len(prefix)
+	bWidth := width - offset
+
+	text = strings.Trim(text, whitespace)
+	// Minimum help-text width is 30 characters.
+	if bWidth < 30 {
+		prefix += text
+		return prefix
+	}
+
+	for len(text) > bWidth {
+		idx := strings.LastIndexAny(text[:bWidth], whitespace)
+		if idx < 0 {
+			idx = strings.IndexAny(text, whitespace)
+		}
+		if idx < 0 {
+			break
+		}
+		prefix += text[:idx] + "\n" + strings.Repeat(" ", offset)
+		text = strings.TrimLeft(text[idx:], whitespace)
+	}
+	prefix += text
+	return prefix
 }
 
 func optionFlag(flag string) string {
@@ -308,7 +369,7 @@ func optionFlag(flag string) string {
 	}
 }
 
-func optionText(cmd ...*cmds.Command) []string {
+func optionText(width int, cmd ...*cmds.Command) []string {
 	// get a slice of the options we want to list out
 	options := make([]cmds.Option, 0)
 	for _, c := range cmd {
@@ -317,53 +378,33 @@ func optionText(cmd ...*cmds.Command) []string {
 		}
 	}
 
-	// add option names to output (with each name aligned)
-	lines := make([]string, 0)
-	j := 0
-	for {
-		done := true
-		i := 0
-		for _, opt := range options {
-			if len(lines) < i+1 {
-				lines = append(lines, "")
-			}
-
-			names := sortByLength(opt.Names())
-			if len(names) >= j+1 {
-				lines[i] += optionFlag(names[j])
-			}
-			if len(names) > j+1 {
-				lines[i] += ", "
-				done = false
-			}
-
-			i++
+	// add option names to output
+	lines := make([]string, len(options))
+	for i, opt := range options {
+		flags := sortByLength(opt.Names())
+		for j, f := range flags {
+			flags[j] = optionFlag(f)
 		}
-
-		if done {
-			break
-		}
-
-		lines = align(lines)
-		j++
+		lines[i] = strings.Join(flags, ", ")
 	}
 	lines = align(lines)
 
 	// add option types to output
 	for i, opt := range options {
-		lines[i] += " " + fmt.Sprintf("%v", opt.Type())
+		lines[i] += "  " + fmt.Sprintf("%v", opt.Type())
 	}
 	lines = align(lines)
 
 	// add option descriptions to output
 	for i, opt := range options {
-		lines[i] += " - " + opt.Description()
+		lines[i] += " - "
+		lines[i] = appendWrapped(lines[i], opt.Description(), width)
 	}
 
 	return lines
 }
 
-func subcommandText(cmd *cmds.Command, rootName string, path []string) []string {
+func subcommandText(width int, cmd *cmds.Command, rootName string, path []string) []string {
 	prefix := fmt.Sprintf("%v %v", rootName, strings.Join(path, " "))
 	if len(path) > 0 {
 		prefix += " "
@@ -392,10 +433,22 @@ func subcommandText(cmd *cmds.Command, rootName string, path []string) []string 
 
 	lines = align(lines)
 	for i, sub := range subcmds {
-		lines[i] += " - " + sub.Helptext.Tagline
+		lines[i] += " - "
+		lines[i] = appendWrapped(lines[i], sub.Helptext.Tagline, width)
 	}
 
 	return lines
+}
+
+func commandUsageText(width int, cmd *cmds.Command, rootName string, path []string) string {
+	text := fmt.Sprintf("%v %v", rootName, strings.Join(path, " "))
+	argUsage := usageText(cmd)
+	if len(argUsage) > 0 {
+		text += " " + argUsage
+	}
+	text += " - "
+	text = appendWrapped(text, cmd.Helptext.Tagline, width)
+	return text
 }
 
 func usageText(cmd *cmds.Command) string {

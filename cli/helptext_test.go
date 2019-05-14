@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ipfs/go-ipfs-cmds"
+	cmds "github.com/ipfs/go-ipfs-cmds"
 )
 
 func TestSynopsisGenerator(t *testing.T) {
@@ -22,7 +22,8 @@ func TestSynopsisGenerator(t *testing.T) {
 			},
 		},
 	}
-	syn := generateSynopsis(command, "cmd")
+	terminalWidth := 100
+	syn := generateSynopsis(terminalWidth, command, "cmd")
 	t.Logf("Synopsis is: %s", syn)
 	if !strings.HasPrefix(syn, "cmd ") {
 		t.Fatal("Synopsis should start with command name")
