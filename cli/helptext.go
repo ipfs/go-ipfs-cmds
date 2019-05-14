@@ -4,21 +4,23 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"sort"
 	"strings"
 	"text/template"
 
-	"github.com/ipfs/go-ipfs-cmds"
+	cmds "github.com/ipfs/go-ipfs-cmds"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 const (
-	terminalWidth = 100
-	requiredArg   = "<%v>"
-	optionalArg   = "[<%v>]"
-	variadicArg   = "%v..."
-	shortFlag     = "-%v"
-	longFlag      = "--%v"
-	optionType    = "(%v)"
+	defaultTerminalWidth = 80
+	requiredArg          = "<%v>"
+	optionalArg          = "[<%v>]"
+	variadicArg          = "%v..."
+	shortFlag            = "-%v"
+	longFlag             = "--%v"
+	optionType           = "(%v)"
 
 	whitespace = "\r\n\t "
 
@@ -117,6 +119,19 @@ SUBCOMMANDS
 var longHelpTemplate *template.Template
 var shortHelpTemplate *template.Template
 
+func getTerminalWidth(out io.Writer) int {
+	file, ok := out.(*os.File)
+	if ok {
+		if terminal.IsTerminal(int(file.Fd())) {
+			width, _, err := terminal.GetSize(int(file.Fd()))
+			if err == nil {
+				return width
+			}
+		}
+	}
+	return defaultTerminalWidth
+}
+
 func init() {
 	longHelpTemplate = template.Must(template.New("longHelp").Parse(longHelpFormat))
 	shortHelpTemplate = template.Must(template.New("shortHelp").Parse(shortHelpFormat))
@@ -163,7 +178,7 @@ func LongHelp(rootName string, root *cmds.Command, path []string, out io.Writer)
 		MoreHelp:    (cmd != root),
 	}
 
-	width := terminalWidth - len(indentStr)
+	width := getTerminalWidth(out) - len(indentStr)
 
 	if len(cmd.Helptext.LongDescription) > 0 {
 		fields.Description = cmd.Helptext.LongDescription
@@ -224,7 +239,7 @@ func ShortHelp(rootName string, root *cmds.Command, path []string, out io.Writer
 		MoreHelp:    (cmd != root),
 	}
 
-	width := terminalWidth - len(indentStr)
+	width := getTerminalWidth(out) - len(indentStr)
 
 	// autogen fields that are empty
 	if len(cmd.Helptext.Usage) > 0 {
