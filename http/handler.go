@@ -96,8 +96,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	if !allowOrigin(r, h.cfg) || !allowReferer(r, h.cfg) {
-		w.WriteHeader(http.StatusForbidden)
-		w.Write([]byte("403 - Forbidden"))
+		http.Error(w, "403 - Forbidden", http.StatusForbidden)
 		log.Warningf("API blocked request to %s. (possible CSRF)", r.URL)
 		return
 	}
@@ -122,12 +121,12 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	req, err := parseRequest(r, h.root)
 	if err != nil {
+		status := http.StatusBadRequest
 		if err == ErrNotFound {
-			w.WriteHeader(http.StatusNotFound)
-		} else {
-			w.WriteHeader(http.StatusBadRequest)
+			status = http.StatusNotFound
 		}
-		w.Write([]byte(err.Error()))
+
+		http.Error(w, err.Error(), status)
 		return
 	}
 
@@ -146,8 +145,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	re, err := NewResponseEmitter(w, r.Method, req, withRequestBodyEOFChan(bodyEOFChan))
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(err.Error()))
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 

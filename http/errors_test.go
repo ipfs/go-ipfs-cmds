@@ -92,7 +92,7 @@ func TestErrors(t *testing.T) {
 				cmds.EncLong: "foobar",
 			},
 			status:  "400 Bad Request",
-			bodyStr: `invalid encoding: foobar`,
+			bodyStr: "invalid encoding: foobar\n",
 		},
 
 		{
