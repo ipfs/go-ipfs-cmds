@@ -11,12 +11,17 @@ type ErrorType uint
 
 // ErrorTypes convey what category of error ocurred
 const (
-	ErrNormal         ErrorType = iota // general errors
-	ErrClient                          // error was caused by the client, (e.g. invalid CLI usage)
-	ErrImplementation                  // programmer error in the server
-	ErrNotFound                        // == HTTP 404
-	ErrFatal                           // abort instantly
-	// TODO: add more types of errors for better error-specific handling
+	// ErrNormal is a normal error. The command failed for some reason that's not a bug.
+	ErrNormal ErrorType = iota
+	// ErrClient means the client made an invalid request.
+	ErrClient
+	// ErrImplementation means there's a bug in the implementation.
+	ErrImplementation
+	// ErrRateLimited is returned when the operation has been rate-limited.
+	ErrRateLimited
+	// ErrForbidden is returned when the client doesn't have permission to
+	// perform the requested operation.
+	ErrForbidden
 )
 
 // Error is a struct for marshalling errors

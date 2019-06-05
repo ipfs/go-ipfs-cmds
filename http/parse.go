@@ -216,7 +216,16 @@ func parseResponse(httpRes *http.Response, req *cmds.Request) (cmds.Response, er
 				return nil, err
 			}
 			e.Message = string(mes)
-			e.Code = cmds.ErrNormal
+			switch httpRes.StatusCode {
+			case http.StatusNotFound, http.StatusBadRequest:
+				e.Code = cmds.ErrClient
+			case http.StatusTooManyRequests:
+				e.Code = cmds.ErrRateLimited
+			case http.StatusForbidden:
+				e.Code = cmds.ErrForbidden
+			default:
+				e.Code = cmds.ErrNormal
+			}
 		case res.dec == nil:
 			return nil, fmt.Errorf("unknown error content type: %s", contentType)
 		default:
