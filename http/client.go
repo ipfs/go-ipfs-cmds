@@ -79,7 +79,7 @@ func (c *client) Execute(req *cmds.Request, re cmds.ResponseEmitter, env cmds.En
 	res, err := c.Send(req)
 	if err != nil {
 		if isConnRefused(err) {
-			err = fmt.Errorf("cannot connect to the api. Is the deamon running? To run as a standalone CLI command remove the api file in `$IPFS_PATH/api`")
+			err = fmt.Errorf("cannot connect to the api. Is the daemon running? To run as a standalone CLI command remove the api file in `$IPFS_PATH/api`")
 		}
 		return err
 	}
