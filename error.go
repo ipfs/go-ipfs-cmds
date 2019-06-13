@@ -24,6 +24,27 @@ const (
 	ErrForbidden
 )
 
+func (e ErrorType) Error() string {
+	return e.String()
+}
+
+func (e ErrorType) String() string {
+	switch e {
+	case ErrNormal:
+		return "command failed"
+	case ErrClient:
+		return "invalid argument"
+	case ErrImplementation:
+		return "internal error"
+	case ErrRateLimited:
+		return "rate limited"
+	case ErrForbidden:
+		return "request forbidden"
+	default:
+		return "unknown error code"
+	}
+}
+
 // Error is a struct for marshalling errors
 type Error struct {
 	Message string
@@ -40,6 +61,12 @@ func Errorf(code ErrorType, format string, args ...interface{}) Error {
 
 func (e Error) Error() string {
 	return e.Message
+}
+
+// Unwrap returns the base error (an ErrorType). Works with go 1.13 error
+// helpers.
+func (e Error) Unwrap() error {
+	return e.Code
 }
 
 func (e Error) MarshalJSON() ([]byte, error) {
