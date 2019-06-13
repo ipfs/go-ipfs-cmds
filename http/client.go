@@ -69,6 +69,11 @@ func NewClient(address string, opts ...ClientOpt) Client {
 func (c *client) Execute(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
 	cmd := req.Command
 
+	err := cmd.CheckArguments(req)
+	if err != nil {
+		return err
+	}
+
 	if cmd.PreRun != nil {
 		err := cmd.PreRun(req, env)
 		if err != nil {
