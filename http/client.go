@@ -27,6 +27,7 @@ type client struct {
 	httpClient    *http.Client
 	ua            string
 	apiPrefix     string
+	fallback      cmds.Executor
 }
 
 type ClientOpt func(*client)
@@ -40,6 +41,15 @@ func ClientWithUserAgent(ua string) ClientOpt {
 func ClientWithAPIPrefix(apiPrefix string) ClientOpt {
 	return func(c *client) {
 		c.apiPrefix = apiPrefix
+	}
+}
+
+// ClientWithFallback adds a fallback executor to the client.
+//
+// Note: This may run the PreRun function twice.
+func ClientWithFallback(exe cmds.Executor) ClientOpt {
+	return func(c *client) {
+		c.fallback = exe
 	}
 }
 
@@ -79,6 +89,10 @@ func (c *client) Execute(req *cmds.Request, re cmds.ResponseEmitter, env cmds.En
 	res, err := c.send(req)
 	if err != nil {
 		if isConnRefused(err) {
+			if c.fallback != nil {
+				// XXX: this runs the PreRun twice
+				return c.fallback.Execute(req, re, env)
+			}
 			err = fmt.Errorf("cannot connect to the api. Is the daemon running? To run as a standalone CLI command remove the api file in `$IPFS_PATH/api`")
 		}
 		return err
