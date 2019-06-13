@@ -19,16 +19,10 @@ func main() {
 		panic(err)
 	}
 
+	req.Options["encoding"] = cmds.Text
+
 	// create http rpc client
 	client := http.NewClient(":6798")
-
-	// send request to server
-	res, err := client.Send(req)
-	if err != nil {
-		panic(err)
-	}
-
-	req.Options["encoding"] = cmds.Text
 
 	// create an emitter
 	re, err := cli.NewResponseEmitter(os.Stdout, os.Stderr, req)
@@ -36,15 +30,9 @@ func main() {
 		panic(err)
 	}
 
-	// copy received result into cli emitter
-	if pr, ok := req.Command.PostRun[cmds.CLI]; ok {
-		err = pr(res, re)
-	} else {
-		err = cmds.Copy(re, res)
-	}
+	// send request to server
+	err = client.Execute(req, re, nil)
 	if err != nil {
-		re.CloseWithError(err)
+		panic(err)
 	}
-
-	os.Exit(re.Status())
 }

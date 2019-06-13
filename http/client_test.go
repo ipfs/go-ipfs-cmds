@@ -44,7 +44,7 @@ func TestClientUserAgent(t *testing.T) {
 
 		c := NewClient(tc.host, ClientWithUserAgent(tc.ua)).(*client)
 		c.httpClient = testClient
-		c.Send(r)
+		c.send(r)
 
 		if !called {
 			t.Error("handler has not been called")
@@ -84,7 +84,7 @@ func TestClientAPIPrefix(t *testing.T) {
 
 		c := NewClient(tc.host, ClientWithAPIPrefix(tc.prefix)).(*client)
 		c.httpClient = testClient
-		c.Send(r)
+		c.send(r)
 
 		if !called {
 			t.Error("handler has not been called")

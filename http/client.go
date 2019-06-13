@@ -22,11 +22,6 @@ var OptionSkipMap = map[string]bool{
 	"api": true,
 }
 
-// Client is the commands HTTP client interface.
-type Client interface {
-	Send(req *cmds.Request) (cmds.Response, error)
-}
-
 type client struct {
 	serverAddress string
 	httpClient    *http.Client
@@ -48,7 +43,7 @@ func ClientWithAPIPrefix(apiPrefix string) ClientOpt {
 	}
 }
 
-func NewClient(address string, opts ...ClientOpt) Client {
+func NewClient(address string, opts ...ClientOpt) cmds.Executor {
 	if !strings.HasPrefix(address, "http://") {
 		address = "http://" + address
 	}
@@ -81,7 +76,7 @@ func (c *client) Execute(req *cmds.Request, re cmds.ResponseEmitter, env cmds.En
 		}
 	}
 
-	res, err := c.Send(req)
+	res, err := c.send(req)
 	if err != nil {
 		if isConnRefused(err) {
 			err = fmt.Errorf("cannot connect to the api. Is the daemon running? To run as a standalone CLI command remove the api file in `$IPFS_PATH/api`")
@@ -151,7 +146,7 @@ func (c *client) toHTTPRequest(req *cmds.Request) (*http.Request, error) {
 	return httpReq, nil
 }
 
-func (c *client) Send(req *cmds.Request) (cmds.Response, error) {
+func (c *client) send(req *cmds.Request) (cmds.Response, error) {
 	if req.Context == nil {
 		log.Warningf("no context set in request")
 		req.Context = context.Background()

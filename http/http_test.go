@@ -99,7 +99,7 @@ func TestHTTP(t *testing.T) {
 				req.Files = tc.file
 			}
 
-			res, err := c.Send(req)
+			res, err := c.(*client).send(req)
 			if tc.sendErr != nil {
 				if err == nil {
 					t.Fatalf("expected error %q but got nil", tc.sendErr)
