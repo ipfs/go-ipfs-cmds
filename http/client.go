@@ -22,16 +22,12 @@ var OptionSkipMap = map[string]bool{
 	"api": true,
 }
 
-// Client is the commands HTTP client interface.
-type Client interface {
-	Send(req *cmds.Request) (cmds.Response, error)
-}
-
 type client struct {
 	serverAddress string
 	httpClient    *http.Client
 	ua            string
 	apiPrefix     string
+	fallback      cmds.Executor
 }
 
 type ClientOpt func(*client)
@@ -48,7 +44,16 @@ func ClientWithAPIPrefix(apiPrefix string) ClientOpt {
 	}
 }
 
-func NewClient(address string, opts ...ClientOpt) Client {
+// ClientWithFallback adds a fallback executor to the client.
+//
+// Note: This may run the PreRun function twice.
+func ClientWithFallback(exe cmds.Executor) ClientOpt {
+	return func(c *client) {
+		c.fallback = exe
+	}
+}
+
+func NewClient(address string, opts ...ClientOpt) cmds.Executor {
 	if !strings.HasPrefix(address, "http://") {
 		address = "http://" + address
 	}
@@ -69,6 +74,11 @@ func NewClient(address string, opts ...ClientOpt) Client {
 func (c *client) Execute(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
 	cmd := req.Command
 
+	err := cmd.CheckArguments(req)
+	if err != nil {
+		return err
+	}
+
 	if cmd.PreRun != nil {
 		err := cmd.PreRun(req, env)
 		if err != nil {
@@ -76,9 +86,13 @@ func (c *client) Execute(req *cmds.Request, re cmds.ResponseEmitter, env cmds.En
 		}
 	}
 
-	res, err := c.Send(req)
+	res, err := c.send(req)
 	if err != nil {
 		if isConnRefused(err) {
+			if c.fallback != nil {
+				// XXX: this runs the PreRun twice
+				return c.fallback.Execute(req, re, env)
+			}
 			err = fmt.Errorf("cannot connect to the api. Is the daemon running? To run as a standalone CLI command remove the api file in `$IPFS_PATH/api`")
 		}
 		return err
@@ -146,7 +160,7 @@ func (c *client) toHTTPRequest(req *cmds.Request) (*http.Request, error) {
 	return httpReq, nil
 }
 
-func (c *client) Send(req *cmds.Request) (cmds.Response, error) {
+func (c *client) send(req *cmds.Request) (cmds.Response, error) {
 	if req.Context == nil {
 		log.Warningf("no context set in request")
 		req.Context = context.Background()
