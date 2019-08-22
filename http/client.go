@@ -88,7 +88,14 @@ func (c *client) Execute(req *cmds.Request, re cmds.ResponseEmitter, env cmds.En
 
 	res, err := c.send(req)
 	if err != nil {
-		if isConnRefused(err) {
+		// Unwrap any URL errors. We don't really need to expose the
+		// underlying HTTP nonsense to the user.
+		if urlerr, ok := err.(*url.Error); ok {
+			err = urlerr.Err
+		}
+
+		if netoperr, ok := err.(*net.OpError); ok && netoperr.Op == "dial" {
+			// Connection refused.
 			if c.fallback != nil {
 				// XXX: this runs the PreRun twice
 				return c.fallback.Execute(req, re, env)
@@ -236,18 +243,4 @@ func getQuery(req *cmds.Request) (string, error) {
 	}
 
 	return query.Encode(), nil
-}
-
-func isConnRefused(err error) bool {
-	// unwrap url errors from http calls
-	if urlerr, ok := err.(*url.Error); ok {
-		err = urlerr.Err
-	}
-
-	netoperr, ok := err.(*net.OpError)
-	if !ok {
-		return false
-	}
-
-	return netoperr.Op == "dial"
 }
