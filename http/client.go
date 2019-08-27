@@ -30,14 +30,25 @@ type client struct {
 	fallback      cmds.Executor
 }
 
+// ClientOpt is an option that can be passed to the HTTP client constructor.
 type ClientOpt func(*client)
 
+// ClientWithUserAgent specifies the HTTP user agent for the client.
 func ClientWithUserAgent(ua string) ClientOpt {
 	return func(c *client) {
 		c.ua = ua
 	}
 }
 
+// ClientWithHTTPClient specifies a custom http.Client. Defaults to
+// http.DefaultClient.
+func ClientWithHTTPClient(hc *http.Client) ClientOpt {
+	return func(c *client) {
+		c.httpClient = hc
+	}
+}
+
+// ClientWithAPIPrefix specifies an API URL prefix.
 func ClientWithAPIPrefix(apiPrefix string) ClientOpt {
 	return func(c *client) {
 		c.apiPrefix = apiPrefix
@@ -53,6 +64,7 @@ func ClientWithFallback(exe cmds.Executor) ClientOpt {
 	}
 }
 
+// NewClient constructs a new HTTP-backed command executor.
 func NewClient(address string, opts ...ClientOpt) cmds.Executor {
 	if !strings.HasPrefix(address, "http://") {
 		address = "http://" + address
