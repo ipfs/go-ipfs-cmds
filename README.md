@@ -9,6 +9,10 @@
 
 cmds offers tools for describing and calling commands both locally and remotely, as well as encoding, formatting and transferring the result. It is the successor of go-ipfs/commands and contains a legacy layer such that it can handle previously defined commands.
 
+## Lead Maintainer
+
+[Steven Allen](https://github.com/Stebalien)
+
 ## Documentation
 
 https://godoc.org/github.com/ipfs/go-ipfs-cmds
