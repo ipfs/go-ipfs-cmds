@@ -203,6 +203,21 @@ func LongHelp(rootName string, root *cmds.Command, path []string, out io.Writer)
 		fields.Synopsis = generateSynopsis(width, cmd, pathStr)
 	}
 
+	// display options of parent commands
+	parentOptionsList := make([]string, len(path)-1)
+	for i := len(path) - 1; i > 0; i-- {
+		parentPath := path[:i]
+		parentCmd, err := root.Get(parentPath)
+		if err != nil {
+			return err
+		}
+		parentPathString := strings.Join(parentPath, " ")
+		parentOptionsString := strings.Join(optionText(width, parentCmd), "\n")
+		parentOptionsList = append(parentOptionsList, fmt.Sprintf("%s\n%s", parentPathString, parentOptionsString))
+	}
+	parentOptions := strings.Join(parentOptionsList, "\n\n")
+	fields.Options = fmt.Sprintf("%s\n\n%s", fields.Options, parentOptions)
+
 	// trim the extra newlines (see TrimNewlines doc)
 	fields.TrimNewlines()
 
