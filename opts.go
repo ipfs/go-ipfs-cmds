@@ -12,6 +12,7 @@ const (
 	TimeoutOpt   = "timeout"
 	OptShortHelp = "h"
 	OptLongHelp  = "help"
+	OptHelpAll   = "help-all"
 	DerefLong    = "dereference-args"
 	StdinName    = "stdin-name"
 	Hidden       = "hidden"

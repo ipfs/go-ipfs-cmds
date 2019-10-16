@@ -142,22 +142,24 @@ var ErrNoHelpRequested = errors.New("no help requested")
 func HandleHelp(appName string, req *cmds.Request, out io.Writer) error {
 	long, _ := req.Options[cmds.OptLongHelp].(bool)
 	short, _ := req.Options[cmds.OptShortHelp].(bool)
+	all, _ := req.Options[cmds.OptHelpAll].(bool)
 
 	switch {
 	case long:
 		return LongHelp(appName, req.Root, req.Path, out)
 	case short:
 		return ShortHelp(appName, req.Root, req.Path, out)
+	case all:
+		return HelpAll(appName, req.Root, req.Path, out)
 	default:
 		return ErrNoHelpRequested
 	}
 }
 
-// LongHelp writes a formatted CLI helptext string to a Writer for the given command
-func LongHelp(rootName string, root *cmds.Command, path []string, out io.Writer) error {
+func makeLongHelpFields(rootName string, path []string, root *cmds.Command, width int) (*helpFields, error) {
 	cmd, err := root.Get(path)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	pathStr := rootName
@@ -165,7 +167,7 @@ func LongHelp(rootName string, root *cmds.Command, path []string, out io.Writer)
 		pathStr += " " + strings.Join(path, " ")
 	}
 
-	fields := helpFields{
+	fields := &helpFields{
 		Indent:      indentStr,
 		Path:        pathStr,
 		Tagline:     cmd.Helptext.Tagline,
@@ -177,8 +179,6 @@ func LongHelp(rootName string, root *cmds.Command, path []string, out io.Writer)
 		Usage:       cmd.Helptext.Usage,
 		MoreHelp:    (cmd != root),
 	}
-
-	width := getTerminalWidth(out) - len(indentStr)
 
 	if len(cmd.Helptext.LongDescription) > 0 {
 		fields.Description = cmd.Helptext.LongDescription
@@ -203,6 +203,17 @@ func LongHelp(rootName string, root *cmds.Command, path []string, out io.Writer)
 		fields.Synopsis = generateSynopsis(width, cmd, pathStr)
 	}
 
+	return fields, nil
+}
+
+func HelpAll(rootName string, root *cmds.Command, path []string, out io.Writer) error {
+	width := getTerminalWidth(out) - len(indentStr)
+
+	fields, err := makeLongHelpFields(rootName, path, root, width)
+	if err != nil {
+		return err
+	}
+
 	// display options of parent commands
 	parentOptionsList := make([]string, len(path)-1)
 	for i := len(path) - 1; i > 0; i-- {
@@ -217,6 +228,24 @@ func LongHelp(rootName string, root *cmds.Command, path []string, out io.Writer)
 	}
 	parentOptions := strings.Join(parentOptionsList, "\n\n")
 	fields.Options = fmt.Sprintf("%s\n\n%s", fields.Options, parentOptions)
+
+	// trim the extra newlines (see TrimNewlines doc)
+	fields.TrimNewlines()
+
+	// indent all fields that have been set
+	fields.IndentAll()
+
+	return longHelpTemplate.Execute(out, fields)
+}
+
+// LongHelp writes a formatted CLI helptext string to a Writer for the given command
+func LongHelp(rootName string, root *cmds.Command, path []string, out io.Writer) error {
+	width := getTerminalWidth(out) - len(indentStr)
+
+	fields, err := makeLongHelpFields(rootName, path, root, width)
+	if err != nil {
+		return err
+	}
 
 	// trim the extra newlines (see TrimNewlines doc)
 	fields.TrimNewlines()
