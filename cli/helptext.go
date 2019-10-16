@@ -99,6 +99,9 @@ const longHelpFormat = `USAGE
 
 {{.Indent}}For more information about each command, use:
 {{.Indent}}'{{.Path}} <subcmd> --help'
+{{end}}{{if .MoreHelp}}
+{{.Indent}}To include information about arguments of parent commands, use:
+{{.Indent}}'{{.Path}} --help-all'
 {{end}}
 `
 const shortHelpFormat = `USAGE
@@ -113,6 +116,8 @@ SUBCOMMANDS
 {{end}}{{if .MoreHelp}}
 {{.Indent}}For more information about each command, use:
 {{.Indent}}'{{.Path}} <subcmd> --help'
+{{.Indent}}To include information about arguments of parent commands, use:
+{{.Indent}}'{{.Path}} --help-all'
 {{end}}
 `
 
@@ -177,7 +182,6 @@ func makeLongHelpFields(rootName string, path []string, root *cmds.Command, widt
 		Subcommands: cmd.Helptext.Subcommands,
 		Description: cmd.Helptext.ShortDescription,
 		Usage:       cmd.Helptext.Usage,
-		MoreHelp:    (cmd != root),
 	}
 
 	if len(cmd.Helptext.LongDescription) > 0 {
@@ -213,6 +217,8 @@ func HelpAll(rootName string, root *cmds.Command, path []string, out io.Writer) 
 	if err != nil {
 		return err
 	}
+
+	fields.MoreHelp = false
 
 	// display options of parent commands
 	parentOptionsList := make([]string, len(path)-1)
