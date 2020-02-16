@@ -17,6 +17,7 @@ func TestOptionValidation(t *testing.T) {
 		Options: []Option{
 			IntOption("b", "beep", "enables beeper"),
 			StringOption("B", "boop", "password for booper"),
+			StringsOption("S", "shoop", "what to shoop"),
 		},
 		Run: noop,
 	}
@@ -57,6 +58,10 @@ func TestOptionValidation(t *testing.T) {
 		{opts: map[string]interface{}{"foo": 5}},
 		{opts: map[string]interface{}{EncLong: "json"}},
 		{opts: map[string]interface{}{"beep": "100"}},
+		{opts: map[string]interface{}{"S": [2]string{"a", "b"}}},
+		{
+			opts:            map[string]interface{}{"S": true},
+			NewRequestError: `Option "S" should be type "array", but got type "bool"`},
 		{
 			opts:            map[string]interface{}{"beep": ":)"},
 			NewRequestError: `Could not convert value ":)" to type "int" (for option "-beep")`,

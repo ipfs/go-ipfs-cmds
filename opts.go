@@ -16,6 +16,8 @@ const (
 	StdinName    = "stdin-name"
 	Hidden       = "hidden"
 	HiddenShort  = "H"
+	Ignore       = "ignore"
+	IgnoreRules  = "ignore-rules-path"
 )
 
 // options that are used by this package
@@ -26,3 +28,5 @@ var OptionTimeout = StringOption(TimeoutOpt, "Set a global timeout on the comman
 var OptionDerefArgs = BoolOption(DerefLong, "Symlinks supplied in arguments are dereferenced")
 var OptionStdinName = StringOption(StdinName, "Assign a name if the file source is stdin.")
 var OptionHidden = BoolOption(Hidden, HiddenShort, "Include files that are hidden. Only takes effect on recursive add.")
+var OptionIgnore = StringsOption(Ignore, "A rule (.gitignore-stype) defining which file(s) should be ignored (variadic, experimental)")
+var OptionIgnoreRules = StringOption(IgnoreRules, "A path to a file with .gitgnore-style ignore rules (experimental)")

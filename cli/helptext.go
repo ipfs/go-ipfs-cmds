@@ -301,7 +301,12 @@ func generateSynopsis(width int, cmd *cmds.Command, path string) string {
 				}
 			}
 		}
-		appendText("[" + sopt + "]")
+
+		if opt.Type() == cmds.Strings {
+			appendText("[" + sopt + "]...")
+		} else {
+			appendText("[" + sopt + "]")
+		}
 	}
 	if len(cmd.Arguments) > 0 {
 		appendText("[--]")

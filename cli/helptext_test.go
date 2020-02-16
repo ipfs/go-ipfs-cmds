@@ -15,6 +15,7 @@ func TestSynopsisGenerator(t *testing.T) {
 		},
 		Options: []cmds.Option{
 			cmds.StringOption("opt", "o", "Option"),
+			cmds.StringsOption("var-opt", "Variadic Option"),
 		},
 		Helptext: cmds.HelpText{
 			SynopsisOptionsValues: map[string]string{
@@ -29,6 +30,9 @@ func TestSynopsisGenerator(t *testing.T) {
 		t.Fatal("Synopsis should start with command name")
 	}
 	if !strings.Contains(syn, "[--opt=<OPTION> | -o]") {
+		t.Fatal("Synopsis should contain option descriptor")
+	}
+	if !strings.Contains(syn, "[--var-opt=<var-opt>]...") {
 		t.Fatal("Synopsis should contain option descriptor")
 	}
 	if !strings.Contains(syn, "<required>") {
