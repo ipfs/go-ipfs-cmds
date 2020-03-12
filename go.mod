@@ -1,5 +1,7 @@
 module github.com/ipfs/go-ipfs-cmds
 
+go 1.14
+
 require (
 	github.com/Kubuxu/go-os-helper v0.0.1
 	github.com/ipfs/go-ipfs-files v0.0.6
