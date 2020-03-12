@@ -1,5 +1,7 @@
 # go-ipfs changelog
 
+- Remove gx
+
 ### 0.4.4 - 2016-10-11
 
 This release contains an important hotfix for a bug we discovered in how pinning works.
