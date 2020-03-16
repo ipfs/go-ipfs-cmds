@@ -518,7 +518,12 @@ func appendFile(fpath string, argDef *cmds.Argument, recursive, hidden bool) (fi
 		if err != nil {
 			return nil, err
 		}
-		return files.NewReaderPathFile(fpath, file, stat)
+
+		return files.NewReaderPathFile(
+			"", // the path string should only refer to files that can actually be read. The filestore/urlstore features will use it
+			file,
+			nil, // normally the passed through stat will be used to determine the size of the file. It'll give us very incorrect information in this case
+		)
 	}
 
 	return files.NewSerialFile(fpath, hidden, stat)
