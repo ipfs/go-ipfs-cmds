@@ -11,8 +11,8 @@ import (
 	"strings"
 
 	osh "github.com/Kubuxu/go-os-helper"
-	"github.com/ipfs/go-ipfs-cmds"
-	"github.com/ipfs/go-ipfs-files"
+	cmds "github.com/ipfs/go-ipfs-cmds"
+	files "github.com/ipfs/go-ipfs-files"
 	logging "github.com/ipfs/go-log"
 )
 
@@ -510,6 +510,15 @@ func appendFile(fpath string, argDef *cmds.Argument, recursive, hidden bool) (fi
 		if !recursive {
 			return nil, fmt.Errorf(notRecursiveFmtStr, fpath, cmds.RecShort)
 		}
+	} else if (stat.Mode() & os.ModeNamedPipe) != 0 {
+		// Special case pipes that are provided directly on the command line
+		// We do this here instead of go-ipfs-files, as we need to differentiate between
+		// recursive(unsupported) and direct(supported) mode
+		file, err := os.Open(fpath)
+		if err != nil {
+			return nil, err
+		}
+		return files.NewReaderPathFile(fpath, file, stat)
 	}
 
 	return files.NewSerialFile(fpath, hidden, stat)

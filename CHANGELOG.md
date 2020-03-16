@@ -1,5 +1,7 @@
 # go-ipfs changelog
 
+- Accept named fifos ( pipes ) when supplied directly as an argument, continues to reject them when encountered recursively
+- Require Go 1.14
 - Remove gx
 
 ### 0.4.4 - 2016-10-11
