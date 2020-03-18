@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	osh "github.com/Kubuxu/go-os-helper"
@@ -67,6 +68,16 @@ func isRecursive(req *cmds.Request) bool {
 	return rec && ok
 }
 
+func getIgnoreRulesFile(req *cmds.Request) string {
+	rulesFile, _ := req.Options[cmds.IgnoreRules].(string)
+	return rulesFile
+}
+
+func getIgnoreRules(req *cmds.Request) []string {
+	rules, _ := req.Options[cmds.Ignore].([]string)
+	return rules
+}
+
 func stdinName(req *cmds.Request) string {
 	name, _ := req.Options[cmds.StdinName].(string)
 	return name
@@ -83,6 +94,19 @@ func (st *parseState) done() bool {
 
 func (st *parseState) peek() string {
 	return st.cmdline[st.i]
+}
+
+func setOpts(kv kv, kvType reflect.Kind, opts cmds.OptMap) error {
+
+	if kvType == cmds.Strings {
+		res, _ := opts[kv.Key].([]string)
+		opts[kv.Key] = append(res, kv.Value.(string))
+	} else if _, exists := opts[kv.Key]; !exists {
+		opts[kv.Key] = kv.Value
+	} else {
+		return fmt.Errorf("multiple values for option %q", kv.Key)
+	}
+	return nil
 }
 
 func parse(req *cmds.Request, cmdline []string, root *cmds.Command) (err error) {
@@ -116,13 +140,13 @@ L:
 			if err != nil {
 				return err
 			}
-
-			if _, exists := opts[k]; exists {
-				return fmt.Errorf("multiple values for option %q", k)
+			kvType, err := getOptType(k, optDefs)
+			if err != nil {
+				return err // shouldn't happen b/c k,v was parsed from optsDef
 			}
-
-			k = optDefs[k].Name()
-			opts[k] = v
+			if err := setOpts(kv{Key: k, Value: v}, kvType, opts); err != nil {
+				return err
+			}
 
 		case strings.HasPrefix(param, "-") && param != "-":
 			// short options
@@ -134,11 +158,13 @@ L:
 			for _, kv := range kvs {
 				kv.Key = optDefs[kv.Key].Names()[0]
 
-				if _, exists := opts[kv.Key]; exists {
-					return fmt.Errorf("multiple values for option %q", kv.Key)
+				kvType, err := getOptType(kv.Key, optDefs)
+				if err != nil {
+					return err // shouldn't happen b/c kvs was parsed from optsDef
 				}
-
-				opts[kv.Key] = kv.Value
+				if err := setOpts(kv, kvType, opts); err != nil {
+					return err
+				}
 			}
 		default:
 			arg := param
@@ -294,8 +320,13 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 							return err
 						}
 					}
-
-					nf, err := appendFile(fpath, argDef, isRecursive(req), isHidden(req))
+					rulesFile := getIgnoreRulesFile(req)
+					ignoreRules := getIgnoreRules(req)
+					filter, err := files.NewFilter(rulesFile, ignoreRules, isHidden(req))
+					if err != nil {
+						return err
+					}
+					nf, err := appendFile(fpath, argDef, isRecursive(req), filter)
 					if err != nil {
 						return err
 					}
@@ -497,7 +528,7 @@ func getArgDef(i int, argDefs []cmds.Argument) *cmds.Argument {
 const notRecursiveFmtStr = "'%s' is a directory, use the '-%s' flag to specify directories"
 const dirNotSupportedFmtStr = "invalid path '%s', argument '%s' does not support directories"
 
-func appendFile(fpath string, argDef *cmds.Argument, recursive, hidden bool) (files.Node, error) {
+func appendFile(fpath string, argDef *cmds.Argument, recursive bool, filter *files.Filter) (files.Node, error) {
 	stat, err := os.Lstat(fpath)
 	if err != nil {
 		return nil, err
@@ -521,8 +552,7 @@ func appendFile(fpath string, argDef *cmds.Argument, recursive, hidden bool) (fi
 
 		return files.NewReaderFile(file), nil
 	}
-
-	return files.NewSerialFile(fpath, hidden, stat)
+	return files.NewSerialFileWithFilter(fpath, filter, stat)
 }
 
 // Inform the user if a file is waiting on input
@@ -573,4 +603,11 @@ func (r *messageReader) Read(b []byte) (int, error) {
 
 func (r *messageReader) Close() error {
 	return r.r.Close()
+}
+
+func getOptType(k string, optDefs map[string]cmds.Option) (reflect.Kind, error) {
+	if opt, ok := optDefs[k]; ok {
+		return opt.Type(), nil
+	}
+	return reflect.Invalid, fmt.Errorf("unknown option %q", k)
 }

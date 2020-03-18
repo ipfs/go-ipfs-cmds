@@ -3,10 +3,12 @@ package cli
 import (
 	"context"
 	"fmt"
+	"github.com/ipfs/go-ipfs-files"
 	"io"
 	"io/ioutil"
 	"net/url"
 	"os"
+	"path"
 	"strings"
 	"testing"
 
@@ -33,7 +35,14 @@ func sameKVs(a kvs, b kvs) bool {
 		return false
 	}
 	for k, v := range a {
-		if v != b[k] {
+		if ks, ok := v.([]string); ok {
+			bks, _ := b[k].([]string)
+			for i := 0; i < len(ks); i++ {
+				if ks[i] != bks[i] {
+					return false
+				}
+			}
+		} else if v != b[k] {
 			return false
 		}
 	}
@@ -72,6 +81,7 @@ func TestOptionParsing(t *testing.T) {
 		Options: []cmds.Option{
 			cmds.StringOption("string", "s", "a string"),
 			cmds.BoolOption("bool", "b", "a bool"),
+			cmds.StringsOption("strings", "r", "strings array"),
 		},
 		Subcommands: map[string]*cmds.Command{
 			"test": &cmds.Command{},
@@ -141,6 +151,7 @@ func TestOptionParsing(t *testing.T) {
 	test("-b test false", kvs{"bool": true}, words{"false"})
 	test("-b --string foo test bar", kvs{"bool": true, "string": "foo"}, words{"bar"})
 	test("-b=false --string bar", kvs{"bool": false, "string": "bar"}, words{})
+	test("--strings a --strings b", kvs{"strings": []string{"a", "b"}}, words{})
 	testFail("foo test")
 	test("defaults", kvs{"opt": "def"}, words{})
 	test("defaults -o foo", kvs{"opt": "foo"}, words{})
@@ -549,6 +560,152 @@ func Test_urlBase(t *testing.T) {
 		}
 		if got := urlBase(u); got != test.base {
 			t.Errorf("expected %q but got %q", test.base, got)
+		}
+	}
+}
+
+func TestFileArgs(t *testing.T) {
+	rootCmd := &cmds.Command{
+		Subcommands: map[string]*cmds.Command{
+			"fileOp": {
+				Arguments: []cmds.Argument{
+					cmds.FileArg("path", true, true, "The path to the file to be operated upon.").EnableRecursive().EnableStdin(),
+				},
+				Options: []cmds.Option{
+					cmds.OptionRecursivePath, // a builtin option that allows recursive paths (-r, --recursive)
+					cmds.OptionHidden,
+					cmds.OptionIgnoreRules,
+					cmds.OptionIgnore,
+				},
+			},
+		},
+	}
+	mkTempFile := func(t *testing.T, dir, pattern, content string) *os.File {
+		pat := "test_tmpFile_"
+		if pattern != "" {
+			pat = pattern
+		}
+		tmpFile, err := ioutil.TempFile(dir, pat)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if _, err := io.WriteString(tmpFile, content); err != nil {
+			t.Fatal(err)
+		}
+		return tmpFile
+	}
+	tmpDir1, err := ioutil.TempDir("", "parsetest_fileargs_tmpdir_")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpDir2, err := ioutil.TempDir("", "parsetest_utildir_")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpFile1 := mkTempFile(t, "", "", "test1")
+	tmpFile2 := mkTempFile(t, tmpDir1, "", "toBeIgnored")
+	tmpFile3 := mkTempFile(t, tmpDir1, "", "test3")
+	ignoreFile := mkTempFile(t, tmpDir2, "", path.Base(tmpFile2.Name()))
+	tmpHiddenFile := mkTempFile(t, tmpDir1, ".test_hidden_file_*", "test")
+	defer func() {
+		for _, f := range []string{
+			tmpDir1,
+			tmpFile1.Name(),
+			tmpFile2.Name(),
+			tmpHiddenFile.Name(),
+			tmpFile3.Name(),
+			ignoreFile.Name(),
+			tmpDir2,
+		} {
+			os.Remove(f)
+		}
+	}()
+	var testCases = []struct {
+		cmd      words
+		f        *os.File
+		args     words
+		parseErr error
+	}{
+		{
+			cmd:      words{"fileOp"},
+			args:     nil,
+			parseErr: fmt.Errorf("argument %q is required", "path"),
+		},
+		{
+			cmd: words{"fileOp", "--ignore", path.Base(tmpFile2.Name()), tmpDir1, tmpFile1.Name()}, f: nil,
+			args:     words{tmpDir1, tmpFile1.Name(), tmpFile3.Name()},
+			parseErr: fmt.Errorf(notRecursiveFmtStr, tmpDir1, "r"),
+		}, {
+			cmd: words{"fileOp", tmpFile1.Name(), "--ignore", path.Base(tmpFile2.Name()), "--ignore"}, f: nil,
+			args:     words{tmpDir1, tmpFile1.Name(), tmpFile3.Name()},
+			parseErr: fmt.Errorf("missing argument for option %q", "ignore"),
+		},
+		{
+			cmd: words{"fileOp", "-r", "--ignore", path.Base(tmpFile2.Name()), tmpDir1, tmpFile1.Name()}, f: nil,
+			args:     words{tmpDir1, tmpFile1.Name(), tmpFile3.Name()},
+			parseErr: nil,
+		},
+		{
+			cmd: words{"fileOp", "--hidden", "-r", "--ignore", path.Base(tmpFile2.Name()), tmpDir1, tmpFile1.Name()}, f: nil,
+			args:     words{tmpDir1, tmpFile1.Name(), tmpFile3.Name(), tmpHiddenFile.Name()},
+			parseErr: nil,
+		},
+		{
+			cmd: words{"fileOp", "-r", "--ignore", path.Base(tmpFile2.Name()), tmpDir1, tmpFile1.Name(), "--ignore", "anotherRule"}, f: nil,
+			args:     words{tmpDir1, tmpFile1.Name(), tmpFile3.Name()},
+			parseErr: nil,
+		},
+		{
+			cmd: words{"fileOp", "-r", "--ignore-rules-path", ignoreFile.Name(), tmpDir1, tmpFile1.Name()}, f: nil,
+			args:     words{tmpDir1, tmpFile1.Name(), tmpFile3.Name()},
+			parseErr: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		req, err := Parse(context.Background(), tc.cmd, tc.f, rootCmd)
+		if err == nil {
+			err = req.Command.CheckArguments(req)
+		}
+		if !errEq(err, tc.parseErr) {
+			t.Fatalf("parsing request for cmd %q: expected error %q, got %q", tc.cmd, tc.parseErr, err)
+		}
+		if err != nil {
+			continue
+		}
+
+		if len(tc.args) == 0 {
+			continue
+		}
+		expectedFileMap := make(map[string]bool)
+		for _, arg := range tc.args {
+			expectedFileMap[path.Base(arg)] = false
+		}
+		it := req.Files.Entries()
+		for it.Next() {
+			name := it.Name()
+			if _, ok := expectedFileMap[name]; ok {
+				expectedFileMap[name] = true
+			} else {
+				t.Errorf("found unexpected file %q in request %v", name, req)
+			}
+			file := it.Node()
+			files.Walk(file, func(fpath string, nd files.Node) error {
+				if fpath != "" {
+					if _, ok := expectedFileMap[fpath]; ok {
+						expectedFileMap[fpath] = true
+					} else {
+						t.Errorf("found unexpected file %q in request file arguments", fpath)
+					}
+				}
+				return nil
+			})
+		}
+		for p, found := range expectedFileMap {
+			if !found {
+				t.Errorf("failed to find expected path %q in req %v", p, req)
+			}
 		}
 	}
 }
