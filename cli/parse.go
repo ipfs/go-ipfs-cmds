@@ -140,6 +140,7 @@ L:
 			if err != nil {
 				return err
 			}
+
 			kvType, err := getOptType(k, optDefs)
 			if err != nil {
 				return err // shouldn't happen b/c k,v was parsed from optsDef
@@ -409,17 +410,17 @@ func splitkv(opt string) (k, v string, ok bool) {
 	}
 }
 
-func parseOpt(opt, value string, opts map[string]cmds.Option) (interface{}, error) {
+func parseOpt(opt, value string, opts map[string]cmds.Option) (string, interface{}, error) {
 	optDef, ok := opts[opt]
 	if !ok {
-		return nil, fmt.Errorf("unknown option %q", opt)
+		return "", nil, fmt.Errorf("unknown option %q", opt)
 	}
 
 	v, err := optDef.Parse(value)
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
-	return v, nil
+	return optDef.Name(), v, nil
 }
 
 type kv struct {
@@ -433,7 +434,7 @@ func (st *parseState) parseShortOpts(optDefs map[string]cmds.Option) ([]kv, erro
 
 	if ok {
 		// split at = successful
-		v, err := parseOpt(k, vStr, optDefs)
+		k, v, err := parseOpt(k, vStr, optDefs)
 		if err != nil {
 			return nil, err
 		}
@@ -453,7 +454,7 @@ func (st *parseState) parseShortOpts(optDefs map[string]cmds.Option) ([]kv, erro
 			case od.Type() == cmds.Bool:
 				// single char flags for bools
 				kvs = append(kvs, kv{
-					Key:   flag,
+					Key:   od.Name(),
 					Value: true,
 				})
 				j++
@@ -462,23 +463,23 @@ func (st *parseState) parseShortOpts(optDefs map[string]cmds.Option) ([]kv, erro
 				// single char flag for non-bools (use the rest of the flag as value)
 				rest := k[j+1:]
 
-				v, err := parseOpt(flag, rest, optDefs)
+				k, v, err := parseOpt(flag, rest, optDefs)
 				if err != nil {
 					return nil, err
 				}
 
-				kvs = append(kvs, kv{Key: flag, Value: v})
+				kvs = append(kvs, kv{Key: k, Value: v})
 				break LOOP
 
 			case st.i < len(st.cmdline)-1:
 				// single char flag for non-bools (use the next word as value)
 				st.i++
-				v, err := parseOpt(flag, st.cmdline[st.i], optDefs)
+				k, v, err := parseOpt(flag, st.cmdline[st.i], optDefs)
 				if err != nil {
 					return nil, err
 				}
 
-				kvs = append(kvs, kv{Key: flag, Value: v})
+				kvs = append(kvs, kv{Key: k, Value: v})
 				break LOOP
 
 			default:
@@ -507,7 +508,7 @@ func (st *parseState) parseLongOpt(optDefs map[string]cmds.Option) (string, inte
 		}
 	}
 
-	optval, err := parseOpt(k, v, optDefs)
+	k, optval, err := parseOpt(k, v, optDefs)
 	return k, optval, err
 }
 

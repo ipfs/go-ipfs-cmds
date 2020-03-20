@@ -80,6 +80,7 @@ func TestOptionParsing(t *testing.T) {
 	cmd := &cmds.Command{
 		Options: []cmds.Option{
 			cmds.StringOption("string", "s", "a string"),
+			cmds.StringOption("flag", "alias", "multiple long"),
 			cmds.BoolOption("bool", "b", "a bool"),
 			cmds.StringsOption("strings", "r", "strings array"),
 		},
@@ -155,6 +156,11 @@ func TestOptionParsing(t *testing.T) {
 	testFail("foo test")
 	test("defaults", kvs{"opt": "def"}, words{})
 	test("defaults -o foo", kvs{"opt": "foo"}, words{})
+
+	test("--flag=foo", kvs{"flag": "foo"}, words{})
+	test("--alias=foo", kvs{"flag": "foo"}, words{})
+	testFail("--flag=bar --alias=foo")
+	testFail("--alias=bar --flag=foo")
 
 	testFail("--bad-flag")
 	testFail("--bad-flag=")
@@ -636,7 +642,8 @@ func TestFileArgs(t *testing.T) {
 			cmd: words{"fileOp", "--ignore", path.Base(tmpFile2.Name()), tmpDir1, tmpFile1.Name()}, f: nil,
 			args:     words{tmpDir1, tmpFile1.Name(), tmpFile3.Name()},
 			parseErr: fmt.Errorf(notRecursiveFmtStr, tmpDir1, "r"),
-		}, {
+		},
+		{
 			cmd: words{"fileOp", tmpFile1.Name(), "--ignore", path.Base(tmpFile2.Name()), "--ignore"}, f: nil,
 			args:     words{tmpDir1, tmpFile1.Name(), tmpFile3.Name()},
 			parseErr: fmt.Errorf("missing argument for option %q", "ignore"),
