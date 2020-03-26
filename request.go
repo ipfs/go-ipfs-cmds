@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/ipfs/go-ipfs-files"
+	files "github.com/ipfs/go-ipfs-files"
 )
 
 // Request represents a call to a command from a consumer
@@ -24,7 +24,8 @@ type Request struct {
 
 // NewRequest returns a request initialized with given arguments
 // An non-nil error will be returned if the provided option values are invalid
-func NewRequest(ctx context.Context, path []string, opts OptMap, args []string, file files.Directory, root *Command) (*Request, error) {
+func NewRequest(ctx context.Context, path []string, opts OptMap, args []string,
+	file files.Directory, root *Command) (*Request, error) {
 	if opts == nil {
 		opts = make(OptMap)
 	}
@@ -34,6 +35,7 @@ func NewRequest(ctx context.Context, path []string, opts OptMap, args []string, 
 		return nil, err
 	}
 
+	err = convertOptions(root, opts, path)
 	req := &Request{
 		Path:      path,
 		Options:   opts,
@@ -44,7 +46,7 @@ func NewRequest(ctx context.Context, path []string, opts OptMap, args []string, 
 		Context:   ctx,
 	}
 
-	return req, req.convertOptions(root)
+	return req, err
 }
 
 // BodyArgs returns a scanner that returns arguments passed in the body as tokens.
@@ -94,13 +96,13 @@ func (req *Request) SetOption(name string, value interface{}) {
 	return
 }
 
-func (req *Request) convertOptions(root *Command) error {
-	optDefs, err := root.GetOptions(req.Path)
+func convertOptions(root *Command, opts OptMap, path []string) error {
+	optDefs, err := root.GetOptions(path)
 	if err != nil {
 		return err
 	}
 
-	for k, v := range req.Options {
+	for k, v := range opts {
 		opt, ok := optDefs[k]
 		if !ok {
 			continue
@@ -118,7 +120,7 @@ func (req *Request) convertOptions(root *Command) error {
 					return fmt.Errorf("Could not convert %s to type %q (for option %q)",
 						value, opt.Type().String(), "-"+k)
 				}
-				req.Options[k] = val
+				opts[k] = val
 
 			} else {
 				return fmt.Errorf("Option %q should be type %q, but got type %q",
@@ -127,7 +129,7 @@ func (req *Request) convertOptions(root *Command) error {
 		}
 
 		for _, name := range opt.Names() {
-			if _, ok := req.Options[name]; name != k && ok {
+			if _, ok := opts[name]; name != k && ok {
 				return fmt.Errorf("Duplicate command options were provided (%q and %q)",
 					k, name)
 			}
