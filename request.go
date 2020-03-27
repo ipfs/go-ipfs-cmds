@@ -24,12 +24,17 @@ type Request struct {
 
 // NewRequest returns a request initialized with given arguments
 // An non-nil error will be returned if the provided option values are invalid
+<<<<<<< HEAD
 func NewRequest(ctx context.Context,
 	path []string, opts OptMap,
 	args []string,
 	file files.Directory,
 	root *Command,
 ) (*Request, error) {
+=======
+func NewRequest(ctx context.Context, path []string, opts OptMap, args []string,
+	file files.Directory, root *Command) (*Request, error) {
+>>>>>>> 90843374f694708a997c8e6e4d15142610c50cbf
 	if opts == nil {
 		opts = make(OptMap)
 	}
@@ -39,7 +44,11 @@ func NewRequest(ctx context.Context,
 		return nil, err
 	}
 
+<<<<<<< HEAD
 	err = checkAndConvertOptions(root, opts, path)
+=======
+	err = convertOptions(root, opts, path)
+>>>>>>> 90843374f694708a997c8e6e4d15142610c50cbf
 	req := &Request{
 		Path:      path,
 		Options:   opts,
@@ -100,7 +109,11 @@ func (req *Request) SetOption(name string, value interface{}) {
 	return
 }
 
+<<<<<<< HEAD
 func checkAndConvertOptions(root *Command, opts OptMap, path []string) error {
+=======
+func convertOptions(root *Command, opts OptMap, path []string) error {
+>>>>>>> 90843374f694708a997c8e6e4d15142610c50cbf
 	optDefs, err := root.GetOptions(path)
 	if err != nil {
 		return err
