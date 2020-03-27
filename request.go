@@ -24,34 +24,24 @@ type Request struct {
 
 // NewRequest returns a request initialized with given arguments
 // An non-nil error will be returned if the provided option values are invalid
-<<<<<<< HEAD
 func NewRequest(ctx context.Context,
-	path []string, opts OptMap,
+	path []string,
+	opts OptMap,
 	args []string,
 	file files.Directory,
 	root *Command,
 ) (*Request, error) {
-=======
-func NewRequest(ctx context.Context, path []string, opts OptMap, args []string,
-	file files.Directory, root *Command) (*Request, error) {
->>>>>>> 90843374f694708a997c8e6e4d15142610c50cbf
-	if opts == nil {
-		opts = make(OptMap)
-	}
 
 	cmd, err := root.Get(path)
 	if err != nil {
 		return nil, err
 	}
 
-<<<<<<< HEAD
-	err = checkAndConvertOptions(root, opts, path)
-=======
-	err = convertOptions(root, opts, path)
->>>>>>> 90843374f694708a997c8e6e4d15142610c50cbf
+	options, err := checkAndConvertOptions(root, opts, path)
+
 	req := &Request{
 		Path:      path,
-		Options:   opts,
+		Options:   options,
 		Arguments: args,
 		Files:     file,
 		Root:      root,
@@ -109,14 +99,15 @@ func (req *Request) SetOption(name string, value interface{}) {
 	return
 }
 
-<<<<<<< HEAD
-func checkAndConvertOptions(root *Command, opts OptMap, path []string) error {
-=======
-func convertOptions(root *Command, opts OptMap, path []string) error {
->>>>>>> 90843374f694708a997c8e6e4d15142610c50cbf
+func checkAndConvertOptions(root *Command, opts OptMap, path []string) (OptMap, error) {
 	optDefs, err := root.GetOptions(path)
+	options := make(OptMap)
+
 	if err != nil {
-		return err
+		return options, err
+	}
+	for k, v := range opts {
+		options[k] = v
 	}
 
 	for k, v := range opts {
@@ -134,26 +125,26 @@ func convertOptions(root *Command, opts OptMap, path []string) error {
 					if len(str) == 0 {
 						value = "empty value"
 					}
-					return fmt.Errorf("Could not convert %s to type %q (for option %q)",
+					return options, fmt.Errorf("Could not convert %s to type %q (for option %q)",
 						value, opt.Type().String(), "-"+k)
 				}
-				opts[k] = val
+				options[k] = val
 
 			} else {
-				return fmt.Errorf("Option %q should be type %q, but got type %q",
+				return options, fmt.Errorf("Option %q should be type %q, but got type %q",
 					k, opt.Type().String(), kind.String())
 			}
 		}
 
 		for _, name := range opt.Names() {
 			if _, ok := opts[name]; name != k && ok {
-				return fmt.Errorf("Duplicate command options were provided (%q and %q)",
+				return options, fmt.Errorf("Duplicate command options were provided (%q and %q)",
 					k, name)
 			}
 		}
 	}
 
-	return nil
+	return options, nil
 }
 
 // GetEncoding returns the EncodingType set in a request, falling back to JSON
