@@ -137,7 +137,7 @@ func checkAndConvertOptions(root *Command, opts OptMap, path []string) (OptMap, 
 		}
 
 		for _, name := range opt.Names() {
-			if _, ok := opts[name]; name != k && ok {
+			if _, ok := options[name]; name != k && ok {
 				return options, fmt.Errorf("Duplicate command options were provided (%q and %q)",
 					k, name)
 			}
