@@ -29,4 +29,4 @@ var OptionDerefArgs = BoolOption(DerefLong, "Symlinks supplied in arguments are 
 var OptionStdinName = StringOption(StdinName, "Assign a name if the file source is stdin.")
 var OptionHidden = BoolOption(Hidden, HiddenShort, "Include files that are hidden. Only takes effect on recursive add.")
 var OptionIgnore = StringsOption(Ignore, "A rule (.gitignore-stype) defining which file(s) should be ignored (variadic, experimental)")
-var OptionIgnoreRules = StringOption(IgnoreRules, "A path to a file with .gitgnore-style ignore rules (experimental)")
+var OptionIgnoreRules = StringOption(IgnoreRules, "A path to a file with .gitignore-style ignore rules (experimental)")
