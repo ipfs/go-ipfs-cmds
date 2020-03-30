@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/ipfs/go-ipfs-files"
+	files "github.com/ipfs/go-ipfs-files"
 )
 
 // Request represents a call to a command from a consumer
@@ -24,19 +24,24 @@ type Request struct {
 
 // NewRequest returns a request initialized with given arguments
 // An non-nil error will be returned if the provided option values are invalid
-func NewRequest(ctx context.Context, path []string, opts OptMap, args []string, file files.Directory, root *Command) (*Request, error) {
-	if opts == nil {
-		opts = make(OptMap)
-	}
+func NewRequest(ctx context.Context,
+	path []string,
+	opts OptMap,
+	args []string,
+	file files.Directory,
+	root *Command,
+) (*Request, error) {
 
 	cmd, err := root.Get(path)
 	if err != nil {
 		return nil, err
 	}
 
+	options, err := checkAndConvertOptions(root, opts, path)
+
 	req := &Request{
 		Path:      path,
-		Options:   opts,
+		Options:   options,
 		Arguments: args,
 		Files:     file,
 		Root:      root,
@@ -44,7 +49,7 @@ func NewRequest(ctx context.Context, path []string, opts OptMap, args []string, 
 		Context:   ctx,
 	}
 
-	return req, req.convertOptions(root)
+	return req, err
 }
 
 // BodyArgs returns a scanner that returns arguments passed in the body as tokens.
@@ -94,13 +99,18 @@ func (req *Request) SetOption(name string, value interface{}) {
 	return
 }
 
-func (req *Request) convertOptions(root *Command) error {
-	optDefs, err := root.GetOptions(req.Path)
+func checkAndConvertOptions(root *Command, opts OptMap, path []string) (OptMap, error) {
+	optDefs, err := root.GetOptions(path)
+	options := make(OptMap)
+
 	if err != nil {
-		return err
+		return options, err
+	}
+	for k, v := range opts {
+		options[k] = v
 	}
 
-	for k, v := range req.Options {
+	for k, v := range opts {
 		opt, ok := optDefs[k]
 		if !ok {
 			continue
@@ -115,26 +125,26 @@ func (req *Request) convertOptions(root *Command) error {
 					if len(str) == 0 {
 						value = "empty value"
 					}
-					return fmt.Errorf("Could not convert %s to type %q (for option %q)",
+					return options, fmt.Errorf("Could not convert %s to type %q (for option %q)",
 						value, opt.Type().String(), "-"+k)
 				}
-				req.Options[k] = val
+				options[k] = val
 
 			} else {
-				return fmt.Errorf("Option %q should be type %q, but got type %q",
+				return options, fmt.Errorf("Option %q should be type %q, but got type %q",
 					k, opt.Type().String(), kind.String())
 			}
 		}
 
 		for _, name := range opt.Names() {
-			if _, ok := req.Options[name]; name != k && ok {
-				return fmt.Errorf("Duplicate command options were provided (%q and %q)",
+			if _, ok := options[name]; name != k && ok {
+				return options, fmt.Errorf("Duplicate command options were provided (%q and %q)",
 					k, name)
 			}
 		}
 	}
 
-	return nil
+	return options, nil
 }
 
 // GetEncoding returns the EncodingType set in a request, falling back to JSON
