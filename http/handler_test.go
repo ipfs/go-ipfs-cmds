@@ -292,7 +292,7 @@ var (
 	}
 )
 
-func getTestServer(t *testing.T, origins []string) (cmds.Environment, *httptest.Server) {
+func getTestServer(t *testing.T, origins []string, handledMethods []string) (cmds.Environment, *httptest.Server) {
 	if len(origins) == 0 {
 		origins = defaultOrigins
 	}
@@ -305,7 +305,15 @@ func getTestServer(t *testing.T, origins []string) (cmds.Environment, *httptest.
 		wait:        make(chan struct{}),
 	}
 
-	return env, httptest.NewServer(NewHandler(env, cmdRoot, originCfg(origins)))
+	srvCfg := originCfg(origins)
+
+	if len(handledMethods) == 0 {
+		srvCfg.HandledMethods = []string{"GET", "POST"}
+	} else {
+		srvCfg.HandledMethods = handledMethods
+	}
+
+	return env, httptest.NewServer(NewHandler(env, cmdRoot, srvCfg))
 }
 
 func errEq(err1, err2 error) bool {

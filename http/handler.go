@@ -95,6 +95,15 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
+	// First of all, check if we are allowed to handle the request method
+	// or we are configured not to.
+	if !handleRequestMethod(r, h.cfg) {
+		setAllowedHeaders(w, h.cfg.HandledMethods)
+		http.Error(w, "405 - Method Not Allowed", http.StatusMethodNotAllowed)
+		log.Warningf("The IPFS API does not support %s requests. All requests must use %s", h.cfg.HandledMethods)
+		return
+	}
+
 	if !allowOrigin(r, h.cfg) || !allowReferer(r, h.cfg) {
 		http.Error(w, "403 - Forbidden", http.StatusForbidden)
 		log.Warningf("API blocked request to %s. (possible CSRF)", r.URL)
@@ -169,4 +178,10 @@ func sanitizedErrStr(err error) string {
 	s = strings.Split(s, "\n")[0]
 	s = strings.Split(s, "\r")[0]
 	return s
+}
+
+func setAllowedHeaders(w http.ResponseWriter, methods []string) {
+	for _, m := range methods {
+		w.Header().Add("Allow", m)
+	}
 }

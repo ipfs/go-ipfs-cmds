@@ -12,9 +12,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ipfs/go-ipfs-cmds"
+	cmds "github.com/ipfs/go-ipfs-cmds"
 
-	"github.com/ipfs/go-ipfs-files"
+	files "github.com/ipfs/go-ipfs-files"
 )
 
 func newReaderPathFile(t *testing.T, path string, reader io.ReadCloser, stat os.FileInfo) files.File {
@@ -88,7 +88,7 @@ func TestHTTP(t *testing.T) {
 
 	mkTest := func(tc testcase) func(*testing.T) {
 		return func(t *testing.T) {
-			env, srv := getTestServer(t, nil) // handler_test:/^func getTestServer/
+			env, srv := getTestServer(t, nil, nil) // handler_test:/^func getTestServer/
 			c := NewClient(srv.URL)
 			req, err := cmds.NewRequest(context.Background(), tc.path, nil, nil, nil, cmdRoot)
 			if err != nil {
