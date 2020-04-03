@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/ipfs/go-ipfs-cmds"
+	cmds "github.com/ipfs/go-ipfs-cmds"
 )
 
 func assertHeaders(t *testing.T, resHeaders http.Header, reqHeaders map[string]string) {
@@ -27,6 +27,7 @@ func originCfg(origins []string) *ServerConfig {
 	cfg := NewServerConfig()
 	cfg.SetAllowedOrigins(origins...)
 	cfg.SetAllowedMethods("GET", "PUT", "POST")
+	cfg.HandledMethods = []string{"GET", "POST"}
 	return cfg
 }
 
@@ -38,14 +39,15 @@ var defaultOrigins = []string{
 }
 
 type httpTestCase struct {
-	Method       string
-	Path         string
-	Code         int
-	Origin       string
-	Referer      string
-	AllowOrigins []string
-	ReqHeaders   map[string]string
-	ResHeaders   map[string]string
+	Method         string
+	Path           string
+	Code           int
+	Origin         string
+	Referer        string
+	AllowOrigins   []string
+	HandledMethods []string
+	ReqHeaders     map[string]string
+	ResHeaders     map[string]string
 }
 
 func (tc *httpTestCase) test(t *testing.T) {
@@ -83,7 +85,7 @@ func (tc *httpTestCase) test(t *testing.T) {
 	}
 
 	// server
-	_, server := getTestServer(t, tc.AllowOrigins)
+	_, server := getTestServer(t, tc.AllowOrigins, tc.HandledMethods)
 	if server == nil {
 		return
 	}

@@ -22,6 +22,12 @@ type ServerConfig struct {
 	// Headers is an optional map of headers that is written out.
 	Headers map[string][]string
 
+	// HandledMethods set which methods will be handled for the HTTP
+	// requests. Other methods will return 405. This is different from CORS
+	// AllowedMethods (the API may handle GET and POST, but only allow GETs
+	// for CORS-enabled requests via AllowedMethods).
+	HandledMethods []string
+
 	// corsOpts is a set of options for CORS headers.
 	corsOpts *cors.Options
 
@@ -32,6 +38,7 @@ type ServerConfig struct {
 func NewServerConfig() *ServerConfig {
 	cfg := new(ServerConfig)
 	cfg.corsOpts = new(cors.Options)
+	cfg.HandledMethods = []string{http.MethodPost}
 	return cfg
 }
 
@@ -140,5 +147,18 @@ func allowReferer(r *http.Request, cfg *ServerConfig) bool {
 		}
 	}
 
+	return false
+}
+
+// handleRequestMethod returns true if the request method is among
+// HandledMethods.
+func handleRequestMethod(r *http.Request, cfg *ServerConfig) bool {
+	// For very small slices as these, this should be faster than
+	// a map lookup.
+	for _, m := range cfg.HandledMethods {
+		if r.Method == m {
+			return true
+		}
+	}
 	return false
 }
