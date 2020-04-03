@@ -181,7 +181,7 @@ func (c *client) toHTTPRequest(req *cmds.Request) (*http.Request, error) {
 
 func (c *client) send(req *cmds.Request) (cmds.Response, error) {
 	if req.Context == nil {
-		log.Warningf("no context set in request")
+		log.Warnf("no context set in request")
 		req.Context = context.Background()
 	}
 
