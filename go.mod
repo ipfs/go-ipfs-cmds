@@ -4,7 +4,7 @@ go 1.14
 
 require (
 	github.com/Kubuxu/go-os-helper v0.0.1
-	github.com/ipfs/go-ipfs-files v0.0.7
+	github.com/ipfs/go-ipfs-files v0.0.8
 	github.com/ipfs/go-log v0.0.1
 	github.com/rs/cors v1.7.0
 	github.com/texttheater/golang-levenshtein v0.0.0-20180516184445-d188e65d659e
