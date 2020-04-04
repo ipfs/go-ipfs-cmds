@@ -32,17 +32,40 @@ type PostRunMap map[PostRunType]func(Response, ResponseEmitter) error
 // Command is a runnable command, with input arguments and options (flags).
 // It can also have Subcommands, to group units of work into sets.
 type Command struct {
-	Options   []Option
+	// Options defines the flags accepted by the command. Flags on specified
+	// on parent commands are inherited by sub commands.
+	Options []Option
+
+	// Arguments defines the positional arguments for the command. These
+	// arguments can be strings and/or files.
+	//
+	// The rules for valid arguments are as follows:
+	//
+	// 1. No required arguments may follow optional arguments.
+	// 2. There can be at most one STDIN argument.
+	// 3. There can be at most one variadic argument, and it must be last.
 	Arguments []Argument
-	PreRun    func(req *Request, env Environment) error
+
+	// PreRun is run before Run. When executing a command on a remote
+	// daemon, PreRun is always run in the local process.
+	PreRun func(req *Request, env Environment) error
 
 	// Run is the function that processes the request to generate a response.
 	// Note that when executing the command over the HTTP API you can only read
 	// after writing when using multipart requests. The request body will not be
 	// available for reading after the HTTP connection has been written to.
-	Run      Function
-	PostRun  PostRunMap
+	Run Function
+
+	// PostRun is run after Run, and can transform results returned by run.
+	// When executing a command on a remote daemon, PostRun is always run in
+	// the local process.
+	PostRun PostRunMap
+
+	// Encoders encode results from Run (and/or PostRun) in the desired
+	// encoding.
 	Encoders EncoderMap
+
+	// Helptext is the command's help text.
 	Helptext HelpText
 
 	// External denotes that a command is actually an external binary.
@@ -54,7 +77,17 @@ type Command struct {
 	// the Run Function.
 	//
 	// ie. If command Run returns &Block{}, then Command.Type == &Block{}
-	Type        interface{}
+	Type interface{}
+
+	// Subcommands allow attaching sub commands to a command.
+	//
+	// Note: A command can specify both a Run function and Subcommands. If
+	// invoked with no arguments, or an argument that matches no
+	// sub commands, the Run function of the current command will be invoked.
+	//
+	// Take care when specifying both a Run function and Subcommands. A
+	// simple typo in a sub command will invoke the parent command and may
+	// end up returning a cryptic error to the user.
 	Subcommands map[string]*Command
 }
 
