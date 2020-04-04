@@ -88,7 +88,7 @@ func TestHTTP(t *testing.T) {
 
 	mkTest := func(tc testcase) func(*testing.T) {
 		return func(t *testing.T) {
-			env, srv := getTestServer(t, nil, nil) // handler_test:/^func getTestServer/
+			env, srv := getTestServer(t, nil, true) // handler_test:/^func getTestServer/
 			c := NewClient(srv.URL)
 			req, err := cmds.NewRequest(context.Background(), tc.path, nil, nil, nil, cmdRoot)
 			if err != nil {
