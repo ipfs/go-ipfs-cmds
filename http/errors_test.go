@@ -116,7 +116,7 @@ func TestErrors(t *testing.T) {
 
 	mkTest := func(tc testcase) func(*testing.T) {
 		return func(t *testing.T) {
-			_, srv := getTestServer(t, nil, nil) // handler_test:/^func getTestServer/
+			_, srv := getTestServer(t, nil, false) // handler_test:/^func getTestServer/
 			c := NewClient(srv.URL)
 			req, err := cmds.NewRequest(context.Background(), tc.path, tc.opts, nil, nil, cmdRoot)
 			if err != nil {
@@ -161,11 +161,11 @@ func TestErrors(t *testing.T) {
 
 func TestUnhandledMethod(t *testing.T) {
 	tc := httpTestCase{
-		Method:         "GET",
-		HandledMethods: []string{"POST"},
-		Code:           http.StatusMethodNotAllowed,
+		Method:   "GET",
+		AllowGet: false,
+		Code:     http.StatusMethodNotAllowed,
 		ResHeaders: map[string]string{
-			"Allow": "POST",
+			"Allow": "POST, HEAD, OPTIONS",
 		},
 	}
 	tc.test(t)

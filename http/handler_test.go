@@ -292,7 +292,7 @@ var (
 	}
 )
 
-func getTestServer(t *testing.T, origins []string, handledMethods []string) (cmds.Environment, *httptest.Server) {
+func getTestServer(t *testing.T, origins []string, allowGet bool) (cmds.Environment, *httptest.Server) {
 	if len(origins) == 0 {
 		origins = defaultOrigins
 	}
@@ -306,12 +306,7 @@ func getTestServer(t *testing.T, origins []string, handledMethods []string) (cmd
 	}
 
 	srvCfg := originCfg(origins)
-
-	if len(handledMethods) == 0 {
-		srvCfg.HandledMethods = []string{"GET", "POST"}
-	} else {
-		srvCfg.HandledMethods = handledMethods
-	}
+	srvCfg.AllowGet = allowGet
 
 	return env, httptest.NewServer(NewHandler(env, cmdRoot, srvCfg))
 }
