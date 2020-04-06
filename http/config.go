@@ -15,19 +15,6 @@ const (
 	ACACredentials = "Access-Control-Allow-Credentials"
 )
 
-// disallowedUserAgents specifies a denylist of user agents that are not
-// allowed to perform POST requests if they are not providing Origin
-// and/or Referer headers.  As mitigation for things like
-// https://bugzilla.mozilla.org/show_bug.cgi?id=429594.  Defaults to
-// Firefox-related things. The matching against the user-agent string
-// is made with strings.Contains().
-var disallowedUserAgents = []string{
-	"Firefox",
-	"Focus",
-	"Klar",
-	"FxiOS",
-}
-
 type ServerConfig struct {
 	// APIPath is the prefix of all request paths.
 	// Example: host:port/api/v0/add. Here the APIPath is /api/v0
@@ -43,14 +30,6 @@ type ServerConfig struct {
 	// requests in general, but reject them in CORS. That will allow
 	// websites to include resources from the API but not _read_ them.
 	AllowGet bool
-
-	// DisallowUserAgents specifies a blacklist of user agents that are not
-	// allowed to perform POST requests if they are not providing Origin
-	// and/or Referer headers.  As mitigation for things like
-	// https://bugzilla.mozilla.org/show_bug.cgi?id=429594.
-	// Defaults to ["Firefox"]. The matching against the user-agent
-	// string is made with strings.Contains().
-	DisallowUserAgents []string
 
 	// corsOpts is a set of options for CORS headers.
 	corsOpts *cors.Options
@@ -191,12 +170,15 @@ func allowUserAgent(r *http.Request, cfg *ServerConfig) bool {
 		return true
 	}
 
-	// If not, check that request is not from a blacklisted UA.
+	// Allow if the user agent does not start with Mozilla... (i.e. curl)
 	ua := r.Header.Get("User-agent")
-	for _, forbiddenUA := range disallowedUserAgents {
-		if strings.Contains(ua, forbiddenUA) {
-			return false
-		}
+	if !strings.HasPrefix(ua, "Mozilla") {
+		return true
 	}
-	return true
+
+	// Disallow otherwise.
+	//
+	// This means the request probably came from a browser and thus, it
+	// should have included Origin or referer headers.
+	return false
 }
