@@ -3,6 +3,7 @@ package http
 import (
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 
 	cors "github.com/rs/cors"
@@ -13,6 +14,19 @@ const (
 	ACAMethods     = "Access-Control-Allow-Methods"
 	ACACredentials = "Access-Control-Allow-Credentials"
 )
+
+// disallowedUserAgents specifies a denylist of user agents that are not
+// allowed to perform POST requests if they are not providing Origin
+// and/or Referer headers.  As mitigation for things like
+// https://bugzilla.mozilla.org/show_bug.cgi?id=429594.  Defaults to
+// Firefox-related things. The matching against the user-agent string
+// is made with strings.Contains().
+var disallowedUserAgents = []string{
+	"Firefox",
+	"Focus",
+	"Klar",
+	"FxiOS",
+}
 
 type ServerConfig struct {
 	// APIPath is the prefix of all request paths.
@@ -29,6 +43,14 @@ type ServerConfig struct {
 	// requests in general, but reject them in CORS. That will allow
 	// websites to include resources from the API but not _read_ them.
 	AllowGet bool
+
+	// DisallowUserAgents specifies a blacklist of user agents that are not
+	// allowed to perform POST requests if they are not providing Origin
+	// and/or Referer headers.  As mitigation for things like
+	// https://bugzilla.mozilla.org/show_bug.cgi?id=429594.
+	// Defaults to ["Firefox"]. The matching against the user-agent
+	// string is made with strings.Contains().
+	DisallowUserAgents []string
 
 	// corsOpts is a set of options for CORS headers.
 	corsOpts *cors.Options
@@ -149,4 +171,32 @@ func allowReferer(r *http.Request, cfg *ServerConfig) bool {
 	}
 
 	return false
+}
+
+// allowUserAgent checks the request's user-agent against the list
+// of DisallowUserAgents for requests with no origin nor referer set.
+func allowUserAgent(r *http.Request, cfg *ServerConfig) bool {
+	// This check affects POST as we should never get POST requests from a
+	// browser without Origin or Referer, but we might:
+	// https://bugzilla.mozilla.org/show_bug.cgi?id=429594.
+	if r.Method != http.MethodPost {
+		return true
+	}
+
+	origin := r.Header.Get("Origin")
+	referer := r.Referer()
+
+	// If these are set, we leave up to CORS and CSRF checks.
+	if origin != "" || referer != "" {
+		return true
+	}
+
+	// If not, check that request is not from a blacklisted UA.
+	ua := r.Header.Get("User-agent")
+	for _, forbiddenUA := range disallowedUserAgents {
+		if strings.Contains(ua, forbiddenUA) {
+			return false
+		}
+	}
+	return true
 }
