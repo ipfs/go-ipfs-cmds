@@ -192,10 +192,10 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func setAllowedHeaders(w http.ResponseWriter, allowGet bool) {
-	w.Header().Add("Allow", http.MethodHead)
 	w.Header().Add("Allow", http.MethodOptions)
 	w.Header().Add("Allow", http.MethodPost)
 	if allowGet {
+		w.Header().Add("Allow", http.MethodHead)
 		w.Header().Add("Allow", http.MethodGet)
 	}
 }

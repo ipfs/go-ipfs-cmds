@@ -165,7 +165,7 @@ func TestUnhandledMethod(t *testing.T) {
 		AllowGet: false,
 		Code:     http.StatusMethodNotAllowed,
 		ResHeaders: map[string]string{
-			"Allow": "POST, HEAD, OPTIONS",
+			"Allow": "POST, OPTIONS",
 		},
 	}
 	tc.test(t)
