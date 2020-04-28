@@ -8,6 +8,8 @@ import (
 	"sync"
 )
 
+// NewWriterResponseEmitter creates a response emitter that sends responses to
+// the given WriterCloser.
 func NewWriterResponseEmitter(w io.WriteCloser, req *Request) (ResponseEmitter, error) {
 	_, valEnc, err := GetEncoder(req, w, Undefined)
 	if err != nil {
@@ -24,6 +26,7 @@ func NewWriterResponseEmitter(w io.WriteCloser, req *Request) (ResponseEmitter, 
 	return re, nil
 }
 
+// NewReaderResponse creates a Response from the given reader.
 func NewReaderResponse(r io.Reader, req *Request) (Response, error) {
 	encType := GetEncoding(req, Undefined)
 	dec, ok := Decoders[encType]
@@ -99,7 +102,6 @@ type writerResponseEmitter struct {
 	req *Request
 
 	length *uint64
-	err    *Error
 
 	emitted bool
 	closed  bool

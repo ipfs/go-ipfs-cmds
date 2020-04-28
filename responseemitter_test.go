@@ -19,18 +19,21 @@ func TestCopy(t *testing.T) {
 	go func() {
 		err := Copy(re2, res1)
 		if err != nil {
-			t.Fatal(err)
+			t.Error(err)
+			return
 		}
 	}()
 	go func() {
 		err := re1.Emit("test")
 		if err != nil {
-			t.Fatal(err)
+			t.Error(err)
+			return
 		}
 
 		err = re1.Close()
 		if err != nil {
-			t.Fatal(err)
+			t.Error(err)
+			return
 		}
 	}()
 
@@ -64,18 +67,21 @@ func TestCopyError(t *testing.T) {
 	go func() {
 		err := Copy(re2, res1)
 		if err != nil {
-			t.Fatal(err)
+			t.Error(err)
+			return
 		}
 	}()
 	go func() {
 		err := re1.Emit("test")
 		if err != nil {
-			t.Fatal(err)
+			t.Error(err)
+			return
 		}
 
 		err = re1.CloseWithError(fooErr)
 		if err != nil {
-			t.Fatal(err)
+			t.Error(err)
+			return
 		}
 	}()
 
@@ -106,17 +112,20 @@ func TestError(t *testing.T) {
 	go func() {
 		err := re.Emit("value1")
 		if err != nil {
-			t.Fatal(err)
+			t.Error(err)
+			return
 		}
 
 		err = re.Emit("value2")
 		if err != nil {
-			t.Fatal(err)
+			t.Error(err)
+			return
 		}
 
 		err = re.CloseWithError(&Error{Message: "foo"})
 		if err != nil {
-			t.Fatal(err)
+			t.Error(err)
+			return
 		}
 	}()
 

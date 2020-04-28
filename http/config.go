@@ -170,15 +170,11 @@ func allowUserAgent(r *http.Request, cfg *ServerConfig) bool {
 		return true
 	}
 
-	// Allow if the user agent does not start with Mozilla... (i.e. curl)
-	ua := r.Header.Get("User-agent")
-	if !strings.HasPrefix(ua, "Mozilla") {
-		return true
-	}
-
+	// Allow if the user agent does not start with Mozilla... (i.e. curl).
 	// Disallow otherwise.
 	//
 	// This means the request probably came from a browser and thus, it
 	// should have included Origin or referer headers.
-	return false
+	ua := r.Header.Get("User-agent")
+	return !strings.HasPrefix(ua, "Mozilla")
 }
