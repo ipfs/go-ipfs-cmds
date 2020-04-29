@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"runtime/debug"
+	"strings"
 	"sync"
 	"time"
 
@@ -106,7 +107,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// The CORS library handles all other requests.
 
 		// Tell the user the allowed methods, and return.
-		setAllowedHeaders(w, h.cfg.AllowGet)
+		setAllowHeader(w, h.cfg.AllowGet)
 		w.WriteHeader(http.StatusNoContent)
 		return
 	case http.MethodPost:
@@ -116,7 +117,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		fallthrough
 	default:
-		setAllowedHeaders(w, h.cfg.AllowGet)
+		setAllowHeader(w, h.cfg.AllowGet)
 		http.Error(w, "405 - Method Not Allowed", http.StatusMethodNotAllowed)
 		log.Warnf("The IPFS API does not support %s requests.", r.Method)
 		return
@@ -191,11 +192,10 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.root.Call(req, re, h.env)
 }
 
-func setAllowedHeaders(w http.ResponseWriter, allowGet bool) {
-	w.Header().Add("Allow", http.MethodHead)
-	w.Header().Add("Allow", http.MethodOptions)
-	w.Header().Add("Allow", http.MethodPost)
+func setAllowHeader(w http.ResponseWriter, allowGet bool) {
+	allowedMethods := []string{http.MethodOptions, http.MethodPost}
 	if allowGet {
-		w.Header().Add("Allow", http.MethodGet)
+		allowedMethods = append(allowedMethods, http.MethodHead, http.MethodGet)
 	}
+	w.Header().Set("Allow", strings.Join(allowedMethods, ", "))
 }
