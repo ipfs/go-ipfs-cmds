@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"fmt"
-	"github.com/ipfs/go-ipfs-files"
 	"io"
 	"io/ioutil"
 	"net/url"
@@ -11,6 +10,8 @@ import (
 	"path"
 	"strings"
 	"testing"
+
+	files "github.com/ipfs/go-ipfs-files"
 
 	cmds "github.com/ipfs/go-ipfs-cmds"
 )
@@ -211,7 +212,7 @@ func TestArgumentParsing(t *testing.T) {
 
 	test := func(cmd words, f *os.File, res words) {
 		if f != nil {
-			if _, err := f.Seek(0, os.SEEK_SET); err != nil {
+			if _, err := f.Seek(0, io.SeekStart); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -486,7 +487,7 @@ func TestBodyArgs(t *testing.T) {
 
 	for _, tc := range tcs {
 		if tc.f != nil {
-			if _, err := tc.f.Seek(0, os.SEEK_SET); err != nil {
+			if _, err := tc.f.Seek(0, io.SeekStart); err != nil {
 				t.Fatal(err)
 			}
 		}

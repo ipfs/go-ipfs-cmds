@@ -5,7 +5,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ipfs/go-ipfs-cmds"
+	cmds "github.com/ipfs/go-ipfs-cmds"
 )
 
 func TestSingle(t *testing.T) {
@@ -25,7 +25,8 @@ func TestSingle(t *testing.T) {
 
 	go func() {
 		if err := cmds.EmitOnce(re, "test"); err != nil {
-			t.Fatal(err)
+			t.Error(err)
+			return
 		}
 
 		err := re.Emit("this should not be emitted")

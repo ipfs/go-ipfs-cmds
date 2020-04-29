@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-var theError = errors.New("an error occurred")
+var errGeneric = errors.New("an error occurred")
 
 var root = &Command{
 	Subcommands: map[string]*Command{
@@ -20,7 +20,7 @@ var root = &Command{
 		},
 		"testError": &Command{
 			Run: func(req *Request, re ResponseEmitter, env Environment) error {
-				err := theError
+				err := errGeneric
 				if err != nil {
 					return err
 				}

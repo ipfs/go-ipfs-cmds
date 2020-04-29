@@ -39,7 +39,7 @@ func TestOptionValidation(t *testing.T) {
 				cmd.Call(req, re, nil)
 			} else {
 				if err == nil {
-					t.Errorf("Should have failed with error %q", tc.NewRequestError)
+					t.Errorf("should have failed with error %q", tc.NewRequestError)
 				} else if err.Error() != tc.NewRequestError {
 					t.Errorf("expected error %q, got %q", tc.NewRequestError, err)
 				}
@@ -50,7 +50,7 @@ func TestOptionValidation(t *testing.T) {
 	tcs := []testcase{
 		{
 			opts:            map[string]interface{}{"boop": true},
-			NewRequestError: `Option "boop" should be type "string", but got type "bool"`,
+			NewRequestError: `option "boop" should be type "string", but got type "bool"`,
 		},
 		{opts: map[string]interface{}{"beep": 5}},
 		{opts: map[string]interface{}{"beep": 5, "boop": "test"}},
@@ -61,10 +61,10 @@ func TestOptionValidation(t *testing.T) {
 		{opts: map[string]interface{}{"S": [2]string{"a", "b"}}},
 		{
 			opts:            map[string]interface{}{"S": true},
-			NewRequestError: `Option "S" should be type "array", but got type "bool"`},
+			NewRequestError: `option "S" should be type "array", but got type "bool"`},
 		{
 			opts:            map[string]interface{}{"beep": ":)"},
-			NewRequestError: `Could not convert value ":)" to type "int" (for option "-beep")`,
+			NewRequestError: `could not convert value ":)" to type "int" (for option "-beep")`,
 		},
 	}
 
@@ -279,7 +279,8 @@ func TestPostRun(t *testing.T) {
 				t.Log("next returned", v, err)
 				if err != nil {
 					close(ch)
-					t.Fatal(err)
+					t.Error(err)
+					return
 				}
 
 				ch <- v

@@ -38,7 +38,7 @@ func suggestUnknownCmd(args []string, root *cmds.Command) []string {
 	var suggestions []string
 	sortableSuggestions := make(suggestionSlice, 0)
 	var sFinal []string
-	const MIN_LEVENSHTEIN = 3
+	const MinLevenshtein = 3
 
 	var options levenshtein.Options = levenshtein.Options{
 		InsCost: 1,
@@ -50,7 +50,7 @@ func suggestUnknownCmd(args []string, root *cmds.Command) []string {
 	}
 
 	// Start with a simple strings.Contains check
-	for name, _ := range root.Subcommands {
+	for name := range root.Subcommands {
 		if strings.Contains(arg, name) {
 			suggestions = append(suggestions, name)
 		}
@@ -61,9 +61,9 @@ func suggestUnknownCmd(args []string, root *cmds.Command) []string {
 		return suggestions
 	}
 
-	for name, _ := range root.Subcommands {
+	for name := range root.Subcommands {
 		lev := levenshtein.DistanceForStrings([]rune(arg), []rune(name), options)
-		if lev <= MIN_LEVENSHTEIN {
+		if lev <= MinLevenshtein {
 			sortableSuggestions = append(sortableSuggestions, &suggestion{name, lev})
 		}
 	}
@@ -78,11 +78,17 @@ func suggestUnknownCmd(args []string, root *cmds.Command) []string {
 func printSuggestions(inputs []string, root *cmds.Command) (err error) {
 
 	suggestions := suggestUnknownCmd(inputs, root)
+
 	if len(suggestions) > 1 {
+		//lint:ignore ST1005 user facing error
 		err = fmt.Errorf("Unknown Command \"%s\"\n\nDid you mean any of these?\n\n\t%s", inputs[0], strings.Join(suggestions, "\n\t"))
+
 	} else if len(suggestions) > 0 {
+		//lint:ignore ST1005 user facing error
 		err = fmt.Errorf("Unknown Command \"%s\"\n\nDid you mean this?\n\n\t%s", inputs[0], suggestions[0])
+
 	} else {
+		//lint:ignore ST1005 user facing error
 		err = fmt.Errorf("Unknown Command \"%s\"\n", inputs[0])
 	}
 	return

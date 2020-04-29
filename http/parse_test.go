@@ -47,7 +47,7 @@ func TestParse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	req, err = parseRequest(r, root)
+	_, err = parseRequest(r, root)
 	if err != ErrNotFound {
 		t.Errorf("expected ErrNotFound, got: %v", err)
 	}

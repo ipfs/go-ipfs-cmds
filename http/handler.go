@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 	"runtime/debug"
-	"strings"
 	"sync"
 	"time"
 
@@ -17,11 +16,12 @@ import (
 var log = logging.Logger("cmds/http")
 
 var (
-	ErrNotFound           = errors.New("404 page not found")
-	errApiVersionMismatch = errors.New("api version mismatch")
+	// ErrNotFound is returned when the endpoint does not exist.
+	ErrNotFound = errors.New("404 page not found")
 )
 
 const (
+	// StreamErrHeader is used as trailer when stream errors happen.
 	StreamErrHeader          = "X-Stream-Error"
 	streamHeader             = "X-Stream-Output"
 	channelHeader            = "X-Chunked-Output"
@@ -32,7 +32,7 @@ const (
 	transferEncodingHeader   = "Transfer-Encoding"
 	originHeader             = "origin"
 
-	applicationJson        = "application/json"
+	applicationJSON        = "application/json"
 	applicationOctetStream = "application/octet-stream"
 	plainText              = "text/plain"
 )
@@ -57,6 +57,7 @@ type handler struct {
 	env  cmds.Environment
 }
 
+// NewHandler creates the http.Handler for the given commands.
 func NewHandler(env cmds.Environment, root *cmds.Command, cfg *ServerConfig) http.Handler {
 	if cfg == nil {
 		panic("must provide a valid ServerConfig")
@@ -188,13 +189,6 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.root.Call(req, re, h.env)
-}
-
-func sanitizedErrStr(err error) string {
-	s := err.Error()
-	s = strings.Split(s, "\n")[0]
-	s = strings.Split(s, "\r")[0]
-	return s
 }
 
 func setAllowedHeaders(w http.ResponseWriter, allowGet bool) {

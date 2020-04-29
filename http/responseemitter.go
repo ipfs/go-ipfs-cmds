@@ -8,14 +8,14 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ipfs/go-ipfs-cmds"
+	cmds "github.com/ipfs/go-ipfs-cmds"
 )
 
 var (
-	HeadRequest = fmt.Errorf("HEAD request")
-
+	// AllowedExposedHeadersArr defines the default Access-Control-Expose-Headers.
 	AllowedExposedHeadersArr = []string{streamHeader, channelHeader, extraContentLengthHeader}
-	AllowedExposedHeaders    = strings.Join(AllowedExposedHeadersArr, ", ")
+	// AllowedExposedHeaders is the list of defaults Access-Control-Expose-Headers separated by comma.
+	AllowedExposedHeaders = strings.Join(AllowedExposedHeadersArr, ", ")
 
 	mimeTypes = map[cmds.EncodingType]string{
 		cmds.Protobuf: "application/protobuf",
@@ -25,7 +25,7 @@ var (
 	}
 )
 
-// NewResponeEmitter returns a new ResponseEmitter.
+// NewResponseEmitter returns a new ResponseEmitter.
 func NewResponseEmitter(w http.ResponseWriter, method string, req *cmds.Request, opts ...ResponseEmitterOption) (ResponseEmitter, error) {
 	encType, enc, err := cmds.GetEncoder(req, w, cmds.JSON)
 	if err != nil {
@@ -61,6 +61,8 @@ func withRequestBodyEOFChan(ch <-chan struct{}) ResponseEmitterOption {
 	}
 }
 
+// ResponseEmitter interface defines the components that can care of sending
+// the response to HTTP Requests.
 type ResponseEmitter interface {
 	cmds.ResponseEmitter
 	http.Flusher
@@ -75,7 +77,6 @@ type responseEmitter struct {
 
 	l      sync.Mutex
 	length uint64
-	err    *cmds.Error
 
 	bodyEOFChan <-chan struct{}
 
@@ -313,10 +314,6 @@ func (re *responseEmitter) doPreamble(value interface{}) {
 	h.Set(contentTypeHeader, mime)
 
 	re.w.WriteHeader(http.StatusOK)
-}
-
-type responseWriterer interface {
-	Lower() http.ResponseWriter
 }
 
 func flushCopy(w io.Writer, r io.Reader) error {

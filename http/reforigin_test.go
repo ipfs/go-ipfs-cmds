@@ -384,7 +384,7 @@ func TestEncoding(t *testing.T) {
 	}
 
 	tcs := []httpTestCase{
-		gtc(cmds.JSON, applicationJson),
+		gtc(cmds.JSON, applicationJSON),
 		gtc(cmds.XML, "application/xml"),
 	}
 

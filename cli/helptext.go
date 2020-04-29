@@ -137,8 +137,11 @@ func init() {
 	shortHelpTemplate = template.Must(template.New("shortHelp").Parse(shortHelpFormat))
 }
 
+// ErrNoHelpRequested returns when request for help help does not include the
+// short nor the long option.
 var ErrNoHelpRequested = errors.New("no help requested")
 
+// HandleHelp writes help to a writer for the given request's command.
 func HandleHelp(appName string, req *cmds.Request, out io.Writer) error {
 	long, _ := req.Options[cmds.OptLongHelp].(bool)
 	short, _ := req.Options[cmds.OptShortHelp].(bool)
@@ -369,18 +372,15 @@ func appendWrapped(prefix, text string, width int) string {
 func optionFlag(flag string) string {
 	if len(flag) == 1 {
 		return fmt.Sprintf(shortFlag, flag)
-	} else {
-		return fmt.Sprintf(longFlag, flag)
 	}
+	return fmt.Sprintf(longFlag, flag)
 }
 
 func optionText(width int, cmd ...*cmds.Command) []string {
 	// get a slice of the options we want to list out
 	options := make([]cmds.Option, 0)
 	for _, c := range cmd {
-		for _, opt := range c.Options {
-			options = append(options, opt)
-		}
+		options = append(options, c.Options...)
 	}
 
 	// add option names to output
@@ -500,13 +500,6 @@ func align(lines []string) []string {
 		}
 	}
 
-	return lines
-}
-
-func indent(lines []string, prefix string) []string {
-	for i, line := range lines {
-		lines[i] = prefix + indentString(line, prefix)
-	}
 	return lines
 }
 

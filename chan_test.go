@@ -29,12 +29,12 @@ func TestChanResponsePair(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				for _, v := range tc.values {
-					v_, err := res.Next()
+					v2, err := res.Next()
 					if err != nil {
 						t.Error("Next returned unexpected error:", err)
 					}
-					if v != v_ {
-						t.Errorf("Next returned unexpected value %q, expected %q", v_, v)
+					if v != v2 {
+						t.Errorf("Next returned unexpected value %q, expected %q", v2, v)
 					}
 				}
 
@@ -93,7 +93,7 @@ func TestSingle1(t *testing.T) {
 
 		err := re.Close()
 		if err != ErrClosingClosedEmitter {
-			t.Fatalf("expected double close error, got %v", err)
+			t.Errorf("expected double close error, got %v", err)
 		}
 		close(wait)
 	}()
@@ -127,7 +127,8 @@ func TestSingle2(t *testing.T) {
 	go func() {
 		err := re.Emit(Single{42})
 		if err != ErrClosedEmitter {
-			t.Fatal("expected closed emitter error, got", err)
+			t.Error("expected closed emitter error, got", err)
+			return
 		}
 	}()
 

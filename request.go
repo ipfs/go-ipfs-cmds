@@ -66,6 +66,7 @@ func (req *Request) BodyArgs() StdinArguments {
 	return nil
 }
 
+// ParseBodyArgs parses arguments in the request body.
 func (req *Request) ParseBodyArgs() error {
 	s := req.BodyArgs()
 	if s == nil {
@@ -78,6 +79,7 @@ func (req *Request) ParseBodyArgs() error {
 	return s.Err()
 }
 
+// SetOption sets a request option.
 func (req *Request) SetOption(name string, value interface{}) {
 	optDefs, err := req.Root.GetOptions(req.Path)
 	optDef, found := optDefs[name]
@@ -95,8 +97,6 @@ func (req *Request) SetOption(name string, value interface{}) {
 
 	name = optDef.Name()
 	req.Options[name] = value
-
-	return
 }
 
 func checkAndConvertOptions(root *Command, opts OptMap, path []string) (OptMap, error) {
@@ -125,20 +125,20 @@ func checkAndConvertOptions(root *Command, opts OptMap, path []string) (OptMap, 
 					if len(str) == 0 {
 						value = "empty value"
 					}
-					return options, fmt.Errorf("Could not convert %s to type %q (for option %q)",
+					return options, fmt.Errorf("could not convert %s to type %q (for option %q)",
 						value, opt.Type().String(), "-"+k)
 				}
 				options[k] = val
 
 			} else {
-				return options, fmt.Errorf("Option %q should be type %q, but got type %q",
+				return options, fmt.Errorf("option %q should be type %q, but got type %q",
 					k, opt.Type().String(), kind.String())
 			}
 		}
 
 		for _, name := range opt.Names() {
 			if _, ok := options[name]; name != k && ok {
-				return options, fmt.Errorf("Duplicate command options were provided (%q and %q)",
+				return options, fmt.Errorf("duplicate command options were provided (%q and %q)",
 					k, name)
 			}
 		}
@@ -162,7 +162,7 @@ func GetEncoding(req *Request, def EncodingType) EncodingType {
 	}
 }
 
-// fillDefault fills in default values if option has not been set
+// FillDefaults fills in default values if option has not been set.
 func (req *Request) FillDefaults() error {
 	optDefMap, err := req.Root.GetOptions(req.Path)
 	if err != nil {

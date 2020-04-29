@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// ReqLogEntry represent a log entry for a request.
 type ReqLogEntry struct {
 	StartTime time.Time
 	EndTime   time.Time
@@ -16,11 +17,13 @@ type ReqLogEntry struct {
 	ID        int
 }
 
+// Copy copies a log entry and returns a pointer to the copy.
 func (r *ReqLogEntry) Copy() *ReqLogEntry {
 	out := *r
 	return &out
 }
 
+// ReqLog represents a request log.
 type ReqLog struct {
 	Requests []*ReqLogEntry
 	nextID   int
@@ -28,6 +31,7 @@ type ReqLog struct {
 	keep     time.Duration
 }
 
+// Add ads an entry to the log for the given request.
 func (rl *ReqLog) Add(req *Request) *ReqLogEntry {
 	rle := &ReqLogEntry{
 		StartTime: time.Now(),
@@ -42,6 +46,7 @@ func (rl *ReqLog) Add(req *Request) *ReqLogEntry {
 	return rle
 }
 
+// AddEntry adds an entry to the log.
 func (rl *ReqLog) AddEntry(rle *ReqLogEntry) {
 	rl.lock.Lock()
 	defer rl.lock.Unlock()
@@ -52,10 +57,9 @@ func (rl *ReqLog) AddEntry(rle *ReqLogEntry) {
 	if rle == nil || !rle.Active {
 		rl.maybeCleanup()
 	}
-
-	return
 }
 
+// ClearInactive clears any inactive requests from the log.
 func (rl *ReqLog) ClearInactive() {
 	rl.lock.Lock()
 	defer rl.lock.Unlock()

@@ -10,9 +10,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ipfs/go-ipfs-cmds"
+	cmds "github.com/ipfs/go-ipfs-cmds"
 
-	"github.com/ipfs/go-ipfs-files"
+	files "github.com/ipfs/go-ipfs-files"
 	logging "github.com/ipfs/go-log"
 )
 
@@ -133,7 +133,7 @@ func parseRequest(r *http.Request, root *cmds.Command) (*cmds.Request, error) {
 
 	// if there is a required filearg, error if no files were provided
 	if len(requiredFile) > 0 && f == nil {
-		return nil, fmt.Errorf("File argument '%s' is required", requiredFile)
+		return nil, fmt.Errorf("file argument '%s' is required", requiredFile)
 	}
 
 	ctx := logging.ContextWithLoggable(r.Context(), uuidLoggable())

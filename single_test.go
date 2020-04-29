@@ -22,7 +22,8 @@ func TestSingleChan(t *testing.T) {
 		defer wg.Done()
 
 		if err := EmitOnce(re, "test"); err != nil {
-			t.Fatal(err)
+			t.Error(err)
+			return
 		}
 
 		err := re.Emit("test")
@@ -73,7 +74,8 @@ func TestSingleWriter(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		if err := EmitOnce(re, "test"); err != nil {
-			t.Fatal(err)
+			t.Error(err)
+			return
 		}
 
 		err := re.Emit("this should not be sent")

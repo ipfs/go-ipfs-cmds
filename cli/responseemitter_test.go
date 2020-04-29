@@ -5,14 +5,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/ipfs/go-ipfs-cmds"
+	cmds "github.com/ipfs/go-ipfs-cmds"
 )
-
-type writeCloser struct {
-	*bytes.Buffer
-}
-
-func (wc writeCloser) Close() error { return nil }
 
 type tcCloseWithError struct {
 	stdout, stderr     *bytes.Buffer
