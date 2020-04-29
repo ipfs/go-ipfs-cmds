@@ -32,9 +32,9 @@
 	function's output as an argument and passes it to the user.
 
 		type ResponseEmitter interface {
-			io.Closer
+			Close() error
+			CloseWithError(error) error
 			SetLength(length uint64)
-			SetError(err interface{}, code ErrorType)
 			Emit(value interface{}) error
 		}
 
