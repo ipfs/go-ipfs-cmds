@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"runtime/debug"
+	"strings"
 	"sync"
 	"time"
 
@@ -192,10 +193,9 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func setAllowedHeaders(w http.ResponseWriter, allowGet bool) {
-	w.Header().Add("Allow", http.MethodOptions)
-	w.Header().Add("Allow", http.MethodPost)
+	allowedMethods := []string{http.MethodOptions, http.MethodPost}
 	if allowGet {
-		w.Header().Add("Allow", http.MethodHead)
-		w.Header().Add("Allow", http.MethodGet)
+		allowedMethods = append(allowedMethods, http.MethodHead, http.MethodGet)
 	}
+	w.Header().Set("Allow", strings.Join(allowedMethods, ", "))
 }
