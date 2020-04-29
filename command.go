@@ -94,7 +94,7 @@ type Command struct {
 
 var (
 	// ErrNotCallable signals a command that cannot be called.
-	ErrNotCallable = ClientError("this command can't be called directly. Try one of its subcommands.")
+	ErrNotCallable = ClientError("this command cannot be called directly; try one of its subcommands.")
 
 	// ErrNoFormatter signals that the command can not be formatted.
 	ErrNoFormatter = ClientError("this command cannot be formatted to plain text")
