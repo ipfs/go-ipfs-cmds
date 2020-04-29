@@ -77,7 +77,6 @@ type responseEmitter struct {
 
 	l      sync.Mutex
 	length uint64
-	// err    *cmds.Error
 
 	bodyEOFChan <-chan struct{}
 
