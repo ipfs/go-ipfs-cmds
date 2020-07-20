@@ -90,6 +90,39 @@ type Command struct {
 	// simple typo in a sub command will invoke the parent command and may
 	// end up returning a cryptic error to the user.
 	Subcommands map[string]*Command
+
+	// NoRemote denotes that a command cannot be executed in a remote environment
+	NoRemote bool
+
+	// NoLocal denotes that a command cannot be executed in a local environment
+	NoLocal bool
+
+	// Extra contains a set of other command-specific parameters
+	Extra *Extra
+}
+
+// Extra is a set of tag information for a command
+type Extra struct {
+	m map[interface{}]interface{}
+}
+
+func (e *Extra) SetValue(key, value interface{}) *Extra {
+	if e == nil {
+		e = &Extra{}
+	}
+	if e.m == nil {
+		e.m = make(map[interface{}]interface{})
+	}
+	e.m[key] = value
+	return e
+}
+
+func (e *Extra) GetValue(key interface{}) (interface{}, bool) {
+	if e == nil || e.m == nil {
+		return nil, false
+	}
+	val, found := e.m[key]
+	return val, found
 }
 
 var (
@@ -141,6 +174,7 @@ func (c *Command) call(req *Request, re ResponseEmitter, env Environment) error 
 }
 
 // Resolve returns the subcommands at the given path
+// The returned set of subcommands starts with this command and therefore is always at least size 1
 func (c *Command) Resolve(pth []string) ([]*Command, error) {
 	cmds := make([]*Command, len(pth)+1)
 	cmds[0] = c
