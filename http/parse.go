@@ -35,7 +35,7 @@ func parseRequest(r *http.Request, root *cmds.Command) (*cmds.Request, error) {
 	}
 
 	for _, c := range cmdPath {
-		if c != nil && c.NoRemote {
+		if c.NoRemote {
 			return nil, ErrNotFound
 		}
 	}
