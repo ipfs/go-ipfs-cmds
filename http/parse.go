@@ -28,12 +28,19 @@ func parseRequest(r *http.Request, root *cmds.Command) (*cmds.Request, error) {
 		getPath    = pth[:len(pth)-1]
 	)
 
-	cmd, err := root.Get(getPath)
+	cmdPath, err := root.Resolve(getPath)
 	if err != nil {
 		// 404 if there is no command at that path
 		return nil, ErrNotFound
 	}
 
+	for _, c := range cmdPath {
+		if c.NoRemote {
+			return nil, ErrNotFound
+		}
+	}
+
+	cmd := cmdPath[len(cmdPath)-1]
 	sub := cmd.Subcommands[pth[len(pth)-1]]
 
 	if sub == nil {
@@ -47,6 +54,10 @@ func parseRequest(r *http.Request, root *cmds.Command) (*cmds.Request, error) {
 		pth = pth[:len(pth)-1]
 	} else {
 		cmd = sub
+	}
+
+	if cmd.NoRemote {
+		return nil, ErrNotFound
 	}
 
 	opts, stringArgs2 := parseOptions(r)
