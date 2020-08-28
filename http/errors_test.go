@@ -205,9 +205,9 @@ func TestDisallowedUserAgents(t *testing.T) {
 		},
 		{
 			// Do not block the Electron Renderer process
-			Method:       "POST",
-			AllowGet:     false,
-			Code:         http.StatusOK,
+			Method:   "POST",
+			AllowGet: false,
+			Code:     http.StatusOK,
 			ReqHeaders: map[string]string{
 				"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.104 Electron/9.0.4 Safari/537.36",
 			},
