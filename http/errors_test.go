@@ -203,6 +203,15 @@ func TestDisallowedUserAgents(t *testing.T) {
 				"User-Agent": "Mozilla/5.0 (Linux; U; Android 4.1.1; en-gb; Build/KLP) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Safari/534.30",
 			},
 		},
+		{
+			// Do not block the Electron Renderer process
+			Method:   "POST",
+			AllowGet: false,
+			Code:     http.StatusOK,
+			ReqHeaders: map[string]string{
+				"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.104 Electron/9.0.4 Safari/537.36",
+			},
+		},
 	}
 
 	for _, tc := range tcs {
