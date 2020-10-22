@@ -48,9 +48,6 @@ func TestSynopsisGenerator(t *testing.T) {
 	if !strings.Contains(syn, "[--]") {
 		t.Fatal("Synopsis should contain options finalizer")
 	}
-	if strings.Contains(syn, "For more information about each command") {
-		t.Fatal("Synopsis should not contain subcommands")
-	}
 }
 
 func TestShortHelp(t *testing.T) {
