@@ -230,6 +230,15 @@ func getQuery(req *cmds.Request) (string, error) {
 		if OptionSkipMap[k] {
 			continue
 		}
+
+		optArr, ok := v.([]string)
+		if ok {
+			for _, o := range optArr {
+				query.Add(k, o)
+			}
+			continue
+		}
+
 		str := fmt.Sprintf("%v", v)
 		query.Set(k, str)
 	}

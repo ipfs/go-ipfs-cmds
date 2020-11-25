@@ -61,22 +61,28 @@ func parseRequest(r *http.Request, root *cmds.Command) (*cmds.Request, error) {
 	}
 
 	opts, stringArgs2 := parseOptions(r)
+	iopts := make(map[string]interface{}, len(opts))
 	optDefs, err := root.GetOptions(pth)
 	if err != nil {
 		return nil, err
 	}
 	for k, v := range opts {
+		iopts[k] = v
 		if optDef, ok := optDefs[k]; ok {
 			name := optDef.Names()[0]
 			if k != name {
-				opts[name] = v
-				delete(opts, k)
+				iopts[name] = v
+				delete(iopts, k)
+			}
+
+			if optDef.Type() != cmds.Strings && len(v) > 0 {
+				iopts[name] = v[0]
 			}
 		}
 	}
 	// default to setting encoding to JSON
-	if _, ok := opts[cmds.EncLong]; !ok {
-		opts[cmds.EncLong] = cmds.JSON
+	if _, ok := iopts[cmds.EncLong]; !ok {
+		iopts[cmds.EncLong] = cmds.JSON
 	}
 
 	stringArgs = append(stringArgs, stringArgs2...)
@@ -148,7 +154,7 @@ func parseRequest(r *http.Request, root *cmds.Command) (*cmds.Request, error) {
 	}
 
 	ctx := logging.ContextWithLoggable(r.Context(), uuidLoggable())
-	req, err := cmds.NewRequest(ctx, pth, opts, args, f, root)
+	req, err := cmds.NewRequest(ctx, pth, iopts, args, f, root)
 	if err != nil {
 		return nil, err
 	}
@@ -162,8 +168,8 @@ func parseRequest(r *http.Request, root *cmds.Command) (*cmds.Request, error) {
 	return req, err
 }
 
-func parseOptions(r *http.Request) (map[string]interface{}, []string) {
-	opts := make(map[string]interface{})
+func parseOptions(r *http.Request) (map[string][]string, []string) {
+	opts := make(map[string][]string)
 	var args []string
 
 	query := r.URL.Query()
@@ -171,8 +177,7 @@ func parseOptions(r *http.Request) (map[string]interface{}, []string) {
 		if k == "arg" {
 			args = v
 		} else {
-
-			opts[k] = v[0]
+			opts[k] = v
 		}
 	}
 
