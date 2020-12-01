@@ -231,16 +231,17 @@ func getQuery(req *cmds.Request) (string, error) {
 			continue
 		}
 
-		optArr, ok := v.([]string)
-		if ok {
-			for _, o := range optArr {
+		switch val := v.(type) {
+		case []string:
+			for _, o := range val {
 				query.Add(k, o)
 			}
-			continue
+		case bool, int, int64, uint, uint64, float64, string:
+			str := fmt.Sprintf("%v", v)
+			query.Set(k, str)
+		default:
+			return "", fmt.Errorf("unsupported query parameter type. key: %s, value: %v", k, v)
 		}
-
-		str := fmt.Sprintf("%v", v)
-		query.Set(k, str)
 	}
 
 	args := req.Arguments
