@@ -124,22 +124,22 @@ func checkAndConvertOptions(root *Command, opts OptMap, path []string) (OptMap, 
 						k, opt.Type().String(), kind.String())
 				}
 			} else {
-				if str, ok := v.(string); ok {
-					val, err := opt.Parse(str)
-					if err != nil {
-						value := fmt.Sprintf("value %q", v)
-						if len(str) == 0 {
-							value = "empty value"
-						}
-						return options, fmt.Errorf("could not convert %s to type %q (for option %q)",
-							value, opt.Type().String(), "-"+k)
-					}
-					options[k] = val
-
-				} else {
+				str, ok := v.(string)
+				if !ok {
 					return options, fmt.Errorf("option %q should be type %q, but got type %q",
 						k, opt.Type().String(), kind.String())
 				}
+
+				val, err := opt.Parse(str)
+				if err != nil {
+					value := fmt.Sprintf("value %q", v)
+					if len(str) == 0 {
+						value = "empty value"
+					}
+					return options, fmt.Errorf("could not convert %s to type %q (for option %q)",
+						value, opt.Type().String(), "-"+k)
+				}
+				options[k] = val
 			}
 		}
 
