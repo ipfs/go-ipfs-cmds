@@ -60,32 +60,44 @@ func parseRequest(r *http.Request, root *cmds.Command) (*cmds.Request, error) {
 		return nil, ErrNotFound
 	}
 
-	opts, stringArgs2 := parseOptions(r)
-	iopts := make(map[string]interface{}, len(opts))
+	opts := make(map[string]interface{})
 	optDefs, err := root.GetOptions(pth)
 	if err != nil {
 		return nil, err
 	}
-	for k, v := range opts {
-		iopts[k] = v
-		if optDef, ok := optDefs[k]; ok {
-			name := optDef.Names()[0]
-			if k != name {
-				iopts[name] = v
-				delete(iopts, k)
+
+	query := r.URL.Query()
+	// Note: len(v) is guaranteed by the above function to always be greater than 0
+	for k, v := range query {
+		if k == "arg" {
+			stringArgs = append(stringArgs, v...)
+		} else {
+			optDef, ok := optDefs[k]
+			if !ok {
+				opts[k] = v[0]
+				continue
 			}
 
-			if optDef.Type() != cmds.Strings && len(v) > 0 {
-				iopts[name] = v[0]
+			name := optDef.Names()[0]
+			opts[name] = v
+
+			switch optType := optDef.Type(); optType {
+			case cmds.Strings:
+				opts[name] = v
+			case cmds.Bool, cmds.Int, cmds.Int64, cmds.Uint, cmds.Uint64, cmds.Float, cmds.String:
+				if len(v) > 1 {
+					return nil, fmt.Errorf("expected key %s to have only a single value, received %v", name, v)
+				}
+				opts[name] = v[0]
+			default:
+				return nil, fmt.Errorf("unsupported option type. key: %s, type: %v", k, optType)
 			}
 		}
 	}
 	// default to setting encoding to JSON
-	if _, ok := iopts[cmds.EncLong]; !ok {
-		iopts[cmds.EncLong] = cmds.JSON
+	if _, ok := opts[cmds.EncLong]; !ok {
+		opts[cmds.EncLong] = cmds.JSON
 	}
-
-	stringArgs = append(stringArgs, stringArgs2...)
 
 	// count required argument definitions
 	numRequired := 0
@@ -154,7 +166,7 @@ func parseRequest(r *http.Request, root *cmds.Command) (*cmds.Request, error) {
 	}
 
 	ctx := logging.ContextWithLoggable(r.Context(), uuidLoggable())
-	req, err := cmds.NewRequest(ctx, pth, iopts, args, f, root)
+	req, err := cmds.NewRequest(ctx, pth, opts, args, f, root)
 	if err != nil {
 		return nil, err
 	}
@@ -166,22 +178,6 @@ func parseRequest(r *http.Request, root *cmds.Command) (*cmds.Request, error) {
 
 	err = req.FillDefaults()
 	return req, err
-}
-
-func parseOptions(r *http.Request) (map[string][]string, []string) {
-	opts := make(map[string][]string)
-	var args []string
-
-	query := r.URL.Query()
-	for k, v := range query {
-		if k == "arg" {
-			args = v
-		} else {
-			opts[k] = v
-		}
-	}
-
-	return opts, args
 }
 
 // parseResponse decodes a http.Response to create a cmds.Response
