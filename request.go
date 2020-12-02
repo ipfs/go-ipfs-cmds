@@ -118,7 +118,18 @@ func checkAndConvertOptions(root *Command, opts OptMap, path []string) (OptMap, 
 
 		kind := reflect.TypeOf(v).Kind()
 		if kind != opt.Type() {
-			if str, ok := v.(string); ok {
+			if opt.Type() == Strings {
+				if _, ok := v.([]string); !ok {
+					return options, fmt.Errorf("option %q should be type %q, but got type %q",
+						k, opt.Type().String(), kind.String())
+				}
+			} else {
+				str, ok := v.(string)
+				if !ok {
+					return options, fmt.Errorf("option %q should be type %q, but got type %q",
+						k, opt.Type().String(), kind.String())
+				}
+
 				val, err := opt.Parse(str)
 				if err != nil {
 					value := fmt.Sprintf("value %q", v)
@@ -129,10 +140,6 @@ func checkAndConvertOptions(root *Command, opts OptMap, path []string) (OptMap, 
 						value, opt.Type().String(), "-"+k)
 				}
 				options[k] = val
-
-			} else {
-				return options, fmt.Errorf("option %q should be type %q, but got type %q",
-					k, opt.Type().String(), kind.String())
 			}
 		}
 

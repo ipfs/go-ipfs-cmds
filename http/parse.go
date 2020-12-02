@@ -60,17 +60,37 @@ func parseRequest(r *http.Request, root *cmds.Command) (*cmds.Request, error) {
 		return nil, ErrNotFound
 	}
 
-	opts, stringArgs2 := parseOptions(r)
+	opts := make(map[string]interface{})
 	optDefs, err := root.GetOptions(pth)
 	if err != nil {
 		return nil, err
 	}
-	for k, v := range opts {
-		if optDef, ok := optDefs[k]; ok {
+
+	query := r.URL.Query()
+	// Note: len(v) is guaranteed by the above function to always be greater than 0
+	for k, v := range query {
+		if k == "arg" {
+			stringArgs = append(stringArgs, v...)
+		} else {
+			optDef, ok := optDefs[k]
+			if !ok {
+				opts[k] = v[0]
+				continue
+			}
+
 			name := optDef.Names()[0]
-			if k != name {
+			opts[name] = v
+
+			switch optType := optDef.Type(); optType {
+			case cmds.Strings:
 				opts[name] = v
-				delete(opts, k)
+			case cmds.Bool, cmds.Int, cmds.Int64, cmds.Uint, cmds.Uint64, cmds.Float, cmds.String:
+				if len(v) > 1 {
+					return nil, fmt.Errorf("expected key %s to have only a single value, received %v", name, v)
+				}
+				opts[name] = v[0]
+			default:
+				return nil, fmt.Errorf("unsupported option type. key: %s, type: %v", k, optType)
 			}
 		}
 	}
@@ -78,8 +98,6 @@ func parseRequest(r *http.Request, root *cmds.Command) (*cmds.Request, error) {
 	if _, ok := opts[cmds.EncLong]; !ok {
 		opts[cmds.EncLong] = cmds.JSON
 	}
-
-	stringArgs = append(stringArgs, stringArgs2...)
 
 	// count required argument definitions
 	numRequired := 0
@@ -160,23 +178,6 @@ func parseRequest(r *http.Request, root *cmds.Command) (*cmds.Request, error) {
 
 	err = req.FillDefaults()
 	return req, err
-}
-
-func parseOptions(r *http.Request) (map[string]interface{}, []string) {
-	opts := make(map[string]interface{})
-	var args []string
-
-	query := r.URL.Query()
-	for k, v := range query {
-		if k == "arg" {
-			args = v
-		} else {
-
-			opts[k] = v[0]
-		}
-	}
-
-	return opts, args
 }
 
 // parseResponse decodes a http.Response to create a cmds.Response
