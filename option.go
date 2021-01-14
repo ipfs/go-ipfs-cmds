@@ -184,6 +184,44 @@ func FloatOption(names ...string) Option {
 func StringOption(names ...string) Option {
 	return NewOption(String, names...)
 }
+
+// StringsOption is a command option that can handle a slice of strings
 func StringsOption(names ...string) Option {
-	return NewOption(Strings, names...)
+	return DelimitedStringsOption("", names...)
+}
+
+// DelimitedStringsOption like StringsOption is a command option that can handle a slice of strings.
+// However, DelimitedStringsOption will automatically break up the associated CLI inputs based on the delimiter.
+// For example, instead of passing `command --option=val1 --option=val2` you can pass `command --option=val1,val2` or
+// even `command --option=val1,val2 --option=val3,val4`.
+//
+// A delimiter of "" means that no delimiter is used
+func DelimitedStringsOption(delimiter string, names ...string) Option {
+	return &stringsOption{
+		Option:    NewOption(Strings, names...),
+		delimiter: delimiter,
+	}
+}
+
+type stringsOption struct {
+	Option
+	delimiter string
+}
+
+func (s *stringsOption) WithDefault(v interface{}) Option {
+	if v == nil {
+		return s.Option.WithDefault(v)
+	}
+
+	defVal := v.([]string)
+	s.Option = s.Option.WithDefault(defVal)
+	return s
+}
+
+func (s *stringsOption) Parse(v string) (interface{}, error) {
+	if s.delimiter == "" {
+		return []string{v}, nil
+	}
+
+	return strings.Split(v, s.delimiter), nil
 }

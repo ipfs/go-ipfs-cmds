@@ -100,7 +100,7 @@ func setOpts(kv kv, kvType reflect.Kind, opts cmds.OptMap) error {
 
 	if kvType == cmds.Strings {
 		res, _ := opts[kv.Key].([]string)
-		opts[kv.Key] = append(res, kv.Value.(string))
+		opts[kv.Key] = append(res, kv.Value.([]string)...)
 	} else if _, exists := opts[kv.Key]; !exists {
 		opts[kv.Key] = kv.Value
 	} else {
