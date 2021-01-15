@@ -77,6 +77,24 @@ func TestSameWords(t *testing.T) {
 	test(f, f, true)
 }
 
+func testOptionHelper(t *testing.T, cmd *cmds.Command, args string, expectedOpts kvs, expectedWords words, expectErr bool) {
+	req := &cmds.Request{}
+	err := parse(req, strings.Split(args, " "), cmd)
+	if err == nil {
+		err = req.FillDefaults()
+	}
+	if expectErr {
+		if err == nil {
+			t.Errorf("Command line '%v' parsing should have failed", args)
+		}
+	} else if err != nil {
+		t.Errorf("Command line '%v' failed to parse: %v", args, err)
+	} else if !sameWords(req.Arguments, expectedWords) || !sameKVs(kvs(req.Options), expectedOpts) {
+		t.Errorf("Command line '%v':\n  parsed as  %v %v\n  instead of %v %v",
+			args, req.Options, req.Arguments, expectedOpts, expectedWords)
+	}
+}
+
 func TestOptionParsing(t *testing.T) {
 	cmd := &cmds.Command{
 		Options: []cmds.Option{
@@ -96,30 +114,12 @@ func TestOptionParsing(t *testing.T) {
 		},
 	}
 
-	testHelper := func(args string, expectedOpts kvs, expectedWords words, expectErr bool) {
-		req := &cmds.Request{}
-		err := parse(req, strings.Split(args, " "), cmd)
-		if err == nil {
-			err = req.FillDefaults()
-		}
-		if expectErr {
-			if err == nil {
-				t.Errorf("Command line '%v' parsing should have failed", args)
-			}
-		} else if err != nil {
-			t.Errorf("Command line '%v' failed to parse: %v", args, err)
-		} else if !sameWords(req.Arguments, expectedWords) || !sameKVs(kvs(req.Options), expectedOpts) {
-			t.Errorf("Command line '%v':\n  parsed as  %v %v\n  instead of %v %v",
-				args, req.Options, req.Arguments, expectedOpts, expectedWords)
-		}
-	}
-
 	testFail := func(args string) {
-		testHelper(args, kvs{}, words{}, true)
+		testOptionHelper(t, cmd, args, kvs{}, words{}, true)
 	}
 
 	test := func(args string, expectedOpts kvs, expectedWords words) {
-		testHelper(args, expectedOpts, expectedWords, false)
+		testOptionHelper(t, cmd, args, expectedOpts, expectedWords, false)
 	}
 
 	test("test -", kvs{}, words{"-"})
