@@ -149,6 +149,18 @@ func NewOption(kind reflect.Kind, names ...string) Option {
 }
 
 func (o *option) WithDefault(v interface{}) Option {
+	if v == nil {
+		panic(fmt.Errorf("cannot use nil as a default"))
+	}
+
+	// if type of value does not match the option type
+	if vKind, oKind := reflect.TypeOf(v).Kind(), o.Type(); vKind != oKind {
+		// if the reason they do not match is not because of Slice vs Array equivalence
+		// Note: Figuring out if the type of Slice/Array matches is not done in this function
+		if !((vKind == reflect.Array || vKind == reflect.Slice) && (oKind == reflect.Array || oKind == reflect.Slice)) {
+			panic(fmt.Errorf("invalid default for the given type, expected %s got %s", o.Type(), vKind))
+		}
+	}
 	o.defaultVal = v
 	return o
 }
