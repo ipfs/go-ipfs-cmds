@@ -84,6 +84,7 @@ func TestOptionParsing(t *testing.T) {
 			cmds.StringOption("flag", "alias", "multiple long"),
 			cmds.BoolOption("bool", "b", "a bool"),
 			cmds.StringsOption("strings", "r", "strings array"),
+			cmds.DelimitedStringsOption(",", "delimstrings", "d", "comma delimited string array"),
 		},
 		Subcommands: map[string]*cmds.Command{
 			"test": &cmds.Command{},
@@ -154,6 +155,13 @@ func TestOptionParsing(t *testing.T) {
 	test("-b --string foo test bar", kvs{"bool": true, "string": "foo"}, words{"bar"})
 	test("-b=false --string bar", kvs{"bool": false, "string": "bar"}, words{})
 	test("--strings a --strings b", kvs{"strings": []string{"a", "b"}}, words{})
+
+	test("--delimstrings a,b", kvs{"delimstrings": []string{"a", "b"}}, words{})
+	test("--delimstrings=a,b", kvs{"delimstrings": []string{"a", "b"}}, words{})
+	test("-d a,b", kvs{"delimstrings": []string{"a", "b"}}, words{})
+	test("-d=a,b", kvs{"delimstrings": []string{"a", "b"}}, words{})
+	test("-d=a,b -d c --delimstrings d", kvs{"delimstrings": []string{"a", "b", "c", "d"}}, words{})
+
 	testFail("foo test")
 	test("defaults", kvs{"opt": "def"}, words{})
 	test("defaults -o foo", kvs{"opt": "foo"}, words{})
