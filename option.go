@@ -199,7 +199,10 @@ func StringOption(names ...string) Option {
 
 // StringsOption is a command option that can handle a slice of strings
 func StringsOption(names ...string) Option {
-	return DelimitedStringsOption("", names...)
+	return &stringsOption{
+		Option:    NewOption(Strings, names...),
+		delimiter: "",
+	}
 }
 
 // DelimitedStringsOption like StringsOption is a command option that can handle a slice of strings.
@@ -207,8 +210,11 @@ func StringsOption(names ...string) Option {
 // For example, instead of passing `command --option=val1 --option=val2` you can pass `command --option=val1,val2` or
 // even `command --option=val1,val2 --option=val3,val4`.
 //
-// A delimiter of "" means that no delimiter is used
+// A delimiter of "" is invalid
 func DelimitedStringsOption(delimiter string, names ...string) Option {
+	if delimiter == "" {
+		panic("cannot create a DelimitedStringsOption with no delimiter")
+	}
 	return &stringsOption{
 		Option:    NewOption(Strings, names...),
 		delimiter: delimiter,
