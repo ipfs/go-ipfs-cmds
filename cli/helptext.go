@@ -110,9 +110,11 @@ const shortHelpFormat = `USAGE
 {{end}}{{if .Subcommands}}
 SUBCOMMANDS
 {{.Subcommands}}
-{{end}}{{if .MoreHelp}}
 {{.Indent}}For more information about each command, use:
 {{.Indent}}'{{.Path}} <subcmd> --help'
+{{end}}{{if .MoreHelp}}
+{{.Indent}}for more information about this command, use:
+{{.Indent}}'{{.Path}} --help'
 {{end}}
 `
 
