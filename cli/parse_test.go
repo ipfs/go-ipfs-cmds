@@ -77,6 +77,24 @@ func TestSameWords(t *testing.T) {
 	test(f, f, true)
 }
 
+func testOptionHelper(t *testing.T, cmd *cmds.Command, args string, expectedOpts kvs, expectedWords words, expectErr bool) {
+	req := &cmds.Request{}
+	err := parse(req, strings.Split(args, " "), cmd)
+	if err == nil {
+		err = req.FillDefaults()
+	}
+	if expectErr {
+		if err == nil {
+			t.Errorf("Command line '%v' parsing should have failed", args)
+		}
+	} else if err != nil {
+		t.Errorf("Command line '%v' failed to parse: %v", args, err)
+	} else if !sameWords(req.Arguments, expectedWords) || !sameKVs(kvs(req.Options), expectedOpts) {
+		t.Errorf("Command line '%v':\n  parsed as  %v %v\n  instead of %v %v",
+			args, req.Options, req.Arguments, expectedOpts, expectedWords)
+	}
+}
+
 func TestOptionParsing(t *testing.T) {
 	cmd := &cmds.Command{
 		Options: []cmds.Option{
@@ -84,6 +102,7 @@ func TestOptionParsing(t *testing.T) {
 			cmds.StringOption("flag", "alias", "multiple long"),
 			cmds.BoolOption("bool", "b", "a bool"),
 			cmds.StringsOption("strings", "r", "strings array"),
+			cmds.DelimitedStringsOption(",", "delimstrings", "d", "comma delimited string array"),
 		},
 		Subcommands: map[string]*cmds.Command{
 			"test": &cmds.Command{},
@@ -95,30 +114,12 @@ func TestOptionParsing(t *testing.T) {
 		},
 	}
 
-	testHelper := func(args string, expectedOpts kvs, expectedWords words, expectErr bool) {
-		req := &cmds.Request{}
-		err := parse(req, strings.Split(args, " "), cmd)
-		if err == nil {
-			err = req.FillDefaults()
-		}
-		if expectErr {
-			if err == nil {
-				t.Errorf("Command line '%v' parsing should have failed", args)
-			}
-		} else if err != nil {
-			t.Errorf("Command line '%v' failed to parse: %v", args, err)
-		} else if !sameWords(req.Arguments, expectedWords) || !sameKVs(kvs(req.Options), expectedOpts) {
-			t.Errorf("Command line '%v':\n  parsed as  %v %v\n  instead of %v %v",
-				args, req.Options, req.Arguments, expectedOpts, expectedWords)
-		}
-	}
-
 	testFail := func(args string) {
-		testHelper(args, kvs{}, words{}, true)
+		testOptionHelper(t, cmd, args, kvs{}, words{}, true)
 	}
 
 	test := func(args string, expectedOpts kvs, expectedWords words) {
-		testHelper(args, expectedOpts, expectedWords, false)
+		testOptionHelper(t, cmd, args, expectedOpts, expectedWords, false)
 	}
 
 	test("test -", kvs{}, words{"-"})
@@ -154,6 +155,13 @@ func TestOptionParsing(t *testing.T) {
 	test("-b --string foo test bar", kvs{"bool": true, "string": "foo"}, words{"bar"})
 	test("-b=false --string bar", kvs{"bool": false, "string": "bar"}, words{})
 	test("--strings a --strings b", kvs{"strings": []string{"a", "b"}}, words{})
+
+	test("--delimstrings a,b", kvs{"delimstrings": []string{"a", "b"}}, words{})
+	test("--delimstrings=a,b", kvs{"delimstrings": []string{"a", "b"}}, words{})
+	test("-d a,b", kvs{"delimstrings": []string{"a", "b"}}, words{})
+	test("-d=a,b", kvs{"delimstrings": []string{"a", "b"}}, words{})
+	test("-d=a,b -d c --delimstrings d", kvs{"delimstrings": []string{"a", "b", "c", "d"}}, words{})
+
 	testFail("foo test")
 	test("defaults", kvs{"opt": "def"}, words{})
 	test("defaults -o foo", kvs{"opt": "foo"}, words{})
@@ -168,6 +176,148 @@ func TestOptionParsing(t *testing.T) {
 	testFail("--bad-flag=xyz")
 	testFail("-z")
 	testFail("-zz--- --")
+}
+
+func TestDefaultOptionParsing(t *testing.T) {
+	testPanic := func(f func()) {
+		fnFinished := false
+		defer func() {
+			if r := recover(); fnFinished == true {
+				panic(r)
+			}
+		}()
+		f()
+		fnFinished = true
+		t.Error("expected panic")
+	}
+
+	testPanic(func() { cmds.StringOption("string", "s", "a string").WithDefault(0) })
+	testPanic(func() { cmds.StringOption("string", "s", "a string").WithDefault(false) })
+	testPanic(func() { cmds.StringOption("string", "s", "a string").WithDefault(nil) })
+	testPanic(func() { cmds.StringOption("string", "s", "a string").WithDefault([]string{"foo"}) })
+	testPanic(func() { cmds.StringsOption("strings", "a", "a string array").WithDefault(0) })
+	testPanic(func() { cmds.StringsOption("strings", "a", "a string array").WithDefault(false) })
+	testPanic(func() { cmds.StringsOption("strings", "a", "a string array").WithDefault(nil) })
+	testPanic(func() { cmds.StringsOption("strings", "a", "a string array").WithDefault("foo") })
+	testPanic(func() { cmds.StringsOption("strings", "a", "a string array").WithDefault([]bool{false}) })
+	testPanic(func() { cmds.DelimitedStringsOption(",", "dstrings", "d", "delimited string array").WithDefault(0) })
+	testPanic(func() { cmds.DelimitedStringsOption(",", "dstrs", "d", "delimited string array").WithDefault(false) })
+	testPanic(func() { cmds.DelimitedStringsOption(",", "dstrings", "d", "delimited string array").WithDefault(nil) })
+	testPanic(func() { cmds.DelimitedStringsOption(",", "dstrs", "d", "delimited string array").WithDefault("foo") })
+	testPanic(func() { cmds.DelimitedStringsOption(",", "dstrs", "d", "delimited string array").WithDefault([]int{0}) })
+
+	testPanic(func() { cmds.BoolOption("bool", "b", "a bool").WithDefault(0) })
+	testPanic(func() { cmds.BoolOption("bool", "b", "a bool").WithDefault(1) })
+	testPanic(func() { cmds.BoolOption("bool", "b", "a bool").WithDefault(nil) })
+	testPanic(func() { cmds.BoolOption("bool", "b", "a bool").WithDefault([]bool{false}) })
+	testPanic(func() { cmds.BoolOption("bool", "b", "a bool").WithDefault([]string{"foo"}) })
+
+	testPanic(func() { cmds.UintOption("uint", "u", "a uint").WithDefault(int(0)) })
+	testPanic(func() { cmds.UintOption("uint", "u", "a uint").WithDefault(int32(0)) })
+	testPanic(func() { cmds.UintOption("uint", "u", "a uint").WithDefault(int64(0)) })
+	testPanic(func() { cmds.UintOption("uint", "u", "a uint").WithDefault(uint64(0)) })
+	testPanic(func() { cmds.UintOption("uint", "u", "a uint").WithDefault(uint32(0)) })
+	testPanic(func() { cmds.UintOption("uint", "u", "a uint").WithDefault(float32(0)) })
+	testPanic(func() { cmds.UintOption("uint", "u", "a uint").WithDefault(float64(0)) })
+	testPanic(func() { cmds.UintOption("uint", "u", "a uint").WithDefault(nil) })
+	testPanic(func() { cmds.UintOption("uint", "u", "a uint").WithDefault([]uint{0}) })
+	testPanic(func() { cmds.UintOption("uint", "u", "a uint").WithDefault([]string{"foo"}) })
+	testPanic(func() { cmds.Uint64Option("uint64", "v", "a uint64").WithDefault(int(0)) })
+	testPanic(func() { cmds.Uint64Option("uint64", "v", "a uint64").WithDefault(int32(0)) })
+	testPanic(func() { cmds.Uint64Option("uint64", "v", "a uint64").WithDefault(int64(0)) })
+	testPanic(func() { cmds.Uint64Option("uint64", "v", "a uint64").WithDefault(uint(0)) })
+	testPanic(func() { cmds.Uint64Option("uint64", "v", "a uint64").WithDefault(uint32(0)) })
+	testPanic(func() { cmds.Uint64Option("uint64", "v", "a uint64").WithDefault(float32(0)) })
+	testPanic(func() { cmds.Uint64Option("uint64", "v", "a uint64").WithDefault(float64(0)) })
+	testPanic(func() { cmds.Uint64Option("uint64", "v", "a uint64").WithDefault(nil) })
+	testPanic(func() { cmds.Uint64Option("uint64", "v", "a uint64").WithDefault([]uint64{0}) })
+	testPanic(func() { cmds.Uint64Option("uint64", "v", "a uint64").WithDefault([]string{"foo"}) })
+	testPanic(func() { cmds.IntOption("int", "i", "an int").WithDefault(int32(0)) })
+	testPanic(func() { cmds.IntOption("int", "i", "an int").WithDefault(int64(0)) })
+	testPanic(func() { cmds.IntOption("int", "i", "an int").WithDefault(uint(0)) })
+	testPanic(func() { cmds.IntOption("int", "i", "an int").WithDefault(uint32(0)) })
+	testPanic(func() { cmds.IntOption("int", "i", "an int").WithDefault(uint64(0)) })
+	testPanic(func() { cmds.IntOption("int", "i", "an int").WithDefault(float32(0)) })
+	testPanic(func() { cmds.IntOption("int", "i", "an int").WithDefault(float64(0)) })
+	testPanic(func() { cmds.IntOption("int", "i", "an int").WithDefault(nil) })
+	testPanic(func() { cmds.IntOption("int", "i", "an int").WithDefault([]int{0}) })
+	testPanic(func() { cmds.IntOption("int", "i", "an int").WithDefault([]string{"foo"}) })
+	testPanic(func() { cmds.Int64Option("int64", "j", "an int64").WithDefault(int(0)) })
+	testPanic(func() { cmds.Int64Option("int64", "j", "an int64").WithDefault(int32(0)) })
+	testPanic(func() { cmds.Int64Option("int64", "j", "an int64").WithDefault(uint(0)) })
+	testPanic(func() { cmds.Int64Option("int64", "j", "an int64").WithDefault(uint32(0)) })
+	testPanic(func() { cmds.Int64Option("int64", "j", "an int64").WithDefault(uint64(0)) })
+	testPanic(func() { cmds.Int64Option("int64", "j", "an int64").WithDefault(float32(0)) })
+	testPanic(func() { cmds.Int64Option("int64", "j", "an int64").WithDefault(float64(0)) })
+	testPanic(func() { cmds.Int64Option("int64", "j", "an int64").WithDefault(nil) })
+	testPanic(func() { cmds.Int64Option("int64", "j", "an int64").WithDefault([]int64{0}) })
+	testPanic(func() { cmds.Int64Option("int64", "j", "an int64").WithDefault([]string{"foo"}) })
+	testPanic(func() { cmds.FloatOption("float", "f", "a float64").WithDefault(int(0)) })
+	testPanic(func() { cmds.FloatOption("float", "f", "a float64").WithDefault(int32(0)) })
+	testPanic(func() { cmds.FloatOption("float", "f", "a float64").WithDefault(int64(0)) })
+	testPanic(func() { cmds.FloatOption("float", "f", "a float64").WithDefault(uint(0)) })
+	testPanic(func() { cmds.FloatOption("float", "f", "a float64").WithDefault(uint32(0)) })
+	testPanic(func() { cmds.FloatOption("float", "f", "a float64").WithDefault(uint64(0)) })
+	testPanic(func() { cmds.FloatOption("float", "f", "a float64").WithDefault(float32(0)) })
+	testPanic(func() { cmds.FloatOption("float", "f", "a float64").WithDefault(nil) })
+	testPanic(func() { cmds.FloatOption("float", "f", "a float64").WithDefault([]int{0}) })
+	testPanic(func() { cmds.FloatOption("float", "f", "a float64").WithDefault([]string{"foo"}) })
+
+	cmd := &cmds.Command{
+		Subcommands: map[string]*cmds.Command{
+			"defaults": &cmds.Command{
+				Options: []cmds.Option{
+					cmds.StringOption("string", "s", "a string").WithDefault("foo"),
+					cmds.StringsOption("strings1", "a", "a string array").WithDefault([]string{"foo"}),
+					cmds.StringsOption("strings2", "b", "a string array").WithDefault([]string{"foo", "bar"}),
+					cmds.DelimitedStringsOption(",", "dstrings1", "c", "a delimited string array").WithDefault([]string{"foo"}),
+					cmds.DelimitedStringsOption(",", "dstrings2", "d", "a delimited string array").WithDefault([]string{"foo", "bar"}),
+
+					cmds.BoolOption("boolT", "t", "a bool").WithDefault(true),
+					cmds.BoolOption("boolF", "a bool").WithDefault(false),
+
+					cmds.UintOption("uint", "u", "a uint").WithDefault(uint(1)),
+					cmds.Uint64Option("uint64", "v", "a uint64").WithDefault(uint64(1)),
+					cmds.IntOption("int", "i", "an int").WithDefault(int(1)),
+					cmds.Int64Option("int64", "j", "an int64").WithDefault(int64(1)),
+					cmds.FloatOption("float", "f", "a float64").WithDefault(float64(1)),
+				},
+			},
+		},
+	}
+
+	test := func(args string, expectedOpts kvs, expectedWords words) {
+		testOptionHelper(t, cmd, args, expectedOpts, expectedWords, false)
+	}
+
+	test("defaults", kvs{
+		"string":    "foo",
+		"strings1":  []string{"foo"},
+		"strings2":  []string{"foo", "bar"},
+		"dstrings1": []string{"foo"},
+		"dstrings2": []string{"foo", "bar"},
+		"boolT":     true,
+		"boolF":     false,
+		"uint":      uint(1),
+		"uint64":    uint64(1),
+		"int":       int(1),
+		"int64":     int64(1),
+		"float":     float64(1),
+	}, words{})
+	test("defaults --string baz --strings1=baz -b baz -b=foo -c=foo -d=foo,baz,bing -d=zip,zap -d=zorp -t=false --boolF -u=0 -v=10 -i=-5 -j=10 -f=-3.14", kvs{
+		"string":    "baz",
+		"strings1":  []string{"baz"},
+		"strings2":  []string{"baz", "foo"},
+		"dstrings1": []string{"foo"},
+		"dstrings2": []string{"foo", "baz", "bing", "zip", "zap", "zorp"},
+		"boolT":     false,
+		"boolF":     true,
+		"uint":      uint(0),
+		"uint64":    uint64(10),
+		"int":       int(-5),
+		"int64":     int64(10),
+		"float":     float64(-3.14),
+	}, words{})
 }
 
 func TestArgumentParsing(t *testing.T) {

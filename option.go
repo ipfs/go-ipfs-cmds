@@ -149,6 +149,18 @@ func NewOption(kind reflect.Kind, names ...string) Option {
 }
 
 func (o *option) WithDefault(v interface{}) Option {
+	if v == nil {
+		panic(fmt.Errorf("cannot use nil as a default"))
+	}
+
+	// if type of value does not match the option type
+	if vKind, oKind := reflect.TypeOf(v).Kind(), o.Type(); vKind != oKind {
+		// if the reason they do not match is not because of Slice vs Array equivalence
+		// Note: Figuring out if the type of Slice/Array matches is not done in this function
+		if !((vKind == reflect.Array || vKind == reflect.Slice) && (oKind == reflect.Array || oKind == reflect.Slice)) {
+			panic(fmt.Errorf("invalid default for the given type, expected %s got %s", o.Type(), vKind))
+		}
+	}
 	o.defaultVal = v
 	return o
 }
@@ -184,6 +196,50 @@ func FloatOption(names ...string) Option {
 func StringOption(names ...string) Option {
 	return NewOption(String, names...)
 }
+
+// StringsOption is a command option that can handle a slice of strings
 func StringsOption(names ...string) Option {
-	return NewOption(Strings, names...)
+	return &stringsOption{
+		Option:    NewOption(Strings, names...),
+		delimiter: "",
+	}
+}
+
+// DelimitedStringsOption like StringsOption is a command option that can handle a slice of strings.
+// However, DelimitedStringsOption will automatically break up the associated CLI inputs based on the delimiter.
+// For example, instead of passing `command --option=val1 --option=val2` you can pass `command --option=val1,val2` or
+// even `command --option=val1,val2 --option=val3,val4`.
+//
+// A delimiter of "" is invalid
+func DelimitedStringsOption(delimiter string, names ...string) Option {
+	if delimiter == "" {
+		panic("cannot create a DelimitedStringsOption with no delimiter")
+	}
+	return &stringsOption{
+		Option:    NewOption(Strings, names...),
+		delimiter: delimiter,
+	}
+}
+
+type stringsOption struct {
+	Option
+	delimiter string
+}
+
+func (s *stringsOption) WithDefault(v interface{}) Option {
+	if v == nil {
+		return s.Option.WithDefault(v)
+	}
+
+	defVal := v.([]string)
+	s.Option = s.Option.WithDefault(defVal)
+	return s
+}
+
+func (s *stringsOption) Parse(v string) (interface{}, error) {
+	if s.delimiter == "" {
+		return []string{v}, nil
+	}
+
+	return strings.Split(v, s.delimiter), nil
 }
