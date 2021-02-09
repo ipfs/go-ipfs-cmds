@@ -18,6 +18,7 @@ func (ff *flushfwder) Close() error {
 	return ff.ResponseEmitter.Close()
 }
 
+// TODO: no documentation; [54dbca2b-17f2-42a8-af93-c8d713866138]
 func NewFlushForwarder(re ResponseEmitter, f Flusher) ResponseEmitter {
 	return &flushfwder{ResponseEmitter: re, Flusher: f}
 }

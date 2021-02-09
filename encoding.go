@@ -49,7 +49,10 @@ var Decoders = map[EncodingType]func(w io.Reader) Decoder{
 	},
 }
 
+// TODO: no documentation; [54dbca2b-17f2-42a8-af93-c8d713866138]
 type EncoderFunc func(req *Request) func(w io.Writer) Encoder
+
+// TODO: no documentation; [54dbca2b-17f2-42a8-af93-c8d713866138]
 type EncoderMap map[EncodingType]EncoderFunc
 
 var Encoders = EncoderMap{
@@ -67,12 +70,14 @@ var Encoders = EncoderMap{
 	},
 }
 
+// TODO: no documentation; [54dbca2b-17f2-42a8-af93-c8d713866138]
 func MakeEncoder(f func(*Request, io.Writer, interface{}) error) func(*Request) func(io.Writer) Encoder {
 	return func(req *Request) func(io.Writer) Encoder {
 		return func(w io.Writer) Encoder { return &genericEncoder{f: f, w: w, req: req} }
 	}
 }
 
+// TODO: no documentation; [54dbca2b-17f2-42a8-af93-c8d713866138]
 func MakeTypedEncoder(f interface{}) func(*Request) func(io.Writer) Encoder {
 	val := reflect.ValueOf(f)
 	t := val.Type()

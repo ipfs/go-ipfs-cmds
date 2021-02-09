@@ -173,8 +173,8 @@ func (c *Command) call(req *Request, re ResponseEmitter, env Environment) error 
 	return cmd.Run(req, re, env)
 }
 
-// Resolve returns the subcommands at the given path
-// The returned set of subcommands starts with this command and therefore is always at least size 1
+// Resolve returns the subcommands at the given path.
+// The returned set of subcommands starts with this command and therefore is always at least size 1.
 func (c *Command) Resolve(pth []string) ([]*Command, error) {
 	cmds := make([]*Command, len(pth)+1)
 	cmds[0] = c
@@ -233,6 +233,10 @@ func (c *Command) GetOptions(path []string) (map[string]Option, error) {
 // DebugValidate checks if the command tree is well-formed.
 //
 // This operation is slow and should be called from tests only.
+//
+// TODO: review this; I don't see any reason this needs to be attached to all `Command`s
+// rather than being a function which takes in `Command`.
+// ValidateCommand(cmd)[]error|<-chan error; called from tests only.
 func (c *Command) DebugValidate() map[string][]error {
 	errs := make(map[string][]error)
 	var visit func(path string, cm *Command)
@@ -348,6 +352,7 @@ func (c *Command) CheckArguments(req *Request) error {
 	return nil
 }
 
+// TODO: no documentation; [54dbca2b-17f2-42a8-af93-c8d713866138]
 type CommandVisitor func(*Command)
 
 // Walks tree of all subcommands (including this one)
@@ -358,6 +363,7 @@ func (c *Command) Walk(visitor CommandVisitor) {
 	}
 }
 
+// TODO: no documentation; [54dbca2b-17f2-42a8-af93-c8d713866138]
 func (c *Command) ProcessHelp() {
 	c.Walk(func(cm *Command) {
 		ht := &cm.Helptext
@@ -367,6 +373,7 @@ func (c *Command) ProcessHelp() {
 	})
 }
 
+// TODO: no documentation; [54dbca2b-17f2-42a8-af93-c8d713866138]
 func ClientError(msg string) error {
 	return &Error{Code: ErrClient, Message: msg}
 }

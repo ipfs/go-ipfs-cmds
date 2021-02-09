@@ -4,6 +4,7 @@ import (
 	"context"
 )
 
+// TODO: no documentation; [54dbca2b-17f2-42a8-af93-c8d713866138]
 type Executor interface {
 	Execute(req *Request, re ResponseEmitter, env Environment) error
 }
@@ -22,6 +23,7 @@ type MakeEnvironment func(context.Context, *Request) (Environment, error)
 // The user can define a function like this to pass it to cli.Run.
 type MakeExecutor func(*Request, interface{}) (Executor, error)
 
+// TODO: no documentation; [54dbca2b-17f2-42a8-af93-c8d713866138]
 func NewExecutor(root *Command) Executor {
 	return &executor{
 		root: root,
