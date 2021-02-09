@@ -6,6 +6,7 @@ import (
 	"sync"
 )
 
+// TODO: no documentation; [54dbca2b-17f2-42a8-af93-c8d713866138]
 func NewChanResponsePair(req *Request) (ResponseEmitter, Response) {
 	r := &chanResponse{
 		req:     req,
