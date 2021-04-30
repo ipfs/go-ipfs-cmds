@@ -6,6 +6,10 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+
+	"github.com/ipld/go-ipld-prime"
+	"github.com/ipld/go-ipld-prime/multicodec"
+	mc "github.com/multiformats/go-multicodec"
 )
 
 // Encoder encodes values onto e.g. an io.Writer. Examples are json.Encoder and xml.Encoder.
@@ -157,6 +161,25 @@ func (e TextEncoder) Encode(v interface{}) error {
 	return err
 }
 
+type IpldEncoder struct {
+	w       io.Writer
+	encoder ipld.Encoder
+}
+
+func (i IpldEncoder) Encode(v interface{}) error {
+	n, ok := v.(ipld.Node)
+	if ok {
+		return i.encoder(n, i.w)
+	}
+	if np, ok := v.(*interface{}); ok {
+		n, ok := (*np).(ipld.Node)
+		if ok {
+			return i.encoder(n, i.w)
+		}
+	}
+	return fmt.Errorf("Not an ipld node: %T", v)
+}
+
 // GetEncoder takes a request and returns returns the encoding type and the encoder.
 func GetEncoder(req *Request, w io.Writer, def EncodingType) (encType EncodingType, enc Encoder, err error) {
 	encType = GetEncoding(req, def)
@@ -172,7 +195,15 @@ func GetEncoder(req *Request, w io.Writer, def EncodingType) (encType EncodingTy
 		fn, ok = Encoders[encType]
 	}
 	if !ok {
-		return encType, nil, Errorf(ErrClient, "invalid encoding: %s", encType)
+		ipldCodec, ok := mc.Of(string(encType))
+		if !ok {
+			return encType, nil, Errorf(ErrClient, "invalid encoding: %s", encType)
+		}
+		encoder, err := multicodec.LookupEncoder(uint64(ipldCodec))
+		if err != nil {
+			return encType, nil, Errorf(ErrClient, "invalid encoding: %s - %s", encType, err)
+		}
+		return encType, IpldEncoder{w, encoder}, nil
 	}
 	return encType, fn(req)(w), nil
 }
