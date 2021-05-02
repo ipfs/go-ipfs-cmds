@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"strconv"
 
 	"github.com/ipld/go-ipld-prime"
 	"github.com/ipld/go-ipld-prime/multicodec"
@@ -195,9 +196,19 @@ func GetEncoder(req *Request, w io.Writer, def EncodingType) (encType EncodingTy
 		fn, ok = Encoders[encType]
 	}
 	if !ok {
+		// In addition to the explicitly named legacy encoders defined in this file,
+		// support encoding with the encoders registered in the ipld-prime multicodec
+		// registry.
 		ipldCodec, ok := mc.Of(string(encType))
 		if !ok {
-			return encType, nil, Errorf(ErrClient, "invalid encoding: %s", encType)
+			if !ok {
+				n, err := strconv.Atoi(string(encType))
+				if err != nil {
+					return encType, nil, Errorf(ErrClient, "invalid encoding: %s", encType)
+				}
+				ipldCodec = mc.Code(n)
+			}
+
 		}
 		encoder, err := multicodec.LookupEncoder(uint64(ipldCodec))
 		if err != nil {
