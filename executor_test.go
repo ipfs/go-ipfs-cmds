@@ -80,3 +80,37 @@ func TestExecutorError(t *testing.T) {
 		t.Fatalf("expected error message %q but got: %s", expErr, err)
 	}
 }
+
+func TestExecutorNotTyper(t *testing.T) {
+	testCmd := &Command{
+		Run: func(*Request, ResponseEmitter, Environment) error {
+			return nil
+		},
+		PostRun: PostRunMap{
+			CLI: func(response Response, emitter ResponseEmitter) error { return nil },
+		},
+	}
+	testRoot := &Command{
+		Subcommands: map[string]*Command{
+			"test": testCmd,
+		},
+	}
+	req, err := NewRequest(context.Background(), []string{"test"}, nil, nil, nil, testRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	emitter, resp := NewChanResponsePair(req)
+
+	x := NewExecutor(testRoot)
+
+	err = x.Execute(req, emitter, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = resp.Next()
+	if err != io.EOF {
+		t.Fatalf("expected EOF but got: %s", err)
+	}
+}
