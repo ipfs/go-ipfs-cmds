@@ -65,19 +65,19 @@ var (
 		},
 
 		Subcommands: map[string]*cmds.Command{
-			"error": &cmds.Command{
+			"error": {
 				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
 					return errors.New("an error occurred")
 				},
 			},
-			"lateerror": &cmds.Command{
+			"lateerror": {
 				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
 					re.Emit("some value")
 					return errors.New("an error occurred")
 				},
 				Type: "",
 			},
-			"encode": &cmds.Command{
+			"encode": {
 				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
 					return errors.New("an error occurred")
 				},
@@ -89,7 +89,7 @@ var (
 					}),
 				},
 			},
-			"lateencode": &cmds.Command{
+			"lateencode": {
 				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
 					re.Emit("hello")
 					return errors.New("an error occurred")
@@ -105,7 +105,7 @@ var (
 					}),
 				},
 			},
-			"protoencode": &cmds.Command{
+			"protoencode": {
 				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
 					return errors.New("an error occurred")
 				},
@@ -117,7 +117,7 @@ var (
 					}),
 				},
 			},
-			"protolateencode": &cmds.Command{
+			"protolateencode": {
 				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
 					re.Emit("hello")
 					return errors.New("an error occurred")
@@ -130,7 +130,7 @@ var (
 					}),
 				},
 			},
-			"doubleclose": &cmds.Command{
+			"doubleclose": {
 				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
 					t, ok := getTestingT(env)
 					if !ok {
@@ -154,7 +154,7 @@ var (
 				Type: "",
 			},
 
-			"single": &cmds.Command{
+			"single": {
 				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
 					t, ok := getTestingT(env)
 					if !ok {
@@ -188,14 +188,14 @@ var (
 				Type: "",
 			},
 
-			"reader": &cmds.Command{
+			"reader": {
 				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
 					buf := bytes.NewBufferString("the reader call returns a reader.")
 					return re.Emit(buf)
 				},
 			},
 
-			"echo": &cmds.Command{
+			"echo": {
 				Arguments: []cmds.Argument{
 					cmds.FileArg("file", true, false, "a file"),
 				},
@@ -220,7 +220,7 @@ var (
 				},
 			},
 
-			"version": &cmds.Command{
+			"version": {
 				Helptext: cmds.HelpText{
 					Tagline:          "Show ipfs version information.",
 					ShortDescription: "Returns the current version of ipfs and exits.",

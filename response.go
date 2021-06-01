@@ -1,7 +1,5 @@
 package cmds
 
-import ()
-
 // Response is the result of a command request. Response is returned to the client.
 type Response interface {
 	Request() *Request
