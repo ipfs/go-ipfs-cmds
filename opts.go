@@ -1,7 +1,5 @@
 package cmds
 
-import ()
-
 // Flag names
 const (
 	EncShort     = "enc"

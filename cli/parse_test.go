@@ -105,8 +105,8 @@ func TestOptionParsing(t *testing.T) {
 			cmds.DelimitedStringsOption(",", "delimstrings", "d", "comma delimited string array"),
 		},
 		Subcommands: map[string]*cmds.Command{
-			"test": &cmds.Command{},
-			"defaults": &cmds.Command{
+			"test": {},
+			"defaults": {
 				Options: []cmds.Option{
 					cmds.StringOption("opt", "o", "an option").WithDefault("def"),
 				},
@@ -265,7 +265,7 @@ func TestDefaultOptionParsing(t *testing.T) {
 
 	cmd := &cmds.Command{
 		Subcommands: map[string]*cmds.Command{
-			"defaults": &cmds.Command{
+			"defaults": {
 				Options: []cmds.Option{
 					cmds.StringOption("string", "s", "a string").WithDefault("foo"),
 					cmds.StringsOption("strings1", "a", "a string array").WithDefault([]string{"foo"}),
@@ -435,18 +435,18 @@ func TestBodyArgs(t *testing.T) {
 					cmds.StringArg("a", true, true, "some arg").EnableStdin(),
 				},
 			},
-			"stdinenabled2args": &cmds.Command{
+			"stdinenabled2args": {
 				Arguments: []cmds.Argument{
 					cmds.StringArg("a", true, false, "some arg"),
 					cmds.StringArg("b", true, true, "another arg").EnableStdin(),
 				},
 			},
-			"stdinenablednotvariadic": &cmds.Command{
+			"stdinenablednotvariadic": {
 				Arguments: []cmds.Argument{
 					cmds.StringArg("a", true, false, "some arg").EnableStdin(),
 				},
 			},
-			"stdinenablednotvariadic2args": &cmds.Command{
+			"stdinenablednotvariadic2args": {
 				Arguments: []cmds.Argument{
 					cmds.StringArg("a", true, false, "some arg"),
 					cmds.StringArg("b", true, false, "another arg").EnableStdin(),

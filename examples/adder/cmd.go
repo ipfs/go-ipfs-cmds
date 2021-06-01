@@ -24,7 +24,7 @@ type AddStatus struct {
 var RootCmd = &cmds.Command{
 	Subcommands: map[string]*cmds.Command{
 		// the simplest way to make an adder
-		"simpleAdd": &cmds.Command{
+		"simpleAdd": {
 			Arguments: []cmds.Argument{
 				cmds.StringArg("summands", true, true, "values that are supposed to be summed"),
 			},
@@ -48,7 +48,7 @@ var RootCmd = &cmds.Command{
 			},
 		},
 		// a bit more sophisticated
-		"encodeAdd": &cmds.Command{
+		"encodeAdd": {
 			Arguments: []cmds.Argument{
 				cmds.StringArg("summands", true, true, "values that are supposed to be summed"),
 			},
@@ -94,7 +94,7 @@ var RootCmd = &cmds.Command{
 			},
 		},
 		// the best UX
-		"postRunAdd": &cmds.Command{
+		"postRunAdd": {
 			Arguments: []cmds.Argument{
 				cmds.StringArg("summands", true, true, "values that are supposed to be summed"),
 			},
@@ -152,7 +152,7 @@ var RootCmd = &cmds.Command{
 			},
 		},
 		// how to set program's return value
-		"exitAdd": &cmds.Command{
+		"exitAdd": {
 			Arguments: []cmds.Argument{
 				cmds.StringArg("summands", true, true, "values that are supposed to be summed"),
 			},
