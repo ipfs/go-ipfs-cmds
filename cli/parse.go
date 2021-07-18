@@ -332,7 +332,6 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 						return err
 					}
 
-					fpath = path.Base(fpath)
 					file = nf
 				}
 
