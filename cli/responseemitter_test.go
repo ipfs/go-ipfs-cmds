@@ -22,12 +22,10 @@ func (tc tcCloseWithError) Run(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	re := cmdsre.(ResponseEmitter)
+	tc.f(cmdsre, t)
 
-	tc.f(re, t)
-
-	if re.Status() != tc.exExit {
-		t.Fatalf("expected exit code %d, got %d", tc.exExit, re.Status())
+	if cmdsre.Status() != tc.exExit {
+		t.Fatalf("expected exit code %d, got %d", tc.exExit, cmdsre.Status())
 	}
 
 	if tc.stdout.String() != tc.exStdout {
