@@ -304,7 +304,7 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 					}
 					file = files.NewWebFile(u)
 				} else {
-					fpath = filepath.ToSlash(filepath.Clean(fpath))
+					fpath = filepath.Clean(fpath)
 					derefArgs, _ := req.Options[cmds.DerefLong].(bool)
 					var err error
 
@@ -332,7 +332,7 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 						return err
 					}
 
-					fpath = path.Base(fpath)
+					fpath = filepath.Base(fpath)
 					file = nf
 				}
 
