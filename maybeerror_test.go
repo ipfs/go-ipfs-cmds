@@ -59,9 +59,9 @@ func TestMaybeError(t *testing.T) {
 			Value: &Foo{},
 			JSON:  `{"Bar":23}{"Bar":42}{"Message":"some error", "Type": "error"}`,
 			Decoded: []ValueError{
-				ValueError{Value: &Foo{23}},
-				ValueError{Value: &Foo{42}},
-				ValueError{Error: &Error{Message: "some error", Code: 0}},
+				{Value: &Foo{23}},
+				{Value: &Foo{42}},
+				{Error: &Error{Message: "some error", Code: 0}},
 			},
 		},
 		{
@@ -69,9 +69,9 @@ func TestMaybeError(t *testing.T) {
 			Value: Foo{},
 			JSON:  `{"Bar":23}{"Bar":42}{"Message":"some error", "Type": "error"}`,
 			Decoded: []ValueError{
-				ValueError{Value: &Foo{23}},
-				ValueError{Value: &Foo{42}},
-				ValueError{Error: &Error{Message: "some error", Code: 0}},
+				{Value: &Foo{23}},
+				{Value: &Foo{42}},
+				{Error: &Error{Message: "some error", Code: 0}},
 			},
 		},
 		{
@@ -79,9 +79,9 @@ func TestMaybeError(t *testing.T) {
 			Value: &Bar{},
 			JSON:  `{"Foo":""}{"Foo":"Qmabc"}{"Message":"some error", "Type": "error"}`,
 			Decoded: []ValueError{
-				ValueError{Value: &Bar{""}},
-				ValueError{Value: &Bar{"Qmabc"}},
-				ValueError{Error: &Error{Message: "some error", Code: 0}},
+				{Value: &Bar{""}},
+				{Value: &Bar{"Qmabc"}},
+				{Error: &Error{Message: "some error", Code: 0}},
 			},
 		},
 		{
@@ -89,19 +89,19 @@ func TestMaybeError(t *testing.T) {
 			Value: Bar{},
 			JSON:  `{"Foo":""}{"Foo":"Qmabc"}{"Message":"some error", "Type": "error"}`,
 			Decoded: []ValueError{
-				ValueError{Value: &Bar{""}},
-				ValueError{Value: &Bar{"Qmabc"}},
-				ValueError{Error: &Error{Message: "some error", Code: 0}},
+				{Value: &Bar{""}},
+				{Value: &Bar{"Qmabc"}},
+				{Error: &Error{Message: "some error", Code: 0}},
 			},
 		},
 		{
 			Name: "untyped",
 			JSON: `{"Foo":"bar", "i": 4}"some string"5{"Message":"some error", "Type": "error"}`,
 			Decoded: []ValueError{
-				ValueError{Value: map[string]interface{}{"Foo": "bar", "i": 4.0}},
-				ValueError{Value: "some string"},
-				ValueError{Value: 5.0},
-				ValueError{Error: &Error{Message: "some error", Code: 0}},
+				{Value: map[string]interface{}{"Foo": "bar", "i": 4.0}},
+				{Value: "some string"},
+				{Value: 5.0},
+				{Error: &Error{Message: "some error", Code: 0}},
 			},
 		},
 	}

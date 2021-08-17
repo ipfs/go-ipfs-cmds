@@ -42,7 +42,7 @@ func (tc tcCloseWithError) Run(t *testing.T) {
 
 func TestCloseWithError(t *testing.T) {
 	tcs := []tcCloseWithError{
-		tcCloseWithError{
+		{
 			stdout:   bytes.NewBuffer(nil),
 			stderr:   bytes.NewBuffer(nil),
 			exStdout: "a\n",
@@ -54,7 +54,7 @@ func TestCloseWithError(t *testing.T) {
 				re.Emit("b")
 			},
 		},
-		tcCloseWithError{
+		{
 			stdout:   bytes.NewBuffer(nil),
 			stderr:   bytes.NewBuffer(nil),
 			exStdout: "a\n",

@@ -15,9 +15,9 @@ import (
 func TestParse(t *testing.T) {
 	root := &cmds.Command{
 		Subcommands: map[string]*cmds.Command{
-			"block": &cmds.Command{
+			"block": {
 				Subcommands: map[string]*cmds.Command{
-					"put": &cmds.Command{
+					"put": {
 						Run: func(req *cmds.Request, resp cmds.ResponseEmitter, env cmds.Environment) error {
 							defer resp.Close()
 							resp.Emit("done")
