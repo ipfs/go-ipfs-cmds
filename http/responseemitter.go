@@ -27,7 +27,7 @@ var (
 
 // NewResponseEmitter returns a new ResponseEmitter.
 func NewResponseEmitter(w http.ResponseWriter, method string, req *cmds.Request, opts ...ResponseEmitterOption) (ResponseEmitter, error) {
-	encType, enc, err := cmds.GetEncoder(req, w, cmds.JSON)
+	encType, enc, err := cmds.GetLocalEncoder(req, w, cmds.JSON)
 	if err != nil {
 		return nil, err
 	}

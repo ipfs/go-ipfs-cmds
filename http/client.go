@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/ipfs/go-ipfs-cmds"
@@ -130,6 +131,11 @@ func (c *client) Execute(req *cmds.Request, re cmds.ResponseEmitter, env cmds.En
 
 			return closeErr
 		}
+	}
+
+	if cmd.DisplayCLI != nil &&
+		cmds.GetEncoding(req, cmds.Undefined) == cmds.Text {
+		return cmd.DisplayCLI(res, os.Stdout, os.Stderr)
 	}
 
 	return cmds.Copy(re, res)
