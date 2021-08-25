@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -105,8 +105,8 @@ func TestOptionParsing(t *testing.T) {
 			cmds.DelimitedStringsOption(",", "delimstrings", "d", "comma delimited string array"),
 		},
 		Subcommands: map[string]*cmds.Command{
-			"test": &cmds.Command{},
-			"defaults": &cmds.Command{
+			"test": {},
+			"defaults": {
 				Options: []cmds.Option{
 					cmds.StringOption("opt", "o", "an option").WithDefault("def"),
 				},
@@ -265,7 +265,7 @@ func TestDefaultOptionParsing(t *testing.T) {
 
 	cmd := &cmds.Command{
 		Subcommands: map[string]*cmds.Command{
-			"defaults": &cmds.Command{
+			"defaults": {
 				Options: []cmds.Option{
 					cmds.StringOption("string", "s", "a string").WithDefault("foo"),
 					cmds.StringsOption("strings1", "a", "a string array").WithDefault([]string{"foo"}),
@@ -435,18 +435,18 @@ func TestBodyArgs(t *testing.T) {
 					cmds.StringArg("a", true, true, "some arg").EnableStdin(),
 				},
 			},
-			"stdinenabled2args": &cmds.Command{
+			"stdinenabled2args": {
 				Arguments: []cmds.Argument{
 					cmds.StringArg("a", true, false, "some arg"),
 					cmds.StringArg("b", true, true, "another arg").EnableStdin(),
 				},
 			},
-			"stdinenablednotvariadic": &cmds.Command{
+			"stdinenablednotvariadic": {
 				Arguments: []cmds.Argument{
 					cmds.StringArg("a", true, false, "some arg").EnableStdin(),
 				},
 			},
-			"stdinenablednotvariadic2args": &cmds.Command{
+			"stdinenablednotvariadic2args": {
 				Arguments: []cmds.Argument{
 					cmds.StringArg("a", true, false, "some arg"),
 					cmds.StringArg("b", true, false, "another arg").EnableStdin(),
@@ -763,7 +763,7 @@ func TestFileArgs(t *testing.T) {
 	tmpFile1 := mkTempFile(t, "", "", "test1")
 	tmpFile2 := mkTempFile(t, tmpDir1, "", "toBeIgnored")
 	tmpFile3 := mkTempFile(t, tmpDir1, "", "test3")
-	ignoreFile := mkTempFile(t, tmpDir2, "", path.Base(tmpFile2.Name()))
+	ignoreFile := mkTempFile(t, tmpDir2, "", filepath.Base(tmpFile2.Name()))
 	tmpHiddenFile := mkTempFile(t, tmpDir1, ".test_hidden_file_*", "test")
 	defer func() {
 		for _, f := range []string{
@@ -790,27 +790,27 @@ func TestFileArgs(t *testing.T) {
 			parseErr: fmt.Errorf("argument %q is required", "path"),
 		},
 		{
-			cmd: words{"fileOp", "--ignore", path.Base(tmpFile2.Name()), tmpDir1, tmpFile1.Name()}, f: nil,
+			cmd: words{"fileOp", "--ignore", filepath.Base(tmpFile2.Name()), tmpDir1, tmpFile1.Name()}, f: nil,
 			args:     words{tmpDir1, tmpFile1.Name(), tmpFile3.Name()},
 			parseErr: fmt.Errorf(notRecursiveFmtStr, tmpDir1, "r"),
 		},
 		{
-			cmd: words{"fileOp", tmpFile1.Name(), "--ignore", path.Base(tmpFile2.Name()), "--ignore"}, f: nil,
+			cmd: words{"fileOp", tmpFile1.Name(), "--ignore", filepath.Base(tmpFile2.Name()), "--ignore"}, f: nil,
 			args:     words{tmpDir1, tmpFile1.Name(), tmpFile3.Name()},
 			parseErr: fmt.Errorf("missing argument for option %q", "ignore"),
 		},
 		{
-			cmd: words{"fileOp", "-r", "--ignore", path.Base(tmpFile2.Name()), tmpDir1, tmpFile1.Name()}, f: nil,
+			cmd: words{"fileOp", "-r", "--ignore", filepath.Base(tmpFile2.Name()), tmpDir1, tmpFile1.Name()}, f: nil,
 			args:     words{tmpDir1, tmpFile1.Name(), tmpFile3.Name()},
 			parseErr: nil,
 		},
 		{
-			cmd: words{"fileOp", "--hidden", "-r", "--ignore", path.Base(tmpFile2.Name()), tmpDir1, tmpFile1.Name()}, f: nil,
+			cmd: words{"fileOp", "--hidden", "-r", "--ignore", filepath.Base(tmpFile2.Name()), tmpDir1, tmpFile1.Name()}, f: nil,
 			args:     words{tmpDir1, tmpFile1.Name(), tmpFile3.Name(), tmpHiddenFile.Name()},
 			parseErr: nil,
 		},
 		{
-			cmd: words{"fileOp", "-r", "--ignore", path.Base(tmpFile2.Name()), tmpDir1, tmpFile1.Name(), "--ignore", "anotherRule"}, f: nil,
+			cmd: words{"fileOp", "-r", "--ignore", filepath.Base(tmpFile2.Name()), tmpDir1, tmpFile1.Name(), "--ignore", "anotherRule"}, f: nil,
 			args:     words{tmpDir1, tmpFile1.Name(), tmpFile3.Name()},
 			parseErr: nil,
 		},
@@ -838,7 +838,7 @@ func TestFileArgs(t *testing.T) {
 		}
 		expectedFileMap := make(map[string]bool)
 		for _, arg := range tc.args {
-			expectedFileMap[path.Base(arg)] = false
+			expectedFileMap[filepath.Base(arg)] = false
 		}
 		it := req.Files.Entries()
 		for it.Next() {

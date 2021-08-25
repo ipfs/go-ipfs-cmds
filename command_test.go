@@ -130,8 +130,8 @@ func TestResolving(t *testing.T) {
 func TestWalking(t *testing.T) {
 	cmdA := &Command{
 		Subcommands: map[string]*Command{
-			"b": &Command{},
-			"B": &Command{},
+			"b": {},
+			"B": {},
 		},
 	}
 	i := 0
@@ -181,7 +181,7 @@ func TestPostRun(t *testing.T) {
 	defer cancel()
 
 	var testcases = []postRunTestCase{
-		postRunTestCase{
+		{
 			length:      3,
 			err:         nil,
 			emit:        []interface{}{7},

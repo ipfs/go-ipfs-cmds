@@ -12,13 +12,13 @@ var errGeneric = errors.New("an error occurred")
 
 var root = &Command{
 	Subcommands: map[string]*Command{
-		"test": &Command{
+		"test": {
 			Run: func(req *Request, re ResponseEmitter, env Environment) error {
 				re.Emit(env)
 				return nil
 			},
 		},
-		"testError": &Command{
+		"testError": {
 			Run: func(req *Request, re ResponseEmitter, env Environment) error {
 				err := errGeneric
 				if err != nil {

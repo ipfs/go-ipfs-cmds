@@ -11,7 +11,7 @@ import (
 
 var root = &cmds.Command{
 	Subcommands: map[string]*cmds.Command{
-		"test": &cmds.Command{
+		"test": {
 			Run: func(req *cmds.Request, re cmds.ResponseEmitter, e cmds.Environment) error {
 				err := cmds.EmitOnce(re, 42)
 
