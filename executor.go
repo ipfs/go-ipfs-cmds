@@ -80,7 +80,6 @@ func EmitResponse(run Function, req *Request, re ResponseEmitter, env Environmen
 		}()
 	}
 
-
 	maybeStartPostRun := func(formatters PostRunMap) <-chan error {
 		var (
 			postRun   func(Response, ResponseEmitter) error

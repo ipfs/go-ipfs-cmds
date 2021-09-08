@@ -195,7 +195,7 @@ var RootCmd = &cmds.Command{
 						return err
 					}
 
-					fmt.Fprint(stdout, "\r" + strings.Repeat(" ", lastLen))
+					fmt.Fprint(stdout, "\r"+strings.Repeat(" ", lastLen))
 
 					s := v.(*AddStatus)
 					if s.Left > 0 {
@@ -274,7 +274,7 @@ var RootCmd = &cmds.Command{
 						return err
 					}
 
-					fmt.Fprint(stdout, "\r" + strings.Repeat(" ", lastLen))
+					fmt.Fprint(stdout, "\r"+strings.Repeat(" ", lastLen))
 
 					s := v.(*AddStatus)
 					if s.Left > 0 {
