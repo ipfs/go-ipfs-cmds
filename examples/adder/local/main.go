@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	"github.com/ipfs/go-ipfs-cmds/examples/adder"
@@ -26,29 +25,11 @@ func main() {
 		panic(err)
 	}
 
-	wait := make(chan struct{})
-	var re cmds.ResponseEmitter = cliRe
-	if pr, ok := req.Command.PostRun[cmds.CLI]; ok {
-		var (
-			res   cmds.Response
-			lower = re
-		)
-
-		re, res = cmds.NewChanResponsePair(req)
-
-		go func() {
-			defer close(wait)
-			err := pr(res, lower)
-			if err != nil {
-				fmt.Println("error: ", err)
-			}
-		}()
-	} else {
-		close(wait)
+	exec := cmds.NewExecutor(adder.RootCmd)
+	err = exec.Execute(req, cliRe, nil)
+	if err != nil {
+		panic(err)
 	}
-
-	adder.RootCmd.Call(req, re, nil)
-	<-wait
 
 	os.Exit(cliRe.Status())
 }

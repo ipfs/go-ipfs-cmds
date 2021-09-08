@@ -93,7 +93,7 @@ var RootCmd = &cmds.Command{
 				}),
 			},
 		},
-		// the best UX
+		// using stdio via PostRun
 		"postRunAdd": {
 			Arguments: []cmds.Argument{
 				cmds.StringArg("summands", true, true, "values that are supposed to be summed"),
@@ -149,6 +149,140 @@ var RootCmd = &cmds.Command{
 						}
 					}
 				},
+			},
+		},
+		// DisplayCLI for terminal control
+		"displayCliAdd": {
+			Arguments: []cmds.Argument{
+				cmds.StringArg("summands", true, true, "values that are supposed to be summed"),
+			},
+			// this is the same as for encoderAdd
+			Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+				sum := 0
+
+				for i, str := range req.Arguments {
+					num, err := strconv.Atoi(str)
+					if err != nil {
+						return err
+					}
+
+					sum += num
+					err = re.Emit(&AddStatus{
+						Current: sum,
+						Left:    len(req.Arguments) - i - 1,
+					})
+					if err != nil {
+						return err
+					}
+
+					time.Sleep(200 * time.Millisecond)
+				}
+				return nil
+			},
+			Type: &AddStatus{},
+			DisplayCLI: func(res cmds.Response, stdout, stderr io.Writer) error {
+				defer fmt.Fprintln(stdout)
+
+				// length of line at last iteration
+				var lastLen int
+
+				for {
+					v, err := res.Next()
+					if err == io.EOF {
+						return nil
+					}
+					if err != nil {
+						return err
+					}
+
+					fmt.Fprint(stdout, "\r" + strings.Repeat(" ", lastLen))
+
+					s := v.(*AddStatus)
+					if s.Left > 0 {
+						lastLen, _ = fmt.Fprintf(stdout, "\rcalculation sum... current: %d; left: %d", s.Current, s.Left)
+					} else {
+						lastLen, _ = fmt.Fprintf(stdout, "\rsum is %d.", s.Current)
+					}
+				}
+			},
+		},
+		// PostRun and DisplayCLI: PostRun intercepts and doubles the sum
+		"defectiveAdd": {
+			Arguments: []cmds.Argument{
+				cmds.StringArg("summands", true, true, "values that are supposed to be summed"),
+			},
+			// this is the same as for encoderAdd
+			Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+				sum := 0
+
+				for i, str := range req.Arguments {
+					num, err := strconv.Atoi(str)
+					if err != nil {
+						return err
+					}
+
+					sum += num
+					err = re.Emit(&AddStatus{
+						Current: sum,
+						Left:    len(req.Arguments) - i - 1,
+					})
+					if err != nil {
+						return err
+					}
+
+					time.Sleep(200 * time.Millisecond)
+				}
+				return nil
+			},
+			Type: &AddStatus{},
+			PostRun: cmds.PostRunMap{
+				cmds.CLI: func(res cmds.Response, re cmds.ResponseEmitter) error {
+					defer re.Close()
+
+					for {
+						v, err := res.Next()
+						if err == io.EOF {
+							return nil
+						}
+						if err != nil {
+							return err
+						}
+
+						s := v.(*AddStatus)
+						err = re.Emit(&AddStatus{
+							Current: s.Current + s.Current,
+							Left:    s.Left,
+						})
+						if err != nil {
+							return err
+						}
+					}
+				},
+			},
+			DisplayCLI: func(res cmds.Response, stdout, stderr io.Writer) error {
+				defer fmt.Fprintln(stdout)
+
+				// length of line at last iteration
+				var lastLen int
+
+				for {
+					v, err := res.Next()
+					if err == io.EOF {
+						return nil
+					}
+					if err != nil {
+						return err
+					}
+
+					fmt.Fprint(stdout, "\r" + strings.Repeat(" ", lastLen))
+
+					s := v.(*AddStatus)
+					if s.Left > 0 {
+						lastLen, _ = fmt.Fprintf(stdout, "\rcalculation sum... current: %d; left: %d", s.Current, s.Left)
+					} else {
+						lastLen, _ = fmt.Fprintf(stdout, "\rsum is %d.", s.Current)
+					}
+				}
 			},
 		},
 		// how to set program's return value

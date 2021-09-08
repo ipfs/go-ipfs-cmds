@@ -33,14 +33,6 @@ type executor struct {
 	root *Command
 }
 
-type emitterEncoder struct {
-	emitter ResponseEmitter
-}
-
-func (enc *emitterEncoder) Encode(value interface{}) error {
-	return enc.emitter.Emit(value)
-}
-
 func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) error {
 	cmd := req.Command
 
@@ -59,19 +51,44 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) er
 			return err
 		}
 	}
+
+	return EmitResponse(cmd.Run, req, re, env)
+}
+
+// Helper for Execute that handles post-Run emitter logic
+func EmitResponse(run Function, req *Request, re ResponseEmitter, env Environment) error {
+
+	// Keep track of the lowest emitter to select the correct
+	// PostRun method.
+	lowest := re
+	cmd := req.Command
+
+	// contains the error returned by DisplayCLI or PostRun
+	errCh := make(chan error, 1)
+
+	if cmd.DisplayCLI != nil && GetEncoding(req, "json") == "text" {
+		var res Response
+
+		// This overwrites the emitter provided as an
+		// argument. Maybe it's better to provide the
+		// 'DisplayCLI emitter' as an argument to Execute.
+		re, res = NewChanResponsePair(req)
+
+		go func() {
+			defer close(errCh)
+			errCh <- cmd.DisplayCLI(res, os.Stdout, os.Stderr)
+		}()
+	}
+
+
 	maybeStartPostRun := func(formatters PostRunMap) <-chan error {
 		var (
 			postRun   func(Response, ResponseEmitter) error
 			postRunCh = make(chan error)
 		)
 
-		if postRun == nil {
-			close(postRunCh)
-			return postRunCh
-		}
-
 		// check if we have a formatter for this emitter type
-		typer, isTyper := re.(interface {
+		typer, isTyper := lowest.(interface {
 			Type() PostRunType
 		})
 		if isTyper &&
@@ -97,7 +114,7 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) er
 	}
 
 	postRunCh := maybeStartPostRun(cmd.PostRun)
-	runCloseErr := re.CloseWithError(cmd.Run(req, re, env))
+	runCloseErr := re.CloseWithError(run(req, re, env))
 	postCloseErr := <-postRunCh
 	switch runCloseErr {
 	case ErrClosingClosedEmitter, nil:
