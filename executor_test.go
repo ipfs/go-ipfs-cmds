@@ -114,3 +114,66 @@ func TestExecutorNotTyper(t *testing.T) {
 		t.Fatalf("expected EOF but got: %s", err)
 	}
 }
+
+func TestExecutorPostRun(t *testing.T) {
+	expectedValue := errors.New("postrun ran")
+	testCmd := &Command{
+		Run: func(*Request, ResponseEmitter, Environment) error {
+			return nil
+		},
+		PostRun: PostRunMap{
+			CLI: func(response Response, emitter ResponseEmitter) error {
+				return expectedValue
+			},
+		},
+	}
+	testRoot := &Command{
+		Subcommands: map[string]*Command{
+			"test": testCmd,
+		},
+	}
+	req, err := NewRequest(context.Background(), []string{"test"}, nil, nil, nil, testRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("with", func(t *testing.T) {
+		var (
+			emitter, resp = NewChanResponsePair(req)
+			x             = NewExecutor(testRoot)
+		)
+		emitter = cliMockEmitter{emitter}
+
+		if err := x.Execute(req, emitter, nil); err != nil {
+			t.Fatal(err)
+		}
+
+		_, err := resp.Next()
+		if err != expectedValue {
+			t.Fatalf("expected Response to return %s but got: %s",
+				expectedValue, err)
+		}
+	})
+
+	t.Run("without", func(t *testing.T) {
+		testCmd.PostRun = nil
+
+		var (
+			emitter, resp = NewChanResponsePair(req)
+			x             = NewExecutor(testRoot)
+		)
+		emitter = cliMockEmitter{emitter}
+		if err := x.Execute(req, emitter, nil); err != nil {
+			t.Fatal(err)
+		}
+
+		_, err := resp.Next()
+		if err != io.EOF {
+			t.Fatalf("expected EOF but got: %s", err)
+		}
+	})
+}
+
+type cliMockEmitter struct{ ResponseEmitter }
+
+func (cliMockEmitter) Type() PostRunType { return CLI }
