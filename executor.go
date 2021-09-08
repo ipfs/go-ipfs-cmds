@@ -2,8 +2,6 @@ package cmds
 
 import (
 	"context"
-	"io"
-	"io/ioutil"
 	"os"
 )
 
@@ -33,25 +31,6 @@ func NewExecutor(root *Command) Executor {
 
 type executor struct {
 	root *Command
-}
-
-// GetLocalEncoder provides special treatment for text encoding
-// when Command.DisplayCLI field is non-nil, by defining an
-// Encoder that delegates to a nested emitter that consumes a Response
-// and writes to the underlying io.Writer using DisplayCLI.
-func GetLocalEncoder(req *Request, w io.Writer, def EncodingType) (EncodingType, Encoder, error) {
-	encType, enc, err := GetEncoder(req, w, def)
-	if err != nil {
-		return encType, nil, err
-	}
-
-	if req.Command.DisplayCLI != nil && encType == Text {
-		emitter, response := NewChanResponsePair(req)
-		go req.Command.DisplayCLI(response, w, ioutil.Discard)
-		return encType, &emitterEncoder{emitter: emitter}, nil
-	}
-
-	return encType, enc, nil
 }
 
 type emitterEncoder struct {
