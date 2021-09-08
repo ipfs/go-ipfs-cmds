@@ -56,25 +56,22 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) er
 			postRunCh = make(chan error)
 		)
 
+		// Check if we have a formatter for this emitter type.
+		typer, isTyper := re.(interface {
+			Type() PostRunType
+		})
+		if isTyper {
+			postRun = formatters[typer.Type()]
+		}
+		// If not, just return nil via closing.
 		if postRun == nil {
 			close(postRunCh)
 			return postRunCh
 		}
 
-		// check if we have a formatter for this emitter type
-		typer, isTyper := re.(interface {
-			Type() PostRunType
-		})
-		if isTyper &&
-			formatters[typer.Type()] != nil {
-			postRun = formatters[typer.Type()]
-		} else {
-			close(postRunCh)
-			return postRunCh
-		}
-
-		// redirect emitter to us
-		// and start waiting for emissions
+		// Otherwise, relay emitter responses
+		// from Run to PostRun, and
+		// from PostRun to the original emitter.
 		var (
 			postRes     Response
 			postEmitter = re
