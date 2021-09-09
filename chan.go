@@ -96,6 +96,10 @@ func (r *chanResponse) Next() (interface{}, error) {
 		ctx = context.Background()
 	}
 
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	select {
 	case v, ok := <-r.ch:
 		if !ok {
@@ -144,6 +148,10 @@ func (re *chanResponseEmitter) Emit(v interface{}) error {
 	}
 
 	ctx := re.req.Context
+
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 
 	select {
 	case re.ch <- v:

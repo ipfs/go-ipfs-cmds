@@ -316,6 +316,7 @@ func TestCancel(t *testing.T) {
 	}
 
 	re, res := NewChanResponsePair(req)
+	cancel()
 
 	go func() {
 		err := re.Emit("abc")
@@ -327,8 +328,6 @@ func TestCancel(t *testing.T) {
 		re.Close()
 		close(wait)
 	}()
-
-	cancel()
 
 	_, err = res.Next()
 	if err != context.Canceled {
