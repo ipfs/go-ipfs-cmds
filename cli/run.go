@@ -97,8 +97,6 @@ func Run(ctx context.Context, root *cmds.Command,
 		return nil
 	}
 
-	cmd := req.Command
-
 	env, err := buildEnv(req.Context, req)
 	if err != nil {
 		printErr(err)
@@ -112,14 +110,6 @@ func Run(ctx context.Context, root *cmds.Command,
 	if err != nil {
 		printErr(err)
 		return err
-	}
-
-	encTypeStr, _ := req.Options[cmds.EncLong].(string)
-	encType := cmds.EncodingType(encTypeStr)
-
-	// use JSON if text was requested but the command doesn't have a text-encoder
-	if _, ok := cmd.Encoders[encType]; encType == cmds.Text && !ok {
-		req.Options[cmds.EncLong] = cmds.JSON
 	}
 
 	re, err := NewResponseEmitter(stdout, stderr, req)
