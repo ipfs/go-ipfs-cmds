@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ipfs/go-ipfs-cmds"
+	cmds "github.com/ipfs/go-ipfs-cmds"
 )
 
 // ExitError is the error used when a specific exit code needs to be returned.
@@ -59,12 +59,7 @@ func Run(ctx context.Context, root *cmds.Command,
 			helpFunc = LongHelp
 		}
 
-		var path []string
-		if req != nil {
-			path = req.Path
-		}
-
-		if err := helpFunc(cmdline[0], root, path, w); err != nil {
+		if err := helpFunc(cmdline[0], root, req.Path, w); err != nil {
 			// This should not happen
 			panic(err)
 		}
@@ -86,7 +81,7 @@ func Run(ctx context.Context, root *cmds.Command,
 		printErr(errParse)
 
 		// this was a user error, print help
-		if req != nil && req.Command != nil {
+		if req.Command != nil {
 			fmt.Fprintln(stderr) // i need some space
 			printHelp(false, stderr)
 		}
@@ -97,7 +92,7 @@ func Run(ctx context.Context, root *cmds.Command,
 	// here we handle the cases where
 	// - commands with no Run func are invoked directly.
 	// - the main command is invoked.
-	if req == nil || req.Command == nil || req.Command.Run == nil {
+	if req.Command == nil || req.Command.Run == nil {
 		printHelp(false, stdout)
 		return nil
 	}
