@@ -86,20 +86,22 @@ func EmitResponse(run Function, req *Request, re ResponseEmitter, env Environmen
 			postRunCh = make(chan error)
 		)
 
-		// check if we have a formatter for this emitter type
+		// Check if we have a formatter for this emitter type.
 		typer, isTyper := lowest.(interface {
 			Type() PostRunType
 		})
-		if isTyper &&
-			formatters[typer.Type()] != nil {
+		if isTyper {
 			postRun = formatters[typer.Type()]
-		} else {
+		}
+		// If not, just return nil via closing.
+		if postRun == nil {
 			close(postRunCh)
 			return postRunCh
 		}
 
-		// redirect emitter to us
-		// and start waiting for emissions
+		// Otherwise, relay emitter responses
+		// from Run to PostRun, and
+		// from PostRun to the original emitter.
 		var (
 			postRes     Response
 			postEmitter = re
