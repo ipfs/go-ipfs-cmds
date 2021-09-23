@@ -78,6 +78,8 @@ func EmitResponse(run Function, req *Request, re ResponseEmitter, env Environmen
 			defer close(errCh)
 			errCh <- cmd.DisplayCLI(res, os.Stdout, os.Stderr)
 		}()
+	} else {
+		close(errCh)
 	}
 
 	maybeStartPostRun := func(formatters PostRunMap) <-chan error {
@@ -117,6 +119,8 @@ func EmitResponse(run Function, req *Request, re ResponseEmitter, env Environmen
 	postRunCh := maybeStartPostRun(cmd.PostRun)
 	runCloseErr := re.CloseWithError(run(req, re, env))
 	postCloseErr := <-postRunCh
+	displayCloseErr := <-errCh
+	
 	switch runCloseErr {
 	case ErrClosingClosedEmitter, nil:
 	default:
@@ -127,5 +131,5 @@ func EmitResponse(run Function, req *Request, re ResponseEmitter, env Environmen
 	default:
 		return postCloseErr
 	}
-	return nil
+	return displayCloseErr
 }
