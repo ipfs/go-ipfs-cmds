@@ -15,6 +15,17 @@ var _ ResponseEmitter = &responseEmitter{}
 // NewResponseEmitter constructs a new response emitter that writes results to
 // the console.
 func NewResponseEmitter(stdout, stderr io.Writer, req *cmds.Request) (ResponseEmitter, error) {
+
+	if req.Command != nil && req.Command.DisplayCLI != nil && cmds.GetEncoding(req, "json") == "text" {
+		re, res := cmds.NewChanResponsePair(req)
+
+		go func() {
+			req.Command.DisplayCLI(res, os.Stdout, os.Stderr)
+		}()
+
+		return &displayResponseEmitter{re: re}, nil
+	}
+
 	encType, enc, err := cmds.GetEncoder(req, stdout, cmds.TextNewline)
 
 	return &responseEmitter{
@@ -23,6 +34,54 @@ func NewResponseEmitter(stdout, stderr io.Writer, req *cmds.Request) (ResponseEm
 		encType: encType,
 		enc:     enc,
 	}, err
+}
+
+// displayResponseEmitter implements cli.ResponseEmitter, for
+// delegating to a cmd.ResponseEmitter instance when
+// Command.DisplayCLI is defined
+type displayResponseEmitter struct {
+	l      sync.Mutex
+	stdout io.Writer
+	stderr io.Writer
+
+	re   cmds.ResponseEmitter
+	exit int
+}
+
+func (dre *displayResponseEmitter) Close() error {
+	return dre.re.Close()
+}
+
+func (dre *displayResponseEmitter) CloseWithError(err error) error {
+	return dre.re.CloseWithError(err)
+}
+
+func (dre *displayResponseEmitter) Emit(v interface{}) error {
+	return dre.re.Emit(v)
+}
+
+func (dre *displayResponseEmitter) SetLength(l uint64) {
+	dre.re.SetLength(l)
+}
+
+func (dre *displayResponseEmitter) SetStatus(code int) {
+	dre.l.Lock()
+	defer dre.l.Unlock()
+	dre.exit = code
+}
+
+func (dre *displayResponseEmitter) Status() int {
+	dre.l.Lock()
+	defer dre.l.Unlock()
+	return dre.exit
+}
+
+func (dre *displayResponseEmitter) Stderr() io.Writer {
+	return dre.stderr
+}
+
+func (dre *displayResponseEmitter) Stdout() io.Writer {
+	return dre.stdout
 }
 
 // ResponseEmitter extends cmds.ResponseEmitter to give better control over the command line

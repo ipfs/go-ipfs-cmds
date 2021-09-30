@@ -1,9 +1,6 @@
 package cmds
 
-import (
-	"context"
-	"os"
-)
+import "context"
 
 type Executor interface {
 	Execute(req *Request, re ResponseEmitter, env Environment) error
@@ -63,25 +60,6 @@ func EmitResponse(run Function, req *Request, re ResponseEmitter, env Environmen
 	lowest := re
 	cmd := req.Command
 
-	// contains the error returned by DisplayCLI or PostRun
-	errCh := make(chan error, 1)
-
-	if cmd.DisplayCLI != nil && GetEncoding(req, "json") == "text" {
-		var res Response
-
-		// This overwrites the emitter provided as an
-		// argument. Maybe it's better to provide the
-		// 'DisplayCLI emitter' as an argument to Execute.
-		re, res = NewChanResponsePair(req)
-
-		go func() {
-			defer close(errCh)
-			errCh <- cmd.DisplayCLI(res, os.Stdout, os.Stderr)
-		}()
-	} else {
-		close(errCh)
-	}
-
 	maybeStartPostRun := func(formatters PostRunMap) <-chan error {
 		var (
 			postRun   func(Response, ResponseEmitter) error
@@ -119,8 +97,7 @@ func EmitResponse(run Function, req *Request, re ResponseEmitter, env Environmen
 	postRunCh := maybeStartPostRun(cmd.PostRun)
 	runCloseErr := re.CloseWithError(run(req, re, env))
 	postCloseErr := <-postRunCh
-	displayCloseErr := <-errCh
-	
+
 	switch runCloseErr {
 	case ErrClosingClosedEmitter, nil:
 	default:
@@ -131,5 +108,5 @@ func EmitResponse(run Function, req *Request, re ResponseEmitter, env Environmen
 	default:
 		return postCloseErr
 	}
-	return displayCloseErr
+	return nil
 }
