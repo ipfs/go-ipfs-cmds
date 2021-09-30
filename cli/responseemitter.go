@@ -18,12 +18,16 @@ func NewResponseEmitter(stdout, stderr io.Writer, req *cmds.Request) (ResponseEm
 
 	if req.Command != nil && req.Command.DisplayCLI != nil && cmds.GetEncoding(req, "json") == "text" {
 		re, res := cmds.NewChanResponsePair(req)
+		dre := &displayResponseEmitter{re: re}
 
 		go func() {
-			req.Command.DisplayCLI(res, os.Stdout, os.Stderr)
+			err := req.Command.DisplayCLI(res, os.Stdout, os.Stderr)
+			if err != nil {
+				dre.CloseWithError(err)
+			}
 		}()
 
-		return &displayResponseEmitter{re: re}, nil
+		return dre, nil
 	}
 
 	encType, enc, err := cmds.GetEncoder(req, stdout, cmds.TextNewline)
