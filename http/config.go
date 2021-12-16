@@ -85,6 +85,12 @@ func (cfg *ServerConfig) SetAllowCredentials(flag bool) {
 	cfg.corsOpts.AllowCredentials = flag
 }
 
+func (cfg *ServerConfig) SetAllowHeaders(headers ...string) {
+	cfg.corsOptsRWMutex.Lock()
+	defer cfg.corsOptsRWMutex.Unlock()
+	cfg.corsOpts.AllowedHeaders = append(cfg.corsOpts.AllowedHeaders, headers...)
+}
+
 // allowOrigin just stops the request if the origin is not allowed.
 // the CORS middleware apparently does not do this for us...
 func allowOrigin(r *http.Request, cfg *ServerConfig) bool {
