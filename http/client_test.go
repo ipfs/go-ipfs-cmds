@@ -91,3 +91,47 @@ func TestClientAPIPrefix(t *testing.T) {
 		}
 	}
 }
+
+func TestClientHeader(t *testing.T) {
+	type testcase struct {
+		host   string
+		header string
+		value  string
+		path   []string
+	}
+
+	tcs := []testcase{
+		{header: "Authorization", value: "Bearer sdneijfnejvzfregfwe", path: []string{"version"}},
+		{header: "Content-Type", value: "text/plain", path: []string{"version"}},
+	}
+
+	for _, tc := range tcs {
+		var called bool
+
+		s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			called = true
+			t.Log(r)
+
+			if token := r.Header.Get(tc.header); token != tc.value {
+				t.Errorf("expected authorization %q, got %q", tc.value, token)
+			}
+
+			expPath := "/" + strings.Join(tc.path, "/")
+			if path := r.URL.Path; path != expPath {
+				t.Errorf("expected path %q, got %q", expPath, path)
+			}
+
+			w.WriteHeader(http.StatusOK)
+		}))
+		testClient := s.Client()
+		tc.host = s.URL
+		r := &cmds.Request{Path: tc.path, Command: &cmds.Command{}, Root: &cmds.Command{}}
+		c := NewClient(tc.host, ClientWithHeaders(tc.header, tc.value)).(*client)
+		c.httpClient = testClient
+		c.send(r)
+
+		if !called {
+			t.Error("handler has not been called")
+		}
+	}
+}

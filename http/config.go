@@ -85,7 +85,7 @@ func (cfg *ServerConfig) SetAllowCredentials(flag bool) {
 	cfg.corsOpts.AllowCredentials = flag
 }
 
-func (cfg *ServerConfig) SetAllowHeaders(headers ...string) {
+func (cfg *ServerConfig) AddAllowedHeaders(headers ...string) {
 	cfg.corsOptsRWMutex.Lock()
 	defer cfg.corsOptsRWMutex.Unlock()
 	cfg.corsOpts.AllowedHeaders = append(cfg.corsOpts.AllowedHeaders, headers...)
