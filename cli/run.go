@@ -24,7 +24,7 @@ type Closer interface {
 }
 
 func Run(ctx context.Context, root *cmds.Command,
-	cmdline []string, stdin, stdout, stderr *os.File,
+	cmdline []string, stdin, stderr *os.File,
 	buildEnv cmds.MakeEnvironment, makeExecutor cmds.MakeExecutor) error {
 
 	printErr := func(err error) {
@@ -32,6 +32,21 @@ func Run(ctx context.Context, root *cmds.Command,
 	}
 
 	req, errParse := Parse(ctx, cmdline[1:], stdin, root)
+
+	var out *os.File
+	if outFile, _ := req.Options[cmds.OutputFile].(string); outFile != "" {
+		// FIXME: Consider exporting the extract file logic (used in `ipfs get`)
+		//  and using it here (https://github.com/ipfs/tar-utils/blob/16821db/extractor.go#L277).
+		var err error
+		out, err = os.Create(outFile)
+		if err != nil {
+			printErr(err)
+			return err
+		}
+		// FIXME(BLOCKING): Where do we close the file? When the resp emitter closes?
+	} else {
+		out = os.Stdout
+	}
 
 	// Handle the timeout up front.
 	var cancel func()
@@ -72,7 +87,7 @@ func Run(ctx context.Context, root *cmds.Command,
 
 	// BEFORE handling the parse error, if we have enough information
 	// AND the user requested help, print it out and exit
-	err := HandleHelp(cmdline[0], req, stdout)
+	err := HandleHelp(cmdline[0], req, out)
 	if err == nil {
 		return nil
 	} else if err != ErrNoHelpRequested {
@@ -98,7 +113,7 @@ func Run(ctx context.Context, root *cmds.Command,
 	// - commands with no Run func are invoked directly.
 	// - the main command is invoked.
 	if req == nil || req.Command == nil || req.Command.Run == nil {
-		printHelp(false, stdout)
+		printHelp(false, out)
 		return nil
 	}
 
@@ -127,7 +142,7 @@ func Run(ctx context.Context, root *cmds.Command,
 		req.Options[cmds.EncLong] = cmds.JSON
 	}
 
-	re, err := NewResponseEmitter(stdout, stderr, req)
+	re, err := NewResponseEmitter(out, stderr, req)
 	if err != nil {
 		printErr(err)
 		return err
