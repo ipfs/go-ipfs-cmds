@@ -42,7 +42,7 @@ func TestRunWaits(t *testing.T) {
 		root,
 		[]string{"test", "test"},
 		// FIXME(BLOCKING): Redirect to devnull instead of stdout.
-		devnull, devnull,
+		devnull,
 		func(ctx context.Context, req *cmds.Request) (cmds.Environment, error) {
 			return env{flag}, nil
 		},
