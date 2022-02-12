@@ -27,6 +27,7 @@ type client struct {
 	httpClient    *http.Client
 	ua            string
 	apiPrefix     string
+	headers       map[string]string
 	fallback      cmds.Executor
 }
 
@@ -37,6 +38,16 @@ type ClientOpt func(*client)
 func ClientWithUserAgent(ua string) ClientOpt {
 	return func(c *client) {
 		c.ua = ua
+	}
+}
+
+// ClientWithHeader adds an HTTP header to the client.
+func ClientWithHeader(key, value string) ClientOpt {
+	return func(c *client) {
+		if c.headers == nil {
+			c.headers = map[string]string{}
+		}
+		c.headers[key] = value
 	}
 }
 
@@ -172,6 +183,10 @@ func (c *client) toHTTPRequest(req *cmds.Request) (*http.Request, error) {
 		httpReq.Header.Set(contentTypeHeader, applicationOctetStream)
 	}
 	httpReq.Header.Set(uaHeader, c.ua)
+
+	for key, val := range c.headers {
+		httpReq.Header.Set(key, val)
+	}
 
 	httpReq = httpReq.WithContext(req.Context)
 	httpReq.Close = true
