@@ -41,8 +41,8 @@ func ClientWithUserAgent(ua string) ClientOpt {
 	}
 }
 
-// ClientWithHeaders specifies the HTTP header for the client.
-func ClientWithHeaders(key, value string) ClientOpt {
+// ClientWithHeader adds an HTTP header to the client.
+func ClientWithHeader(key, value string) ClientOpt {
 	return func(c *client) {
 		if c.headers == nil {
 			c.headers = map[string]string{}

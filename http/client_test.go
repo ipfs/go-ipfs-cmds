@@ -126,7 +126,7 @@ func TestClientHeader(t *testing.T) {
 		testClient := s.Client()
 		tc.host = s.URL
 		r := &cmds.Request{Path: tc.path, Command: &cmds.Command{}, Root: &cmds.Command{}}
-		c := NewClient(tc.host, ClientWithHeaders(tc.header, tc.value)).(*client)
+		c := NewClient(tc.host, ClientWithHeader(tc.header, tc.value)).(*client)
 		c.httpClient = testClient
 		c.send(r)
 
