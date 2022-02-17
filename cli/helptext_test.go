@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 
@@ -46,5 +47,49 @@ func TestSynopsisGenerator(t *testing.T) {
 	}
 	if !strings.Contains(syn, "[--]") {
 		t.Fatal("Synopsis should contain options finalizer")
+	}
+}
+
+func TestShortHelp(t *testing.T) {
+	// ShortHelp behaves differently depending on whether the command is the root or not.
+	root := &cmds.Command{
+		Subcommands: map[string]*cmds.Command{
+			"ls": {
+				Helptext: cmds.HelpText{
+					ShortDescription: `
+				Displays the contents of an IPFS or IPNS object(s) at the given path.
+				`},
+			},
+		},
+	}
+	// Ask for the help text for the ls command which has no subcommands
+	path := []string{"ls"}
+	buf := new(bytes.Buffer)
+	ShortHelp("ipfs", root, path, buf)
+	helpText := buf.String()
+	t.Logf("Short help text: %s", helpText)
+	if strings.Contains(helpText, "For more information about each command") {
+		t.Fatal("ShortHelp should not contain subcommand info")
+	}
+}
+
+func TestLongHelp(t *testing.T) {
+	root := &cmds.Command{
+		Subcommands: map[string]*cmds.Command{
+			"ls": {
+				Helptext: cmds.HelpText{
+					ShortDescription: `
+				Displays the contents of an IPFS or IPNS object(s) at the given path.
+				`},
+			},
+		},
+	}
+	path := []string{"ls"}
+	buf := new(bytes.Buffer)
+	LongHelp("ipfs", root, path, buf)
+	helpText := buf.String()
+	t.Logf("Long help text: %s", helpText)
+	if strings.Contains(helpText, "For more information about each command") {
+		t.Fatal("LongHelp should not contain subcommand info")
 	}
 }
