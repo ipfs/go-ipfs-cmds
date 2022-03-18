@@ -493,20 +493,18 @@ func subcommandText(width int, cmd *cmds.Command, rootName string, path []string
 	return lines
 }
 
-// Text printed after 'Warning: ' tag at the start of the command.
-// FIXME: We probably want to print more than its status in caps, maybe what
-//  is the contract behind it, e.g., 'WARNING: DEPRECATED - This command
-//  might be removed without prior notice'.
+// Text printed at the beginning of --help,
+// after 'WARNING: ' tag at the start of the command.
 func generateWarningText(cmd *cmds.Command) string {
 	switch cmd.Status {
 	case cmds.Active:
 		return "" // We don't print a warning for a normal active command.
 	case cmds.Deprecated:
-		return "DEPRECATED"
+		return "DEPRECATED, command will be removed in the future"
 	case cmds.Experimental:
-		return "EXPERIMENTAL"
+		return "EXPERIMENTAL, command may change in future releases"
 	case cmds.Removed:
-		return "REMOVED"
+		return "REMOVED, command is no longer available"
 	default:
 		panic("unknown command status")
 	}
