@@ -238,6 +238,11 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 
 	stringArgs := make([]string, 0, numInputs)
 	fileArgs := make([]files.DirEntry, 0)
+	// Each file argument's import directory name is recorded under its base name
+	// to reject two files with the same name but different import directories
+	// (same directory just means the _exact_ same file, so we can skip it):
+	//    file base name -> file directory name
+	fileImportDirName := make(map[string]string)
 	var fileStdin files.Node
 
 	// the index of the current argument definition
@@ -325,6 +330,17 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 					}
 
 					fpath = filepath.Base(fpath)
+					importDir := filepath.Dir(fpath)
+					prevDir, ok := fileImportDirName[fpath]
+					if !ok {
+						fileImportDirName[fpath] = importDir
+					} else {
+						if prevDir != importDir {
+							return fmt.Errorf("file name %s repeated under different import directories: %s and %s",
+								fpath, importDir, prevDir)
+						}
+						continue // Skip repeated files.
+					}
 					file = nf
 				}
 
