@@ -329,8 +329,8 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 						return err
 					}
 
-					fpath = filepath.Base(fpath)
 					importDir := filepath.Dir(fpath)
+					fpath = filepath.Base(fpath)
 					prevDir, ok := fileImportDirName[fpath]
 					if !ok {
 						fileImportDirName[fpath] = importDir
