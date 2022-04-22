@@ -12,10 +12,8 @@ const (
 	OptLongHelp  = "help"
 	DerefLong    = "dereference-args"
 	StdinName    = "stdin-name"
-	// FIXME(BLOCKING): Review names. (We may be able to use "output" once
-	//  it's cleaned from subcommands.)
-	OutputFile  = "command-output"
-	ErrorFile   = "command-error"
+	StdoutFile  = "stdout"
+	StderrFile  = "stderr"
 	Hidden      = "hidden"
 	HiddenShort = "H"
 	Ignore      = "ignore"
