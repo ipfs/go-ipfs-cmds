@@ -9,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 
 	osh "github.com/Kubuxu/go-os-helper"
@@ -236,7 +237,13 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 	}
 
 	stringArgs := make([]string, 0, numInputs)
-	fileArgs := make(map[string]files.Node)
+	fileArgs := make([]files.DirEntry, 0)
+	// Each file argument's import directory name is recorded under its base name
+	// to reject two files with the same name but different import directories
+	// (same directory just means the _exact_ same file, so we can skip it):
+	//    file base name -> file directory name
+	fileImportDirName := make(map[string]string)
+	var fileStdin files.Node
 
 	// the index of the current argument definition
 	iArgDef := 0
@@ -266,7 +273,7 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 				stringArgs, inputs = append(stringArgs, inputs[0]), inputs[1:]
 			} else if stdin != nil && argDef.SupportsStdin && !fillingVariadic {
 				if r, err := maybeWrapStdin(stdin, msgStdinInfo); err == nil {
-					fileArgs["stdin"], err = files.NewReaderPathFile(stdin.Name(), r, nil)
+					fileStdin, err = files.NewReaderPathFile(stdin.Name(), r, nil)
 					if err != nil {
 						return err
 					}
@@ -291,17 +298,7 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 						return err
 					}
 				} else if u := isURL(fpath); u != nil {
-					base := urlBase(u)
-					fpath = base
-					if _, ok := fileArgs[fpath]; ok {
-						// Ensure a unique fpath by suffixing ' (n)'.
-						for i := 1; ; i++ {
-							fpath = fmt.Sprintf("%s (%d)", base, i)
-							if _, ok := fileArgs[fpath]; !ok {
-								break
-							}
-						}
-					}
+					fpath = urlBase(u)
 					file = files.NewWebFile(u)
 				} else {
 					fpath = filepath.Clean(fpath)
@@ -332,11 +329,22 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 						return err
 					}
 
+					importDir := filepath.Dir(fpath)
 					fpath = filepath.Base(fpath)
+					prevDir, ok := fileImportDirName[fpath]
+					if !ok {
+						fileImportDirName[fpath] = importDir
+					} else {
+						if prevDir != importDir {
+							return fmt.Errorf("file name %s repeated under different import directories: %s and %s",
+								fpath, importDir, prevDir)
+						}
+						continue // Skip repeated files.
+					}
 					file = nf
 				}
 
-				fileArgs[fpath] = file
+				fileArgs = append(fileArgs, files.FileEntry(fpath, file))
 			} else if stdin != nil && argDef.SupportsStdin &&
 				argDef.Required && !fillingVariadic {
 				r, err := maybeWrapStdin(stdin, msgStdinInfo)
@@ -344,7 +352,7 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 					return err
 				}
 
-				fileArgs[stdinName(req)], err = files.NewReaderPathFile(stdin.Name(), r, nil)
+				fileStdin, err = files.NewReaderPathFile(stdin.Name(), r, nil)
 				if err != nil {
 					return err
 				}
@@ -370,8 +378,14 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 	}
 
 	req.Arguments = stringArgs
+	if fileStdin != nil {
+		fileArgs = append(fileArgs, files.FileEntry(stdinName(req), fileStdin))
+	}
 	if len(fileArgs) > 0 {
-		req.Files = files.NewMapDirectory(fileArgs)
+		sort.Slice(fileArgs, func(i, j int) bool {
+			return fileArgs[i].Name() < fileArgs[j].Name()
+		})
+		req.Files = files.NewSliceDirectory(fileArgs)
 	}
 
 	return nil

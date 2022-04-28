@@ -103,9 +103,25 @@ type Command struct {
 	// NoLocal denotes that a command cannot be executed in a local environment
 	NoLocal bool
 
+	// Status of the command showed in the help.
+	Status Status
+
 	// Extra contains a set of other command-specific parameters
 	Extra *Extra
 }
+
+// Status indicates whether this command is active/deprecated/experimental/etc
+// which is signaled in the help text produced.
+type Status int
+
+const (
+	// Active command, doesn't produce any special indication.
+	Active Status = iota
+	// Other commands will be shown their statuses in the help text.
+	Experimental
+	Deprecated
+	Removed
+)
 
 // Extra is a set of tag information for a command
 type Extra struct {

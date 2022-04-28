@@ -28,16 +28,20 @@ const (
 )
 
 type helpFields struct {
-	Indent      string
-	Usage       string
-	Path        string
-	Tagline     string
-	Arguments   string
-	Options     string
-	Synopsis    string
-	Subcommands string
-	Description string
-	MoreHelp    bool
+	Indent                  string
+	Warning                 string
+	Usage                   string
+	Path                    string
+	Tagline                 string
+	Arguments               string
+	Options                 string
+	Synopsis                string
+	Subcommands             string
+	ExperimentalSubcommands string
+	DeprecatedSubcommands   string
+	RemovedSubcommands      string
+	Description             string
+	MoreHelp                bool
 }
 
 // TrimNewlines removes extra newlines from fields. This makes aligning
@@ -50,12 +54,16 @@ type helpFields struct {
 //	`
 func (f *helpFields) TrimNewlines() {
 	f.Path = strings.Trim(f.Path, "\n")
+	f.Warning = strings.Trim(f.Warning, "\n")
 	f.Usage = strings.Trim(f.Usage, "\n")
 	f.Tagline = strings.Trim(f.Tagline, "\n")
 	f.Arguments = strings.Trim(f.Arguments, "\n")
 	f.Options = strings.Trim(f.Options, "\n")
 	f.Synopsis = strings.Trim(f.Synopsis, "\n")
 	f.Subcommands = strings.Trim(f.Subcommands, "\n")
+	f.ExperimentalSubcommands = strings.Trim(f.ExperimentalSubcommands, "\n")
+	f.DeprecatedSubcommands = strings.Trim(f.DeprecatedSubcommands, "\n")
+	f.RemovedSubcommands = strings.Trim(f.RemovedSubcommands, "\n")
 	f.Description = strings.Trim(f.Description, "\n")
 }
 
@@ -68,15 +76,21 @@ func (f *helpFields) IndentAll() {
 		return indentString(s, indentStr)
 	}
 
+	f.Warning = indent(f.Warning)
 	f.Usage = indent(f.Usage)
 	f.Arguments = indent(f.Arguments)
 	f.Options = indent(f.Options)
 	f.Synopsis = indent(f.Synopsis)
 	f.Subcommands = indent(f.Subcommands)
+	f.DeprecatedSubcommands = indent(f.DeprecatedSubcommands)
+	f.ExperimentalSubcommands = indent(f.ExperimentalSubcommands)
+	f.RemovedSubcommands = indent(f.RemovedSubcommands)
 	f.Description = indent(f.Description)
 }
 
-const longHelpFormat = `USAGE
+const longHelpFormat = `{{if .Warning}}WARNING: {{.Warning}}
+
+{{end}}USAGE
 {{.Usage}}
 
 {{if .Synopsis}}SYNOPSIS
@@ -99,9 +113,21 @@ const longHelpFormat = `USAGE
 
 {{.Indent}}For more information about each command, use:
 {{.Indent}}'{{.Path}} <subcmd> --help'
+
+{{end}}{{if .ExperimentalSubcommands}}EXPERIMENTAL SUBCOMMANDS
+{{.ExperimentalSubcommands}}
+
+{{end}}{{if .DeprecatedSubcommands}}DEPRECATED SUBCOMMANDS
+{{.DeprecatedSubcommands}}
+
+{{end}}{{if .RemovedSubcommands}}REMOVED SUBCOMMANDS
+{{.RemovedSubcommands}}
+
 {{end}}
 `
-const shortHelpFormat = `USAGE
+const shortHelpFormat = `{{if .Warning}}WARNING: {{.Warning}}
+
+{{end}}USAGE
 {{.Usage}}
 {{if .Synopsis}}
 {{.Synopsis}}
@@ -113,6 +139,16 @@ SUBCOMMANDS
 {{end}}{{if .MoreHelp}}
 {{.Indent}}For more information about each command, use:
 {{.Indent}}'{{.Path}} <subcmd> --help'
+
+{{end}}{{if .ExperimentalSubcommands}}EXPERIMENTAL SUBCOMMANDS
+{{.ExperimentalSubcommands}}
+
+{{end}}{{if .DeprecatedSubcommands}}DEPRECATED SUBCOMMANDS
+{{.DeprecatedSubcommands}}
+
+{{end}}{{if .RemovedSubcommands}}REMOVED SUBCOMMANDS
+{{.RemovedSubcommands}}
+
 {{end}}
 `
 
@@ -188,6 +224,7 @@ func LongHelp(rootName string, root *cmds.Command, path []string, out io.Writer)
 	}
 
 	// autogen fields that are empty
+	fields.Warning = generateWarningText(cmd)
 	if len(cmd.Helptext.Usage) > 0 {
 		fields.Usage = cmd.Helptext.Usage
 	} else {
@@ -200,7 +237,10 @@ func LongHelp(rootName string, root *cmds.Command, path []string, out io.Writer)
 		fields.Options = strings.Join(optionText(width, cmd), "\n")
 	}
 	if len(fields.Subcommands) == 0 {
-		fields.Subcommands = strings.Join(subcommandText(width, cmd, rootName, path), "\n")
+		fields.Subcommands = strings.Join(subcommandText(width, cmd, rootName, path, cmds.Active), "\n")
+		fields.ExperimentalSubcommands = strings.Join(subcommandText(width, cmd, rootName, path, cmds.Experimental), "\n")
+		fields.DeprecatedSubcommands = strings.Join(subcommandText(width, cmd, rootName, path, cmds.Deprecated), "\n")
+		fields.RemovedSubcommands = strings.Join(subcommandText(width, cmd, rootName, path, cmds.Removed), "\n")
 	}
 	if len(fields.Synopsis) == 0 {
 		fields.Synopsis = generateSynopsis(width, cmd, pathStr)
@@ -245,13 +285,17 @@ func ShortHelp(rootName string, root *cmds.Command, path []string, out io.Writer
 	width := getTerminalWidth(out) - len(indentStr)
 
 	// autogen fields that are empty
+	fields.Warning = generateWarningText(cmd)
 	if len(cmd.Helptext.Usage) > 0 {
 		fields.Usage = cmd.Helptext.Usage
 	} else {
 		fields.Usage = commandUsageText(width, cmd, rootName, path)
 	}
 	if len(fields.Subcommands) == 0 {
-		fields.Subcommands = strings.Join(subcommandText(width, cmd, rootName, path), "\n")
+		fields.Subcommands = strings.Join(subcommandText(width, cmd, rootName, path, cmds.Active), "\n")
+		fields.ExperimentalSubcommands = strings.Join(subcommandText(width, cmd, rootName, path, cmds.Experimental), "\n")
+		fields.DeprecatedSubcommands = strings.Join(subcommandText(width, cmd, rootName, path, cmds.Deprecated), "\n")
+		fields.RemovedSubcommands = strings.Join(subcommandText(width, cmd, rootName, path, cmds.Removed), "\n")
 	}
 	if len(fields.Synopsis) == 0 {
 		fields.Synopsis = generateSynopsis(width, cmd, pathStr)
@@ -409,24 +453,28 @@ func optionText(width int, cmd ...*cmds.Command) []string {
 	return lines
 }
 
-func subcommandText(width int, cmd *cmds.Command, rootName string, path []string) []string {
+func subcommandText(width int, cmd *cmds.Command, rootName string, path []string, status cmds.Status) []string {
 	prefix := fmt.Sprintf("%v %v", rootName, strings.Join(path, " "))
 	if len(path) > 0 {
 		prefix += " "
 	}
 
+	subCmds := make(map[string]*cmds.Command, len(cmd.Subcommands))
 	// Sorting fixes changing order bug #2981.
 	sortedNames := make([]string, 0)
-	for name := range cmd.Subcommands {
-		sortedNames = append(sortedNames, name)
+	for name, c := range cmd.Subcommands {
+		if c.Status == status {
+			sortedNames = append(sortedNames, name)
+			subCmds[name] = c
+		}
 	}
 	sort.Strings(sortedNames)
 
-	subcmds := make([]*cmds.Command, len(cmd.Subcommands))
-	lines := make([]string, len(cmd.Subcommands))
+	subcmds := make([]*cmds.Command, len(subCmds))
+	lines := make([]string, len(subCmds))
 
 	for i, name := range sortedNames {
-		sub := cmd.Subcommands[name]
+		sub := subCmds[name]
 		usage := usageText(sub)
 		if len(usage) > 0 {
 			usage = " " + usage
@@ -443,6 +491,23 @@ func subcommandText(width int, cmd *cmds.Command, rootName string, path []string
 	}
 
 	return lines
+}
+
+// Text printed at the beginning of --help,
+// after 'WARNING: ' tag at the start of the command.
+func generateWarningText(cmd *cmds.Command) string {
+	switch cmd.Status {
+	case cmds.Active:
+		return "" // We don't print a warning for a normal active command.
+	case cmds.Deprecated:
+		return "DEPRECATED, command will be removed in the future"
+	case cmds.Experimental:
+		return "EXPERIMENTAL, command may change in future releases"
+	case cmds.Removed:
+		return "REMOVED, command is no longer available"
+	default:
+		panic("unknown command status")
+	}
 }
 
 func commandUsageText(width int, cmd *cmds.Command, rootName string, path []string) string {
