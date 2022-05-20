@@ -210,6 +210,54 @@ func (c *Command) Resolve(pth []string) ([]*Command, error) {
 	return cmds, nil
 }
 
+// FilterSubcommands returns a subset of the subcommands in this root with only the ones
+// passed as argument with the format: array of strings containing slash-delimited
+// subcommands as:
+// * "cmd/subcmd/subsubcmd"
+// * "block/get"
+// * "dag/put"
+// If a command path as "0/1/2" is specified only midway like "0/1" it is interpreted
+// as allowing all of its subcommands, like "0/1/*".
+func (c *Command) FilterSubcommands(subCommands []string) (map[string]*Command, error) {
+	filteredRoot := make(map[string]*Command)
+
+	for _, s := range subCommands {
+		cmdName := strings.Split(s, "/")
+		cmdPath, err := c.Resolve(cmdName)
+		if err != nil {
+			return nil, err
+		}
+		// Discard the root command, we return the map of its subcommands
+		//  (just because go-ipfs consumes it that way).
+		cmdPath = cmdPath[1:]
+
+		filtered := filteredRoot
+		for i, node := range cmdPath {
+			name := cmdName[i]
+			if i == len(cmdPath)-1 {
+				// Last specified path, allow any subcommand so just copy the
+				//  entire thing.
+				filtered[name] = node
+			} else {
+				// More qualifiers to come in the path, only copy the entry
+				// (if needed) with no subcommands.
+				if _, ok := filtered[name]; !ok {
+					filtered[name] = node.copyWithoutSubCommands()
+				}
+			}
+			filtered = filtered[name].Subcommands
+		}
+	}
+
+	return filteredRoot, nil
+}
+
+func (c *Command) copyWithoutSubCommands() *Command {
+	copied := *c
+	copied.Subcommands = make(map[string]*Command)
+	return &copied
+}
+
 // Get resolves and returns the Command addressed by path
 func (c *Command) Get(path []string) (*Command, error) {
 	cmds, err := c.Resolve(path)
