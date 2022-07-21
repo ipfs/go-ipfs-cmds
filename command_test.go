@@ -5,8 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sort"
+	"strconv"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 // NOTE: helpers nopCloser, testEmitter, noop and writeCloser are defined in helpers_test.go
@@ -125,6 +129,79 @@ func TestResolving(t *testing.T) {
 	if len(cmds) != 4 || cmds[0] != cmd || cmds[1] != cmdA || cmds[2] != cmdB || cmds[3] != cmdC {
 		t.Error("Returned command path is different than expected", cmds)
 	}
+}
+
+func fullCmdTree(numberOfSubs int, depth int) *Command {
+	cmd := &Command{}
+	cmd.Subcommands = make(map[string]*Command)
+	for i := 0; i < numberOfSubs; i++ {
+		var sub *Command
+		if depth == 0 {
+			sub = &Command{}
+		} else {
+			sub = fullCmdTree(numberOfSubs, depth-1)
+		}
+		cmd.Subcommands[strconv.FormatInt(int64(i), 10)] = sub
+	}
+	return cmd
+}
+
+func listAllCmds(cmd *Command, prefix string) []string {
+	if cmd.Subcommands == nil || len(cmd.Subcommands) == 0 {
+		if prefix == "" {
+			return []string{}
+		}
+		return []string{prefix}
+	}
+
+	subStr := make([]string, 0)
+	for k, s := range cmd.Subcommands {
+		newPrefix := k
+		if prefix != "" {
+			newPrefix = prefix + "/" + newPrefix
+		}
+		subStr = append(subStr, listAllCmds(s, newPrefix)...)
+	}
+	sort.Strings(subStr)
+	return subStr
+}
+
+func TestFilterSubCommands(t *testing.T) {
+	cmd := fullCmdTree(2, 2)
+	all := []string{
+		"0/0/0",
+		"0/0/1",
+		"0/1/0",
+		"0/1/1",
+		"1/0/0",
+		"1/0/1",
+		"1/1/0",
+		"1/1/1"}
+	require.Equal(t, all, listAllCmds(cmd, ""))
+
+	checkFilter := func(filter []string, expected []string) {
+		filtered, err := cmd.FilterSubcommands(filter)
+		require.NoError(t, err)
+		require.Equal(t, expected, listAllCmds(&Command{Subcommands: filtered}, ""))
+	}
+
+	checkFilter(nil, []string{})
+	checkFilter(all, all)
+	checkFilter([]string{"0/0/0"}, []string{"0/0/0"})
+	checkFilter([]string{"0/0"}, []string{ // implicit subcommands
+		"0/0/0",
+		"0/0/1"})
+	checkFilter([]string{"0"}, []string{ // even more implicit subcommands
+		"0/0/0",
+		"0/0/1",
+		"0/1/0",
+		"0/1/1"})
+	checkFilter([]string{"1", "1/1"}, []string{ // redundant second filter
+		"1/0/0",
+		"1/0/1",
+		"1/1/0",
+		"1/1/1"})
+	checkFilter([]string{"0/0/0", "1/1/1"}, []string{"0/0/0", "1/1/1"}) // independent
 }
 
 func TestWalking(t *testing.T) {
