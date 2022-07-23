@@ -373,9 +373,9 @@ func TestEmitterExpectError(t *testing.T) {
 
 	switch re.errorCount {
 	case 0:
-		t.Errorf("expected SetError to be called")
+		t.Errorf("expected CloseWithError to be called")
 	case 1:
 	default:
-		t.Errorf("expected SetError to be called once, but was called %d times", re.errorCount)
+		t.Errorf("expected CloseWithError to be called once, but was called %d times", re.errorCount)
 	}
 }

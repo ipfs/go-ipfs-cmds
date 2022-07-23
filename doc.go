@@ -26,8 +26,6 @@
 
 	Emitters
 
-
-
 	An emitter has the Emit method, that takes the command's
 	function's output as an argument and passes it to the user.
 
@@ -49,7 +47,6 @@
 
 	Responses
 
-
 	A response is a value that the user can read emitted values
 	from.
 
@@ -60,15 +57,18 @@
 			Next() (interface{}, error)
 		}
 
+	TODO: logic pass; docs are several years out of date.
+	TODO: English pass; <-AME (the whole file needs a pass anyway, so do that).
+
 	Responses have a method Next() that returns the next
 	emitted value and an error value. If the last element has been
 	received, the returned error value is io.EOF. If the
-	application code has sent an error using SetError, the error
-	ErrRcvdError is returned on next, indicating that the caller
-	should call Error(). Depending on the reponse type, other
-	errors may also occur.
+	application's code encounters a fatal error, it will call CloseWithError,
+	and that the error value will be returned via subsiquent calls to Next().
 
 	Pipes
+
+	TODO: ^ was this an actual type/interface or was this always an abstract metaphor?
 
 	Pipes are pairs (emitter, response), such that a value emitted
 	on the emitter can be received in the response value. Most
