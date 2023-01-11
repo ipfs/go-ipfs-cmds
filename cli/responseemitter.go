@@ -7,7 +7,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/ipfs/go-ipfs-cmds"
+	cmds "github.com/ipfs/go-ipfs-cmds"
 )
 
 var _ ResponseEmitter = &responseEmitter{}

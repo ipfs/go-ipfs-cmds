@@ -46,6 +46,7 @@ type helpFields struct {
 
 // TrimNewlines removes extra newlines from fields. This makes aligning
 // commands easier. Below, the leading + tralining newlines are removed:
+//
 //	Synopsis: `
 //	    ipfs config <key>          - Get value of <key>
 //	    ipfs config <key> <value>  - Set value of <key> to <value>

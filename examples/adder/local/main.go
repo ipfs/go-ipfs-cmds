@@ -7,7 +7,7 @@ import (
 
 	"github.com/ipfs/go-ipfs-cmds/examples/adder"
 
-	"github.com/ipfs/go-ipfs-cmds"
+	cmds "github.com/ipfs/go-ipfs-cmds"
 	"github.com/ipfs/go-ipfs-cmds/cli"
 )
 
