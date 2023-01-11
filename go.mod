@@ -8,7 +8,7 @@ require (
 	github.com/ipfs/go-log v1.0.4
 	github.com/rs/cors v1.7.0
 	github.com/texttheater/golang-levenshtein v0.0.0-20180516184445-d188e65d659e
-	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e
+	golang.org/x/term v0.4.0
 )
 
 require (
@@ -20,6 +20,5 @@ require (
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	go.uber.org/zap v1.23.0 // indirect
-	golang.org/x/sys v0.0.0-20220811171246-fbc7d0a398ab // indirect
-	golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1 // indirect
+	golang.org/x/sys v0.4.0 // indirect
 )

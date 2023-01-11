@@ -10,7 +10,7 @@ import (
 	"text/template"
 
 	cmds "github.com/ipfs/go-ipfs-cmds"
-	"golang.org/x/crypto/ssh/terminal"
+	terminal "golang.org/x/term"
 )
 
 const (
