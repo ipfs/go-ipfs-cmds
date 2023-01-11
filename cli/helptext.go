@@ -587,9 +587,7 @@ func (ls lengthSlice) Less(a, b int) bool {
 
 func sortByLength(slice []string) []string {
 	output := make(lengthSlice, len(slice))
-	for i, val := range slice {
-		output[i] = val
-	}
+	copy(output, slice)
 	sort.Sort(output)
 	return []string(output)
 }
