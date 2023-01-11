@@ -2,7 +2,7 @@ package cmds
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"testing"
 )
 
@@ -75,7 +75,7 @@ func TestArguments(t *testing.T) {
 
 	for i, tc := range testCases {
 		for cut := 0; cut <= len(tc.arguments); cut++ {
-			args := newArguments(ioutil.NopCloser(bytes.NewBufferString(tc.input)))
+			args := newArguments(io.NopCloser(bytes.NewBufferString(tc.input)))
 			for j, arg := range tc.arguments[:cut] {
 				if !args.Scan() {
 					t.Errorf("in test case %d, missing argument %d", i, j)

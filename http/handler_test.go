@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http/httptest"
 	"runtime"
 
@@ -211,7 +210,7 @@ var (
 						return it.Err()
 					}
 
-					data, err := ioutil.ReadAll(files.FileFromEntry(it))
+					data, err := io.ReadAll(files.FileFromEntry(it))
 					if err != nil {
 						return err
 					}

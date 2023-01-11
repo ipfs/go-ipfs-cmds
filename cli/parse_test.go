@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -475,7 +474,7 @@ func TestBodyArgs(t *testing.T) {
 
 	// Use a temp file to simulate stdin
 	fileToSimulateStdin := func(t *testing.T, content string) *os.File {
-		fstdin, err := ioutil.TempFile("", "")
+		fstdin, err := os.CreateTemp("", "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -742,7 +741,7 @@ func TestFileArgs(t *testing.T) {
 		if pattern != "" {
 			pat = pattern
 		}
-		tmpFile, err := ioutil.TempFile(dir, pat)
+		tmpFile, err := os.CreateTemp(dir, pat)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -752,11 +751,11 @@ func TestFileArgs(t *testing.T) {
 		}
 		return tmpFile
 	}
-	tmpDir1, err := ioutil.TempDir("", "parsetest_fileargs_tmpdir_")
+	tmpDir1, err := os.MkdirTemp("", "parsetest_fileargs_tmpdir_")
 	if err != nil {
 		t.Fatal(err)
 	}
-	tmpDir2, err := ioutil.TempDir("", "parsetest_utildir_")
+	tmpDir2, err := os.MkdirTemp("", "parsetest_utildir_")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -3,7 +3,7 @@ package http
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"runtime"
 	"strings"
@@ -139,7 +139,7 @@ func TestErrors(t *testing.T) {
 				t.Errorf("expected status %v, got %v", tc.status, res.Status)
 			}
 
-			body, err := ioutil.ReadAll(res.Body)
+			body, err := io.ReadAll(res.Body)
 			if err != nil {
 				t.Fatal("err reading response body", err)
 			}

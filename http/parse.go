@@ -3,7 +3,7 @@ package http
 import (
 	"encoding/base32"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"mime"
 	"net/http"
@@ -223,7 +223,7 @@ func parseResponse(httpRes *http.Response, req *cmds.Request) (cmds.Response, er
 			e.Code = cmds.ErrClient
 		case contentType == plainText:
 			// handle non-marshalled errors
-			mes, err := ioutil.ReadAll(res.rr)
+			mes, err := io.ReadAll(res.rr)
 			if err != nil {
 				return nil, err
 			}

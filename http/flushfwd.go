@@ -1,8 +1,9 @@
 package http
 
 import (
-	"github.com/ipfs/go-ipfs-cmds"
 	"net/http"
+
+	cmds "github.com/ipfs/go-ipfs-cmds"
 )
 
 type flushfwder struct {
