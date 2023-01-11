@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	cmds "github.com/ipfs/go-ipfs-cmds"
-	files "github.com/ipfs/go-ipfs-files"
+	"github.com/ipfs/go-libipfs/files"
 )
 
 type VersionOutput struct {

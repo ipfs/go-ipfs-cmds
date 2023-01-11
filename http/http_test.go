@@ -14,7 +14,7 @@ import (
 
 	cmds "github.com/ipfs/go-ipfs-cmds"
 
-	files "github.com/ipfs/go-ipfs-files"
+	"github.com/ipfs/go-libipfs/files"
 )
 
 func newReaderPathFile(t *testing.T, path string, reader io.ReadCloser, stat os.FileInfo) files.File {

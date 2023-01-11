@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
-	files "github.com/ipfs/go-ipfs-files"
+	"github.com/ipfs/go-libipfs/files"
 )
 
 // Request represents a call to a command from a consumer
