@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	files "github.com/ipfs/go-ipfs-files"
+	"github.com/ipfs/go-libipfs/files"
 
 	cmds "github.com/ipfs/go-ipfs-cmds"
 )
