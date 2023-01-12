@@ -14,6 +14,8 @@ github.com/gogo/protobuf v1.3.2/go.mod h1:P1XiOD3dCwIKUDQYPy72D8LYyHL2YPYrpS2s69
 github.com/google/renameio v0.1.0/go.mod h1:KWCgfxg9yswjAJkECMjeO8J8rahYeXnNhOm40UhjYkI=
 github.com/ipfs/go-libipfs v0.0.0-20230111124659-ad29d57a4248 h1:99LBLKIsUBbXD4bWFgcBoKHsqtUANgX7gtjR2dzowJY=
 github.com/ipfs/go-libipfs v0.0.0-20230111124659-ad29d57a4248/go.mod h1:qX0d9h+wu53PFtCTXxdXVBakd6ZCvGDdkZUKmdLMLx0=
+github.com/ipfs/go-libipfs v0.1.0 h1:I6CrHHp4cIiqsWJPVU3QBH4BZrRWSljS2aAbA3Eg9AY=
+github.com/ipfs/go-libipfs v0.1.0/go.mod h1:qX0d9h+wu53PFtCTXxdXVBakd6ZCvGDdkZUKmdLMLx0=
 github.com/ipfs/go-log v1.0.4 h1:6nLQdX4W8P9yZZFH7mO+X/PzjN8Laozm/lMJ6esdgzY=
 github.com/ipfs/go-log v1.0.4/go.mod h1:oDCg2FkjogeFOhqqb+N39l2RpTNPL6F/StPkB3kPgcs=
 github.com/ipfs/go-log/v2 v2.0.5/go.mod h1:eZs4Xt4ZUJQFM3DlanGhy7TkwwawCZcSByscwkWG+dw=
