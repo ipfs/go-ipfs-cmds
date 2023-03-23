@@ -12,7 +12,7 @@ import (
 
 	cmds "github.com/ipfs/go-ipfs-cmds"
 
-	"github.com/ipfs/go-libipfs/files"
+	"github.com/ipfs/boxo/files"
 	logging "github.com/ipfs/go-log"
 )
 
