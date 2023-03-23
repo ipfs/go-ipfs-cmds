@@ -13,8 +13,8 @@ import (
 	"strings"
 
 	osh "github.com/Kubuxu/go-os-helper"
+	"github.com/ipfs/boxo/files"
 	cmds "github.com/ipfs/go-ipfs-cmds"
-	"github.com/ipfs/go-libipfs/files"
 	logging "github.com/ipfs/go-log"
 )
 

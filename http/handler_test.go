@@ -10,8 +10,8 @@ import (
 
 	"testing"
 
+	"github.com/ipfs/boxo/files"
 	cmds "github.com/ipfs/go-ipfs-cmds"
-	"github.com/ipfs/go-libipfs/files"
 )
 
 type VersionOutput struct {
