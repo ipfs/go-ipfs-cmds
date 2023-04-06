@@ -3,7 +3,6 @@ module github.com/ipfs/go-ipfs-cmds
 go 1.18
 
 require (
-	github.com/Kubuxu/go-os-helper v0.0.1
 	github.com/ipfs/boxo v0.8.0-rc1
 	github.com/ipfs/go-log v1.0.5
 	github.com/rs/cors v1.7.0

@@ -9,10 +9,10 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"sort"
 	"strings"
 
-	osh "github.com/Kubuxu/go-os-helper"
 	"github.com/ipfs/boxo/files"
 	cmds "github.com/ipfs/go-ipfs-cmds"
 	logging "github.com/ipfs/go-log"
@@ -22,7 +22,7 @@ var log = logging.Logger("cmds/cli")
 var msgStdinInfo = "ipfs: Reading from %s; send Ctrl-d to stop."
 
 func init() {
-	if osh.IsWindows() {
+	if runtime.GOOS == "windows" {
 		msgStdinInfo = "ipfs: Reading from %s; send Ctrl-z to stop."
 	}
 }
