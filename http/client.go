@@ -29,6 +29,7 @@ type client struct {
 	apiPrefix     string
 	headers       map[string]string
 	fallback      cmds.Executor
+	rawAbsPath    bool
 }
 
 // ClientOpt is an option that can be passed to the HTTP client constructor.
@@ -72,6 +73,13 @@ func ClientWithAPIPrefix(apiPrefix string) ClientOpt {
 func ClientWithFallback(exe cmds.Executor) ClientOpt {
 	return func(c *client) {
 		c.fallback = exe
+	}
+}
+
+// ClientWithRawAbsPath enables the rawAbspath for [files.NewMultiFileReader].
+func ClientWithRawAbsPath(rawAbsPath bool) ClientOpt {
+	return func(c *client) {
+		c.rawAbsPath = rawAbsPath
 	}
 }
 
@@ -161,10 +169,10 @@ func (c *client) toHTTPRequest(req *cmds.Request) (*http.Request, error) {
 		// However, such is life.
 		fileReader = files.NewMultiFileReader(files.NewMapDirectory(map[string]files.Node{
 			"stdin": files.NewReaderFile(bodyArgs),
-		}), true)
+		}), true, c.rawAbsPath)
 		reader = fileReader
 	} else if req.Files != nil {
-		fileReader = files.NewMultiFileReader(req.Files, true)
+		fileReader = files.NewMultiFileReader(req.Files, true, c.rawAbsPath)
 		reader = fileReader
 	}
 
