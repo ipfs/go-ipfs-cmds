@@ -33,8 +33,8 @@ type PostRunMap map[PostRunType]func(Response, ResponseEmitter) error
 // Command is a runnable command, with input arguments and options (flags).
 // It can also have Subcommands, to group units of work into sets.
 type Command struct {
-	// Options defines the flags accepted by the command. Flags on specified
-	// on parent commands are inherited by sub commands.
+	// Options defines the flags accepted by the command. Flags specified
+	// by parent commands are inherited by sub commands.
 	Options []Option
 
 	// Arguments defines the positional arguments for the command. These
