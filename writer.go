@@ -132,7 +132,7 @@ func (re *writerResponseEmitter) SetLength(length uint64) {
 		return
 	}
 
-	*re.length = length
+	re.length = &length
 }
 
 func (re *writerResponseEmitter) Close() error {
