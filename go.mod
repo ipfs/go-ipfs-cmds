@@ -1,6 +1,6 @@
 module github.com/ipfs/go-ipfs-cmds
 
-go 1.20
+go 1.21
 
 require (
 	github.com/ipfs/boxo v0.12.0
