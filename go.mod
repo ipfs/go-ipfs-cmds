@@ -23,4 +23,5 @@ require (
 )
 
 retract v1.0.22 // old gx tag accidentally pushed as go tag
+
 retract v2.0.1+incompatible // old gx tag
