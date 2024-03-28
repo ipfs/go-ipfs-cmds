@@ -21,3 +21,7 @@ require (
 	go.uber.org/zap v1.24.0 // indirect
 	golang.org/x/sys v0.6.0 // indirect
 )
+
+retract v1.0.22 // old gx tag accidentally pushed as go tag
+
+retract v2.0.1+incompatible // old gx tag
