@@ -89,11 +89,21 @@ type requestLogger interface {
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Debug("incoming API request: ", r.URL)
 
+	var re ResponseEmitter
+
 	defer func() {
 		if r := recover(); r != nil {
 			log.Error("a panic has occurred in the commands handler!")
 			log.Error(r)
 			log.Errorf("stack trace:\n%s", debug.Stack())
+
+			if re != nil {
+				if err := re.CloseWithError(errors.New("an error occurred")); err != nil {
+					log.Errorf("error closing ResponseEmitter: %s", err)
+
+					return
+				}
+			}
 		}
 	}()
 
@@ -178,7 +188,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer cancel()
 
-	re, err := NewResponseEmitter(w, r.Method, req, withRequestBodyEOFChan(bodyEOFChan))
+	re, err = NewResponseEmitter(w, r.Method, req, withRequestBodyEOFChan(bodyEOFChan))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

@@ -112,6 +112,18 @@ func TestErrors(t *testing.T) {
 			status:  "200 OK",
 			bodyStr: "the reader call returns a reader.",
 		},
+
+		{
+			path:    []string{"panic"},
+			status:  "500 Internal Server Error",
+			bodyStr: `{"Message":"an error occurred","Code":0,"Type":"error"}` + "\n",
+		},
+		{
+			path:       []string{"latepanic"},
+			status:     "200 OK",
+			bodyStr:    `"some value"` + "\n",
+			errTrailer: "an error occurred",
+		},
 	}
 
 	mkTest := func(tc testcase) func(*testing.T) {
