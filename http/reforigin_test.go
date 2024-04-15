@@ -323,7 +323,7 @@ func TestWildcardReferer(t *testing.T) {
 
 func TestAllowedMethod(t *testing.T) {
 	gtc := func(method string, ok bool) httpTestCase {
-		code := http.StatusOK
+		code := http.StatusNoContent
 		hdrs := map[string]string{
 			ACAOrigin:                       "*",
 			ACAMethods:                      method,
