@@ -287,6 +287,19 @@ var (
 					}),
 				},
 			},
+
+			"panic": {
+				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+					panic("Invalid memory address or nil pointer dereference")
+				},
+			},
+			"latepanic": {
+				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+					re.Emit("some value")
+					panic("Invalid memory address or nil pointer dereference")
+				},
+				Type: "",
+			},
 		},
 	}
 )
