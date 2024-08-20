@@ -1,0 +1,49 @@
+name: Kubo Cmds Tests
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths-ignore:
+      - '**/*.md'
+  push:
+    branches:
+      - 'master'
+
+jobs:
+  kubo-cmd-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.22.x
+      - name: Checkout go-ipfs-cmds
+        uses: actions/checkout@v4
+        with:
+          path: go-ipfs-cmds
+      - name: Checkout Kubo
+        uses: actions/checkout@v4
+        with:
+          repository: ipfs/kubo
+          path: kubo
+      - name: Install Missing Tools
+        run: sudo apt install -y socat net-tools fish libxml2-utils
+      - name: Replace go-ipfs-cmds in Kubo go.mod
+        run: |
+          go mod edit -replace=github.com/ipfs/go-ipfs-cmds=../go-ipfs-cmds
+          make mod_tidy
+          make mod_tidy
+          cat go.mod
+        working-directory: kubo
+      - name: Install sharness dependencies
+        run: make test_sharness_deps
+        working-directory: kubo
+      - name: Run Kubo Sharness Tests related to RPC Commands and HTTP RPC CORS
+        run: find . -maxdepth 1 -name "*api*.sh" -print0 | xargs -0 -I {} bash -c "echo {}; {}"
+        working-directory: kubo/test/sharness
+      - name: Run Kubo CLI Tests related to go-ipfs-cmds
+        run: go test -run 'TestIPFSVersionCommandMatchesFlag|TestAdd|TestRPCAuth|TestRPCUnixSocket' .
+        working-directory: kubo/test/cli
