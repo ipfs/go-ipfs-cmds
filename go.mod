@@ -5,7 +5,7 @@ go 1.22
 require (
 	github.com/ipfs/boxo v0.23.0
 	github.com/ipfs/go-log v1.0.5
-	github.com/rs/cors v1.10.1
+	github.com/rs/cors v1.11.1
 	github.com/texttheater/golang-levenshtein v1.0.1
 	golang.org/x/term v0.23.0
 )
