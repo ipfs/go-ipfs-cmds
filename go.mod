@@ -5,7 +5,7 @@ go 1.22.0
 toolchain go1.22.8
 
 require (
-	github.com/ipfs/boxo v0.24.2
+	github.com/ipfs/boxo v0.24.3
 	github.com/ipfs/go-log v1.0.5
 	github.com/rs/cors v1.11.1
 	github.com/texttheater/golang-levenshtein v1.0.1
@@ -13,7 +13,7 @@ require (
 )
 
 require (
-	github.com/crackcomm/go-gitignore v0.0.0-20231225121904-e25f5bc08668 // indirect
+	github.com/crackcomm/go-gitignore v0.0.0-20241020182519-7843d2ba8fdf // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/ipfs/go-log/v2 v2.5.1 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
