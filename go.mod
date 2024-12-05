@@ -9,7 +9,7 @@ require (
 	github.com/ipfs/go-log v1.0.5
 	github.com/rs/cors v1.11.1
 	github.com/texttheater/golang-levenshtein v1.0.1
-	golang.org/x/term v0.25.0
+	golang.org/x/term v0.27.0
 )
 
 require (
@@ -20,7 +20,7 @@ require (
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/sys v0.26.0 // indirect
+	golang.org/x/sys v0.28.0 // indirect
 )
 
 retract v1.0.22 // old gx tag accidentally pushed as go tag
