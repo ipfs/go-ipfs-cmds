@@ -85,7 +85,8 @@ func ClientWithRawAbsPath(rawAbsPath bool) ClientOpt {
 
 // NewClient constructs a new HTTP-backed command executor.
 func NewClient(address string, opts ...ClientOpt) cmds.Executor {
-	if !strings.HasPrefix(address, "http://") {
+	// default to HTTP to keep backward-compatible behavior, but keep https:// if passed
+	if !strings.HasPrefix(address, "http:") && !strings.HasPrefix(address, "https:") {
 		address = "http://" + address
 	}
 
