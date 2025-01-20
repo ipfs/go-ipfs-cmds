@@ -11,6 +11,7 @@ package cmds
 import (
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/ipfs/boxo/files"
@@ -65,6 +66,11 @@ type Command struct {
 	// Encoders encode results from Run (and/or PostRun) in the desired
 	// encoding.
 	Encoders EncoderMap
+
+	// DisplayCLI provides console output in cases requiring
+	// access to a full response object rather than individual
+	// result values. It is always run in the local process.
+	DisplayCLI func(res Response, stdout, stderr io.Writer) error
 
 	// Helptext is the command's help text.
 	Helptext HelpText
@@ -208,6 +214,11 @@ func (c *Command) Resolve(pth []string) ([]*Command, error) {
 	}
 
 	return cmds, nil
+}
+
+// HasText is true if the Command has direct support for text output
+func (c *Command) HasText() bool {
+	return c.DisplayCLI != nil || (c.Encoders != nil && c.Encoders[Text] != nil)
 }
 
 // Get resolves and returns the Command addressed by path
