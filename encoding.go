@@ -99,7 +99,7 @@ func MakeTypedEncoder(f interface{}) func(*Request) func(io.Writer) Encoder {
 	if valTypeIsPtr {
 		valTypeAlt = valType.Elem()
 	} else {
-		valTypeAlt = reflect.PtrTo(valType)
+		valTypeAlt = reflect.PointerTo(valType)
 	}
 
 	return MakeEncoder(func(req *Request, w io.Writer, i interface{}) error {
