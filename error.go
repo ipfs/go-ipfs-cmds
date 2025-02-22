@@ -22,6 +22,7 @@ const (
 	// ErrForbidden is returned when the client doesn't have permission to
 	// perform the requested operation.
 	ErrForbidden
+	ErrBlocked
 )
 
 func (e ErrorType) Error() string {
@@ -40,6 +41,8 @@ func (e ErrorType) String() string {
 		return "rate limited"
 	case ErrForbidden:
 		return "request forbidden"
+	case ErrBlocked:
+		return "content blocked"
 	default:
 		return "unknown error code"
 	}
