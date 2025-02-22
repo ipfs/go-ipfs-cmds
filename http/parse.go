@@ -235,6 +235,8 @@ func parseResponse(httpRes *http.Response, req *cmds.Request) (cmds.Response, er
 				e.Code = cmds.ErrRateLimited
 			case http.StatusForbidden:
 				e.Code = cmds.ErrForbidden
+			case http.StatusGone, http.StatusUnavailableForLegalReasons:
+				e.Code = cmds.ErrBlocked
 			default:
 				e.Code = cmds.ErrNormal
 			}
