@@ -238,8 +238,11 @@ func (re *responseEmitter) sendErr(err *cmds.Error) {
 
 	// Set the status from the error code.
 	status := http.StatusInternalServerError
-	if err.Code == cmds.ErrClient {
+	switch err.Code {
+	case cmds.ErrClient:
 		status = http.StatusBadRequest
+	case cmds.ErrBlocked:
+		status = http.StatusUnavailableForLegalReasons
 	}
 	re.w.WriteHeader(status)
 
