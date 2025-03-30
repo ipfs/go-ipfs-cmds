@@ -123,7 +123,7 @@ func Run(ctx context.Context, root *cmds.Command,
 	encType := cmds.EncodingType(encTypeStr)
 
 	// use JSON if text was requested but the command doesn't have a text-encoder
-	if _, ok := cmd.Encoders[encType]; encType == cmds.Text && !ok {
+	if encType == cmds.Text && !cmd.HasText() {
 		req.Options[cmds.EncLong] = cmds.JSON
 	}
 
