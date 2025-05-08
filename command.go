@@ -15,7 +15,7 @@ import (
 
 	"github.com/ipfs/boxo/files"
 
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 )
 
 // DefaultOutputEncoding defines the default API output encoding.
