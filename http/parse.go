@@ -1,8 +1,6 @@
 package http
 
 import (
-	"crypto/rand"
-	"encoding/base32"
 	"fmt"
 	"io"
 	"mime"
@@ -10,10 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	cmds "github.com/ipfs/go-ipfs-cmds"
-
 	"github.com/ipfs/boxo/files"
-	logging "github.com/ipfs/go-log"
+	cmds "github.com/ipfs/go-ipfs-cmds"
 )
 
 // parseRequest parses the data in a http.Request and returns a command Request object
@@ -165,8 +161,7 @@ func parseRequest(r *http.Request, root *cmds.Command) (*cmds.Request, error) {
 		return nil, fmt.Errorf("file argument '%s' is required", requiredFile)
 	}
 
-	ctx := logging.ContextWithLoggable(r.Context(), uuidLoggable())
-	req, err := cmds.NewRequest(ctx, pth, opts, args, f, root)
+	req, err := cmds.NewRequest(r.Context(), pth, opts, args, f, root)
 	if err != nil {
 		return nil, err
 	}
@@ -252,13 +247,4 @@ func parseResponse(httpRes *http.Response, req *cmds.Request) (cmds.Response, er
 	}
 
 	return res, nil
-}
-
-func uuidLoggable() logging.Loggable {
-	ids := make([]byte, 16)
-	rand.Read(ids)
-
-	return logging.Metadata{
-		"requestId": base32.HexEncoding.EncodeToString(ids),
-	}
 }
