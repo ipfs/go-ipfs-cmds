@@ -15,7 +15,7 @@ cmds offers tools for describing and calling commands both locally and remotely,
 
 ## Documentation
 
-https://godoc.org/github.com/ipfs/go-ipfs-cmds
+https://pkg.go.dev/github.com/ipfs/go-ipfs-cmds
 
 ## Contribute
 
@@ -30,4 +30,3 @@ This repository falls under the IPFS [Code of Conduct](https://github.com/ipfs/c
 ## License
 
 MIT
-

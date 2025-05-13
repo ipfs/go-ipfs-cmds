@@ -41,7 +41,6 @@ type ResponseEmitter interface {
 	CloseWithError(error) error
 
 	// SetLength sets the length of the output
-	// err is an interface{} so we don't have to manually convert to error.
 	SetLength(length uint64)
 
 	// Emit sends a value.
@@ -71,6 +70,7 @@ func Copy(re ResponseEmitter, res Response) error {
 	}
 }
 
+// EmitChan reads a value from a channel and send that value to re.
 func EmitChan(re ResponseEmitter, ch <-chan interface{}) error {
 	for v := range ch {
 		err := re.Emit(v)
