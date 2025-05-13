@@ -10,7 +10,7 @@ import (
 	"time"
 
 	cmds "github.com/ipfs/go-ipfs-cmds"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	cors "github.com/rs/cors"
 )
 
