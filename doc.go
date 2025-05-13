@@ -60,10 +60,8 @@ from.
 Responses have a method Next() that returns the next
 emitted value and an error value. If the last element has been
 received, the returned error value is io.EOF. If the
-application code has sent an error using SetError, the error
-ErrRcvdError is returned on next, indicating that the caller
-should call Error(). Depending on the reponse type, other
-errors may also occur.
+application's code encounters a fatal error, it will call CloseWithError,
+and that the error value will be returned via subsiquent calls to Next().
 
 # Pipes
 
