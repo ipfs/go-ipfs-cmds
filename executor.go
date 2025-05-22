@@ -1,8 +1,6 @@
 package cmds
 
-import (
-	"context"
-)
+import "context"
 
 type Executor interface {
 	Execute(req *Request, re ResponseEmitter, env Environment) error
@@ -50,6 +48,18 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) er
 			return err
 		}
 	}
+
+	return EmitResponse(cmd.Run, req, re, env)
+}
+
+// Helper for Execute that handles post-Run emitter logic
+func EmitResponse(run Function, req *Request, re ResponseEmitter, env Environment) error {
+
+	// Keep track of the lowest emitter to select the correct
+	// PostRun method.
+	lowest := re
+	cmd := req.Command
+
 	maybeStartPostRun := func(formatters PostRunMap) <-chan error {
 		var (
 			postRun   func(Response, ResponseEmitter) error
@@ -57,7 +67,7 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) er
 		)
 
 		// Check if we have a formatter for this emitter type.
-		typer, isTyper := re.(interface {
+		typer, isTyper := lowest.(interface {
 			Type() PostRunType
 		})
 		if isTyper {
@@ -85,8 +95,9 @@ func (x *executor) Execute(req *Request, re ResponseEmitter, env Environment) er
 	}
 
 	postRunCh := maybeStartPostRun(cmd.PostRun)
-	runCloseErr := re.CloseWithError(cmd.Run(req, re, env))
+	runCloseErr := re.CloseWithError(run(req, re, env))
 	postCloseErr := <-postRunCh
+
 	switch runCloseErr {
 	case ErrClosingClosedEmitter, nil:
 	default:
