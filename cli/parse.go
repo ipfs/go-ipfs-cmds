@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/ipfs/boxo/files"
@@ -382,8 +382,8 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 		fileArgs = append(fileArgs, files.FileEntry(stdinName(req), fileStdin))
 	}
 	if len(fileArgs) > 0 {
-		sort.Slice(fileArgs, func(i, j int) bool {
-			return fileArgs[i].Name() < fileArgs[j].Name()
+		slices.SortFunc(fileArgs, func(a, b files.DirEntry) int {
+			return strings.Compare(a.Name(), b.Name())
 		})
 		req.Files = files.NewSliceDirectory(fileArgs)
 	}
@@ -419,9 +419,8 @@ func splitkv(opt string) (k, v string, ok bool) {
 	split := strings.SplitN(opt, "=", 2)
 	if len(split) == 2 {
 		return split[0], split[1], true
-	} else {
-		return opt, "", false
 	}
+	return opt, "", false
 }
 
 func parseOpt(opt, value string, opts map[string]cmds.Option) (string, interface{}, error) {
@@ -454,7 +453,6 @@ func (st *parseState) parseShortOpts(optDefs map[string]cmds.Option) ([]kv, erro
 		}
 
 		kvs = append(kvs, kv{Key: k, Value: v})
-
 	} else {
 	LOOP:
 		for j := 0; j < len(k); {
@@ -514,7 +512,8 @@ func (st *parseState) parseLongOpt(optDefs map[string]cmds.Option) (string, inte
 		}
 		if optDef.Type() == cmds.Bool {
 			return k, true, nil
-		} else if st.i < len(st.cmdline)-1 {
+		}
+		if st.i < len(st.cmdline)-1 {
 			st.i++
 			v = st.peek()
 		} else {
@@ -530,8 +529,8 @@ func getArgDef(i int, argDefs []cmds.Argument) *cmds.Argument {
 	if i < len(argDefs) {
 		// get the argument definition (usually just argDefs[i])
 		return &argDefs[i]
-
-	} else if len(argDefs) > 0 {
+	}
+	if len(argDefs) > 0 {
 		// but if i > len(argDefs) we use the last argument definition)
 		return &argDefs[len(argDefs)-1]
 	}

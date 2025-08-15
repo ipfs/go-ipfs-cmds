@@ -75,7 +75,8 @@ func Run(ctx context.Context, root *cmds.Command,
 	err := HandleHelp(cmdline[0], req, stdout)
 	if err == nil {
 		return nil
-	} else if err != ErrNoHelpRequested {
+	}
+	if err != ErrNoHelpRequested {
 		return err
 	}
 	// no help requested, continue.
