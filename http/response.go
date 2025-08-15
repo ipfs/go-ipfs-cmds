@@ -127,16 +127,17 @@ func (r *responseReader) Read(b []byte) (int, error) {
 	}
 
 	n, err := r.resp.Body.Read(b)
-
-	// reading on a closed response body is as good as an io.EOF here
-	if err != nil && strings.Contains(err.Error(), "read on closed response body") {
-		err = io.EOF
-	}
-	if err == io.EOF {
-		_ = r.resp.Body.Close()
-		trailerErr := r.checkError()
-		if trailerErr != nil {
-			return n, trailerErr
+	if err != nil {
+		// reading on a closed response body is as good as an io.EOF here
+		if strings.Contains(err.Error(), "read on closed response body") {
+			err = io.EOF
+		}
+		if err == io.EOF {
+			_ = r.resp.Body.Close()
+			trailerErr := r.checkError()
+			if trailerErr != nil {
+				return n, trailerErr
+			}
 		}
 	}
 	return n, err

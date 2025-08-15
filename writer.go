@@ -194,24 +194,20 @@ func (m *MaybeError) Get() (interface{}, error) {
 func (m *MaybeError) UnmarshalJSON(data []byte) error {
 	var e Error
 	err := json.Unmarshal(data, &e)
-	if err == nil {
-		m.isError = true
-		m.Error = &e
-		return nil
-	}
-
-	if m.Value != nil {
-		// make sure we are working with a pointer here
-		v := reflect.ValueOf(m.Value)
-		if v.Kind() != reflect.Ptr {
-			m.Value = reflect.New(v.Type()).Interface()
+	if err != nil {
+		if m.Value != nil {
+			// make sure we are working with a pointer here
+			v := reflect.ValueOf(m.Value)
+			if v.Kind() != reflect.Ptr {
+				m.Value = reflect.New(v.Type()).Interface()
+			}
+			return json.Unmarshal(data, m.Value)
 		}
-
-		err = json.Unmarshal(data, m.Value)
-	} else {
 		// let the json decoder decode into whatever it finds appropriate
-		err = json.Unmarshal(data, &m.Value)
+		return json.Unmarshal(data, &m.Value)
 	}
 
-	return err
+	m.isError = true
+	m.Error = &e
+	return nil
 }
