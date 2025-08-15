@@ -2,8 +2,8 @@ github.com/crackcomm/go-gitignore v0.0.0-20241020182519-7843d2ba8fdf h1:dwGgBWn8
 github.com/crackcomm/go-gitignore v0.0.0-20241020182519-7843d2ba8fdf/go.mod h1:p1d6YEZWvFzEh4KLyvBcVSnrfNDDvK2zfK/4x2v/4pE=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/ipfs/boxo v0.33.1 h1:89m+ksw+cYi0ecTNTJ71IRS5ZrLiovmO6XWHIOGhAEg=
-github.com/ipfs/boxo v0.33.1/go.mod h1:KwlJTzv5fb1GLlA9KyMqHQmvP+4mrFuiE3PnjdrPJHs=
+github.com/ipfs/boxo v0.34.0 h1:pMP9bAsTs4xVh8R0ZmxIWviV7kjDa60U24QrlGgHb1g=
+github.com/ipfs/boxo v0.34.0/go.mod h1:kzdH/ewDybtO3+M8MCVkpwnIIc/d2VISX95DFrY4vQA=
 github.com/ipfs/go-log/v2 v2.8.1 h1:Y/X36z7ASoLJaYIJAL4xITXgwf7RVeqb1+/25aq/Xk0=
 github.com/ipfs/go-log/v2 v2.8.1/go.mod h1:NyhTBcZmh2Y55eWVjOeKf8M7e4pnJYM3yDZNxQBWEEY=
 github.com/mattn/go-isatty v0.0.20 h1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWEY=
