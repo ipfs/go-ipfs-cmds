@@ -21,11 +21,11 @@ jobs:
         with:
           go-version: 1.22.x
       - name: Checkout go-ipfs-cmds
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: go-ipfs-cmds
       - name: Checkout Kubo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: ipfs/kubo
           path: kubo
