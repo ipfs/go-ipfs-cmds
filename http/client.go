@@ -9,9 +9,9 @@ import (
 	"net/url"
 	"strings"
 
-	cmds "github.com/ipfs/go-ipfs-cmds"
-
 	"github.com/ipfs/boxo/files"
+	cmds "github.com/ipfs/go-ipfs-cmds"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 const (
@@ -92,7 +92,7 @@ func NewClient(address string, opts ...ClientOpt) cmds.Executor {
 
 	c := &client{
 		serverAddress: address,
-		httpClient:    http.DefaultClient,
+		httpClient:    otelhttp.DefaultClient,
 		ua:            "go-ipfs-cmds/http",
 	}
 
