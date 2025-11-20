@@ -35,6 +35,7 @@ const (
 	Protobuf    = "protobuf"
 	Text        = "text"
 	TextNewline = "textnl"
+	Gzip        = "gzip"
 
 	// PostRunTypes
 	CLI = "cli"
@@ -55,6 +56,9 @@ type EncoderMap map[EncodingType]EncoderFunc
 var Encoders = EncoderMap{
 	XML: func(req *Request) func(io.Writer) Encoder {
 		return func(w io.Writer) Encoder { return xml.NewEncoder(w) }
+	},
+	Gzip: func(req *Request) func(io.Writer) Encoder {
+		return func(w io.Writer) Encoder { return TextEncoder{w: w} }
 	},
 	JSON: func(req *Request) func(io.Writer) Encoder {
 		return func(w io.Writer) Encoder { return json.NewEncoder(w) }
