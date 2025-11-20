@@ -43,6 +43,9 @@ type ResponseEmitter interface {
 	// SetLength sets the length of the output
 	SetLength(length uint64)
 
+	// SetEncodingType sets the encoding type of the output.
+	SetEncodingType(encType EncodingType)
+
 	// Emit sends a value.
 	// If value is io.Reader we just copy that to the connection
 	// other values are marshalled.

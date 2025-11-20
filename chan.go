@@ -181,6 +181,10 @@ func (re *chanResponseEmitter) SetLength(l uint64) {
 	}
 }
 
+func (re *chanResponseEmitter) SetEncodingType(encType EncodingType) {
+	return
+}
+
 func (re *chanResponseEmitter) CloseWithError(err error) error {
 	re.wl.Lock()
 	defer re.wl.Unlock()
