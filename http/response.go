@@ -12,9 +12,10 @@ import (
 
 var (
 	MIMEEncodings = map[string]cmds.EncodingType{
-		"application/json": cmds.JSON,
-		"application/xml":  cmds.XML,
-		"text/plain":       cmds.Text,
+		"application/json":   cmds.JSON,
+		"application/x-gzip": cmds.Gzip,
+		"application/xml":    cmds.XML,
+		"text/plain":         cmds.Text,
 	}
 )
 
