@@ -135,9 +135,7 @@ func (re *writerResponseEmitter) SetLength(length uint64) {
 	re.length = &length
 }
 
-func (re *writerResponseEmitter) SetEncodingType(encType EncodingType) {
-	return
-}
+func (re *writerResponseEmitter) SetEncodingType(encType EncodingType) {}
 
 func (re *writerResponseEmitter) Close() error {
 	if re.closed {
