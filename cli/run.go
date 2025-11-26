@@ -24,14 +24,19 @@ type Closer interface {
 }
 
 func Run(ctx context.Context, root *cmds.Command,
-	cmdline []string, stdin, stdout, stderr *os.File,
+	cmdline []string, stdin *os.File,
 	buildEnv cmds.MakeEnvironment, makeExecutor cmds.MakeExecutor) error {
 
-	printErr := func(err error) {
-		fmt.Fprintf(stderr, "Error: %s\n", err)
+	req, errParse := Parse(ctx, cmdline[1:], stdin, root)
+
+	out, errFile, err := createDumpFiles(req)
+	if err != nil {
+		return err
 	}
 
-	req, errParse := Parse(ctx, cmdline[1:], stdin, root)
+	printErr := func(err error) {
+		fmt.Fprintf(errFile, "Error: %s\n", err)
+	}
 
 	// Handle the timeout up front.
 	var cancel func()
@@ -72,7 +77,7 @@ func Run(ctx context.Context, root *cmds.Command,
 
 	// BEFORE handling the parse error, if we have enough information
 	// AND the user requested help, print it out and exit
-	err := HandleHelp(cmdline[0], req, stdout)
+	err = HandleHelp(cmdline[0], req, out)
 	if err == nil {
 		return nil
 	}
@@ -88,8 +93,8 @@ func Run(ctx context.Context, root *cmds.Command,
 
 		// this was a user error, print help
 		if req != nil && req.Command != nil {
-			fmt.Fprintln(stderr) // i need some space
-			printHelp(false, stderr)
+			fmt.Fprintln(errFile) // i need some space
+			printHelp(false, errFile)
 		}
 
 		return errParse
@@ -99,7 +104,7 @@ func Run(ctx context.Context, root *cmds.Command,
 	// - commands with no Run func are invoked directly.
 	// - the main command is invoked.
 	if req == nil || req.Command == nil || req.Command.Run == nil {
-		printHelp(false, stdout)
+		printHelp(false, out)
 		return nil
 	}
 
@@ -128,7 +133,7 @@ func Run(ctx context.Context, root *cmds.Command,
 		req.Options[cmds.EncLong] = cmds.JSON
 	}
 
-	re, err := NewResponseEmitter(stdout, stderr, req)
+	re, err := NewResponseEmitter(out, errFile, req)
 	if err != nil {
 		printErr(err)
 		return err
@@ -145,7 +150,7 @@ func Run(ctx context.Context, root *cmds.Command,
 			err = *kiterr
 		}
 		if kiterr, ok := err.(cmds.Error); ok && kiterr.Code == cmds.ErrClient {
-			printMetaHelp(stderr)
+			printMetaHelp(errFile)
 		}
 
 		return err
@@ -155,4 +160,28 @@ func Run(ctx context.Context, root *cmds.Command,
 		return ExitError(code)
 	}
 	return nil
+}
+
+func createDumpFiles(req *cmds.Request) (*os.File, *os.File, error) {
+	var err error
+	outFile := os.Stdout
+	if outPath, _ := req.Options[cmds.OutputFile].(string); outPath != "" {
+		// FIXME: Consider exporting the extract file logic (used in `ipfs get`)
+		//  and using it here (https://github.com/ipfs/tar-utils/blob/16821db/extractor.go#L277).
+		outFile, err = os.Create(outPath)
+		if err != nil {
+			return nil, nil, err
+		}
+		// FIXME(BLOCKING): Where do we close the file? When the resp emitter closes?
+	}
+
+	errorFile := os.Stderr
+	if errPath, _ := req.Options[cmds.ErrorFile].(string); errPath != "" {
+		errorFile, err = os.Create(errPath)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	return outFile, errorFile, nil
 }
