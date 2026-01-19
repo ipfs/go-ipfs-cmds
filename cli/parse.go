@@ -308,6 +308,7 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 				} else {
 					fpath = filepath.Clean(fpath)
 					derefArgs, _ := req.Options[cmds.DerefLong].(bool)
+					derefSymlinks := dereferenceSymlinks(req)
 					var err error
 
 					switch {
@@ -318,7 +319,7 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 						}
 						fpath = filepath.ToSlash(cwd)
 						fallthrough
-					case derefArgs:
+					case derefArgs || derefSymlinks:
 						if fpath, err = filepath.EvalSymlinks(fpath); err != nil {
 							return err
 						}
