@@ -19,7 +19,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.22.x
+          go-version: 1.25.x
       - name: Checkout go-ipfs-cmds
         uses: actions/checkout@v6
         with:
