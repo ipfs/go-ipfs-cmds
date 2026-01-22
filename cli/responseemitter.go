@@ -59,6 +59,10 @@ func (re *responseEmitter) SetLength(l uint64) {
 	re.length = l
 }
 
+func (re *responseEmitter) SetEncodingType(encType cmds.EncodingType) {
+	re.encType = encType
+}
+
 func (re *responseEmitter) isClosed() bool {
 	re.l.Lock()
 	defer re.l.Unlock()
