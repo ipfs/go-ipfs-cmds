@@ -28,6 +28,8 @@ func NewExecutor(root *Command) Executor {
 	}
 }
 
+// This is the *CLI* Executor (though is not in that package). The other one is
+// the `client` HTTP Executor (defined in the HTTP package).
 type executor struct {
 	root *Command
 }

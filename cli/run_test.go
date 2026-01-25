@@ -41,7 +41,8 @@ func TestRunWaits(t *testing.T) {
 		context.Background(),
 		root,
 		[]string{"test", "test"},
-		devnull, devnull, devnull,
+		// FIXME(BLOCKING): Redirect to devnull instead of stdout.
+		devnull,
 		func(ctx context.Context, req *cmds.Request) (cmds.Environment, error) {
 			return env{flag}, nil
 		},
