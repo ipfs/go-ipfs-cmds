@@ -30,7 +30,9 @@ jobs:
           repository: ipfs/kubo
           path: kubo
       - name: Install Missing Tools
-        run: sudo apt install -y socat net-tools fish libxml2-utils
+        run: |
+          sudo apt update 
+          sudo apt install -y socat net-tools fish libxml2-utils
       - name: Replace go-ipfs-cmds in Kubo go.mod
         run: |
           go mod edit -replace=github.com/ipfs/go-ipfs-cmds=../go-ipfs-cmds
