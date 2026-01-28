@@ -17,20 +17,22 @@ jobs:
         shell: bash
     steps:
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
-          go-version: 1.22.x
+          go-version: 1.25.x
       - name: Checkout go-ipfs-cmds
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           path: go-ipfs-cmds
       - name: Checkout Kubo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: ipfs/kubo
           path: kubo
       - name: Install Missing Tools
-        run: sudo apt install -y socat net-tools fish libxml2-utils
+        run: |
+          sudo apt update 
+          sudo apt install -y socat net-tools fish libxml2-utils
       - name: Replace go-ipfs-cmds in Kubo go.mod
         run: |
           go mod edit -replace=github.com/ipfs/go-ipfs-cmds=../go-ipfs-cmds
