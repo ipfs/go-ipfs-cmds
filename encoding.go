@@ -36,12 +36,10 @@ const (
 	Text        = "text"
 	TextNewline = "textnl"
 
-	// Binary stream encoding types.
-	// These are used to set the correct Content-Type header for binary data.
-	// The actual encoding is pass-through (no transformation), but the MIME
-	// type tells clients how to interpret the bytes.
-	Tar  = "tar"
-	Gzip = "gzip"
+	// OctetStream is a generic binary pass-through encoding.
+	// Use SetContentType() to specify the actual MIME type if different
+	// from application/octet-stream.
+	OctetStream = "octet-stream"
 
 	// PostRunTypes
 	CLI = "cli"
@@ -72,13 +70,12 @@ var Encoders = EncoderMap{
 	TextNewline: func(req *Request) func(io.Writer) Encoder {
 		return func(w io.Writer) Encoder { return TextEncoder{w: w, suffix: "\n"} }
 	},
-	// Tar and Gzip are pass-through encoders. The data is already in the
-	// correct format; we just need to set the right Content-Type header.
-	// The actual encoding happens in the command's Run function.
-	Tar: func(req *Request) func(io.Writer) Encoder {
-		return func(w io.Writer) Encoder { return TextEncoder{w: w} }
-	},
-	Gzip: func(req *Request) func(io.Writer) Encoder {
+	// OctetStream is a pass-through encoder for binary data. The data is
+	// already in the correct format; we just need to set the right
+	// Content-Type header. The actual encoding happens in the command's
+	// Run function. Use SetContentType() to override the default
+	// application/octet-stream MIME type.
+	OctetStream: func(req *Request) func(io.Writer) Encoder {
 		return func(w io.Writer) Encoder { return TextEncoder{w: w} }
 	},
 }

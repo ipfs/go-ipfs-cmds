@@ -302,16 +302,17 @@ var (
 			},
 
 			// Commands for testing SetEncodingType and Content-Type headers
-			"tarstream": {
+			"octetstream": {
 				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
-					re.SetEncodingType(cmds.Tar)
-					return re.Emit(bytes.NewBufferString("fake tar data"))
+					re.SetEncodingType(cmds.OctetStream)
+					return re.Emit(bytes.NewBufferString("binary data"))
 				},
 			},
-			"gzipstream": {
+			"customcontenttype": {
 				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
-					re.SetEncodingType(cmds.Gzip)
-					return re.Emit(bytes.NewBufferString("fake gzip data"))
+					re.SetEncodingType(cmds.OctetStream)
+					re.SetContentType("application/vnd.ipld.car")
+					return re.Emit(bytes.NewBufferString("fake car data"))
 				},
 			},
 		},

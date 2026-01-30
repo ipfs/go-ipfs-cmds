@@ -346,6 +346,8 @@ func (s *testEmitterWithError) Close() error {
 
 func (s *testEmitterWithError) SetEncodingType(EncodingType) {}
 
+func (s *testEmitterWithError) SetContentType(string) {}
+
 func (s *testEmitterWithError) SetLength(_ uint64) {}
 
 func (s *testEmitterWithError) CloseWithError(err error) error {

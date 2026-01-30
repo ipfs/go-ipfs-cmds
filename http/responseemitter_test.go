@@ -16,14 +16,14 @@ func TestSetEncodingType(t *testing.T) {
 		expectedContentType string
 	}{
 		{
-			name:                "tar stream sets application/x-tar",
-			path:                "/tarstream",
-			expectedContentType: "application/x-tar",
+			name:                "octet stream sets application/octet-stream",
+			path:                "/octetstream",
+			expectedContentType: "application/octet-stream",
 		},
 		{
-			name:                "gzip stream sets application/gzip",
-			path:                "/gzipstream",
-			expectedContentType: "application/gzip",
+			name:                "custom content type overrides encoding",
+			path:                "/customcontenttype",
+			expectedContentType: "application/vnd.ipld.car",
 		},
 		{
 			name:                "reader without SetEncodingType defaults to text/plain",
@@ -138,9 +138,7 @@ func TestMIMEEncodingsMapping(t *testing.T) {
 		{"application/json", cmds.JSON},
 		{"application/xml", cmds.XML},
 		{"text/plain", cmds.Text},
-		{"application/x-tar", cmds.Tar},
-		{"application/gzip", cmds.Gzip},
-		{"application/x-gzip", cmds.Gzip}, // legacy alias
+		{"application/octet-stream", cmds.OctetStream},
 	}
 
 	for _, tt := range tests {
