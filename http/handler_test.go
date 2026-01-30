@@ -300,6 +300,21 @@ var (
 				},
 				Type: "",
 			},
+
+			// Commands for testing SetEncodingType and Content-Type headers
+			"octetstream": {
+				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+					re.SetEncodingType(cmds.OctetStream)
+					return re.Emit(bytes.NewBufferString("binary data"))
+				},
+			},
+			"customcontenttype": {
+				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+					re.SetEncodingType(cmds.OctetStream)
+					re.SetContentType("application/vnd.ipld.car")
+					return re.Emit(bytes.NewBufferString("fake car data"))
+				},
+			},
 		},
 	}
 )

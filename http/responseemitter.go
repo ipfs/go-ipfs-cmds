@@ -18,10 +18,11 @@ var (
 	AllowedExposedHeaders = strings.Join(AllowedExposedHeadersArr, ", ")
 
 	mimeTypes = map[cmds.EncodingType]string{
-		cmds.Protobuf: "application/protobuf",
-		cmds.JSON:     "application/json",
-		cmds.XML:      "application/xml",
-		cmds.Text:     "text/plain",
+		cmds.Protobuf:    "application/protobuf",
+		cmds.JSON:        "application/json",
+		cmds.XML:         "application/xml",
+		cmds.Text:        "text/plain",
+		cmds.OctetStream: "application/octet-stream",
 	}
 )
 
@@ -80,10 +81,11 @@ type responseEmitter struct {
 
 	bodyEOFChan <-chan struct{}
 
-	streaming bool
-	closed    bool
-	once      sync.Once
-	method    string
+	streaming   bool
+	closed      bool
+	once        sync.Once
+	method      string
+	contentType string // custom Content-Type override
 }
 
 func (re *responseEmitter) Emit(value interface{}) error {
@@ -141,6 +143,20 @@ func (re *responseEmitter) Emit(value interface{}) error {
 	}
 
 	return err
+}
+
+func (re *responseEmitter) SetEncodingType(encType cmds.EncodingType) {
+	re.l.Lock()
+	defer re.l.Unlock()
+
+	re.encType = encType
+}
+
+func (re *responseEmitter) SetContentType(contentType string) {
+	re.l.Lock()
+	defer re.l.Unlock()
+
+	re.contentType = contentType
 }
 
 func (re *responseEmitter) SetLength(l uint64) {
@@ -252,10 +268,7 @@ func (re *responseEmitter) sendErr(err *cmds.Error) {
 }
 
 func (re *responseEmitter) doPreamble(value interface{}) {
-	var (
-		h    = re.w.Header()
-		mime string
-	)
+	h := re.w.Header()
 
 	// Common Headers
 
@@ -283,6 +296,8 @@ func (re *responseEmitter) doPreamble(value interface{}) {
 		}
 	}
 
+	var mime string
+
 	switch v := value.(type) {
 	case *cmds.Error:
 		re.sendErr(v)
@@ -293,7 +308,10 @@ func (re *responseEmitter) doPreamble(value interface{}) {
 		h.Set(streamHeader, "1")
 		re.streaming = true
 
-		mime = "text/plain"
+		if re.encType == cmds.JSON {
+			mime = "text/plain"
+		}
+
 	case cmds.Single:
 		// don't set stream/channel header
 	default:
@@ -302,13 +320,17 @@ func (re *responseEmitter) doPreamble(value interface{}) {
 
 	if mime == "" {
 		var ok bool
-
 		// lookup mime type from map
 		mime, ok = mimeTypes[re.encType]
 		if !ok {
 			// catch-all, set to text as default
 			mime = "text/plain"
 		}
+	}
+
+	// Allow custom Content-Type override via SetContentType()
+	if re.contentType != "" {
+		mime = re.contentType
 	}
 
 	h.Set(contentTypeHeader, mime)

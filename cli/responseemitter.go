@@ -59,6 +59,14 @@ func (re *responseEmitter) SetLength(l uint64) {
 	re.length = l
 }
 
+func (re *responseEmitter) SetEncodingType(encType cmds.EncodingType) {
+	re.encType = encType
+}
+
+// SetContentType is a no-op for CLI emitters.
+// Content-Type only affects HTTP headers.
+func (re *responseEmitter) SetContentType(contentType string) {}
+
 func (re *responseEmitter) isClosed() bool {
 	re.l.Lock()
 	defer re.l.Unlock()
