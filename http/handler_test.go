@@ -300,6 +300,20 @@ var (
 				},
 				Type: "",
 			},
+
+			// Commands for testing SetEncodingType and Content-Type headers
+			"tarstream": {
+				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+					re.SetEncodingType(cmds.Tar)
+					return re.Emit(bytes.NewBufferString("fake tar data"))
+				},
+			},
+			"gzipstream": {
+				Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+					re.SetEncodingType(cmds.Gzip)
+					return re.Emit(bytes.NewBufferString("fake gzip data"))
+				},
+			},
 		},
 	}
 )

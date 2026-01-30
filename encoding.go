@@ -35,7 +35,13 @@ const (
 	Protobuf    = "protobuf"
 	Text        = "text"
 	TextNewline = "textnl"
-	Gzip        = "gzip"
+
+	// Binary stream encoding types.
+	// These are used to set the correct Content-Type header for binary data.
+	// The actual encoding is pass-through (no transformation), but the MIME
+	// type tells clients how to interpret the bytes.
+	Tar  = "tar"
+	Gzip = "gzip"
 
 	// PostRunTypes
 	CLI = "cli"
@@ -57,9 +63,6 @@ var Encoders = EncoderMap{
 	XML: func(req *Request) func(io.Writer) Encoder {
 		return func(w io.Writer) Encoder { return xml.NewEncoder(w) }
 	},
-	Gzip: func(req *Request) func(io.Writer) Encoder {
-		return func(w io.Writer) Encoder { return TextEncoder{w: w} }
-	},
 	JSON: func(req *Request) func(io.Writer) Encoder {
 		return func(w io.Writer) Encoder { return json.NewEncoder(w) }
 	},
@@ -68,6 +71,15 @@ var Encoders = EncoderMap{
 	},
 	TextNewline: func(req *Request) func(io.Writer) Encoder {
 		return func(w io.Writer) Encoder { return TextEncoder{w: w, suffix: "\n"} }
+	},
+	// Tar and Gzip are pass-through encoders. The data is already in the
+	// correct format; we just need to set the right Content-Type header.
+	// The actual encoding happens in the command's Run function.
+	Tar: func(req *Request) func(io.Writer) Encoder {
+		return func(w io.Writer) Encoder { return TextEncoder{w: w} }
+	},
+	Gzip: func(req *Request) func(io.Writer) Encoder {
+		return func(w io.Writer) Encoder { return TextEncoder{w: w} }
 	},
 }
 

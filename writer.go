@@ -135,6 +135,8 @@ func (re *writerResponseEmitter) SetLength(length uint64) {
 	re.length = &length
 }
 
+// SetEncodingType is a no-op for writer emitters.
+// Encoding type only affects HTTP Content-Type headers.
 func (re *writerResponseEmitter) SetEncodingType(encType EncodingType) {}
 
 func (re *writerResponseEmitter) Close() error {

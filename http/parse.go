@@ -201,7 +201,7 @@ func parseResponse(httpRes *http.Response, req *cmds.Request) (cmds.Response, er
 		makeDec, ok := cmds.Decoders[encType]
 		if ok {
 			res.dec = makeDec(res.rr)
-		} else if encType != "text" && encType != "gzip" {
+		} else if encType != cmds.Text && encType != cmds.Tar && encType != cmds.Gzip {
 			log.Errorf("could not find decoder for encoding %q", encType)
 		} // else we have an io.Reader, which is okay
 	} else {

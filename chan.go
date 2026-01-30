@@ -181,6 +181,8 @@ func (re *chanResponseEmitter) SetLength(l uint64) {
 	}
 }
 
+// SetEncodingType is a no-op for channel emitters.
+// Encoding type only affects HTTP Content-Type headers.
 func (re *chanResponseEmitter) SetEncodingType(encType EncodingType) {}
 
 func (re *chanResponseEmitter) CloseWithError(err error) error {

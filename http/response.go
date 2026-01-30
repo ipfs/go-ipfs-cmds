@@ -11,11 +11,14 @@ import (
 )
 
 var (
+	// MIMEEncodings maps Content-Type values to encoding types for response parsing.
 	MIMEEncodings = map[string]cmds.EncodingType{
 		"application/json":   cmds.JSON,
-		"application/x-gzip": cmds.Gzip,
 		"application/xml":    cmds.XML,
 		"text/plain":         cmds.Text,
+		"application/x-tar":  cmds.Tar,
+		"application/gzip":   cmds.Gzip,
+		"application/x-gzip": cmds.Gzip, // legacy alias
 	}
 )
 

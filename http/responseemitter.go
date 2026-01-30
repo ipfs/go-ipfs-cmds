@@ -22,7 +22,8 @@ var (
 		cmds.JSON:     "application/json",
 		cmds.XML:      "application/xml",
 		cmds.Text:     "text/plain",
-		cmds.Gzip:     "application/x-gzip; charset=binary",
+		cmds.Tar:      "application/x-tar",
+		cmds.Gzip:     "application/gzip",
 	}
 )
 
