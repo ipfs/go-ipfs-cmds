@@ -17,6 +17,11 @@ func (s *testEmitter) Close() error {
 }
 
 func (s *testEmitter) SetLength(_ uint64) {}
+
+func (s *testEmitter) SetEncodingType(EncodingType) {}
+
+func (s *testEmitter) SetContentType(string) {}
+
 func (s *testEmitter) CloseWithError(err error) error {
 	if err != nil {
 		(*testing.T)(s).Error(err)

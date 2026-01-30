@@ -36,6 +36,11 @@ const (
 	Text        = "text"
 	TextNewline = "textnl"
 
+	// OctetStream is a generic binary pass-through encoding.
+	// Use SetContentType() to specify the actual MIME type if different
+	// from application/octet-stream.
+	OctetStream = "octet-stream"
+
 	// PostRunTypes
 	CLI = "cli"
 )
@@ -64,6 +69,14 @@ var Encoders = EncoderMap{
 	},
 	TextNewline: func(req *Request) func(io.Writer) Encoder {
 		return func(w io.Writer) Encoder { return TextEncoder{w: w, suffix: "\n"} }
+	},
+	// OctetStream is a pass-through encoder for binary data. The data is
+	// already in the correct format; we just need to set the right
+	// Content-Type header. The actual encoding happens in the command's
+	// Run function. Use SetContentType() to override the default
+	// application/octet-stream MIME type.
+	OctetStream: func(req *Request) func(io.Writer) Encoder {
+		return func(w io.Writer) Encoder { return TextEncoder{w: w} }
 	},
 }
 
