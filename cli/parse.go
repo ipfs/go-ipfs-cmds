@@ -330,7 +330,7 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 					if err != nil {
 						return err
 					}
-					nf, err := appendFile(fpath, argDef, isRecursive(req), filter, dereferenceSymlinks(req))
+					nf, err := appendFile(fpath, argDef, isRecursive(req), filter, derefSymlinks)
 					if err != nil {
 						return err
 					}
