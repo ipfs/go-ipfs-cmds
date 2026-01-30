@@ -84,6 +84,11 @@ func stdinName(req *cmds.Request) string {
 	return name
 }
 
+func dereferenceSymlinks(req *cmds.Request) bool {
+	deref, _ := req.Options[cmds.DerefSymlinks].(bool)
+	return deref
+}
+
 type parseState struct {
 	cmdline []string
 	i       int
@@ -303,6 +308,7 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 				} else {
 					fpath = filepath.Clean(fpath)
 					derefArgs, _ := req.Options[cmds.DerefLong].(bool)
+					derefSymlinks := dereferenceSymlinks(req)
 					var err error
 
 					switch {
@@ -313,7 +319,7 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 						}
 						fpath = filepath.ToSlash(cwd)
 						fallthrough
-					case derefArgs:
+					case derefArgs || derefSymlinks:
 						if fpath, err = filepath.EvalSymlinks(fpath); err != nil {
 							return err
 						}
@@ -324,7 +330,7 @@ func parseArgs(req *cmds.Request, root *cmds.Command, stdin *os.File) error {
 					if err != nil {
 						return err
 					}
-					nf, err := appendFile(fpath, argDef, isRecursive(req), filter)
+					nf, err := appendFile(fpath, argDef, isRecursive(req), filter, derefSymlinks)
 					if err != nil {
 						return err
 					}
@@ -542,7 +548,7 @@ func getArgDef(i int, argDefs []cmds.Argument) *cmds.Argument {
 const notRecursiveFmtStr = "'%s' is a directory, use the '-%s' flag to specify directories"
 const dirNotSupportedFmtStr = "invalid path '%s', argument '%s' does not support directories"
 
-func appendFile(fpath string, argDef *cmds.Argument, recursive bool, filter *files.Filter) (files.Node, error) {
+func appendFile(fpath string, argDef *cmds.Argument, recursive bool, filter *files.Filter, dereferenceSymlinks bool) (files.Node, error) {
 	stat, err := os.Lstat(fpath)
 	if err != nil {
 		return nil, err
@@ -566,7 +572,10 @@ func appendFile(fpath string, argDef *cmds.Argument, recursive bool, filter *fil
 
 		return files.NewReaderFile(file), nil
 	}
-	return files.NewSerialFileWithFilter(fpath, filter, stat)
+	return files.NewSerialFileWithOptions(fpath, stat, files.SerialFileOptions{
+		Filter:              filter,
+		DereferenceSymlinks: dereferenceSymlinks,
+	})
 }
 
 // Inform the user if a file is waiting on input
