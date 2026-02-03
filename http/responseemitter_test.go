@@ -139,6 +139,12 @@ func TestMIMEEncodingsMapping(t *testing.T) {
 		{"application/xml", cmds.XML},
 		{"text/plain", cmds.Text},
 		{"application/octet-stream", cmds.OctetStream},
+		{"application/gzip", cmds.OctetStream},
+		{"application/x-tar", cmds.OctetStream},
+		{"application/zip", cmds.OctetStream},
+		{"application/vnd.ipld.car", cmds.OctetStream},
+		{"application/vnd.ipld.raw", cmds.OctetStream},
+		{"application/vnd.ipfs.ipns-record", cmds.OctetStream},
 	}
 
 	for _, tt := range tests {

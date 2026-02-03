@@ -13,11 +13,16 @@ import (
 var (
 	// MIMEEncodings maps Content-Type values to encoding types for response parsing.
 	MIMEEncodings = map[string]cmds.EncodingType{
-		"application/json":         cmds.JSON,
-		"application/octet-stream": cmds.OctetStream,
-		"application/x-tar":        cmds.OctetStream,
-		"application/xml":          cmds.XML,
-		"text/plain":               cmds.Text,
+		"application/gzip":                 cmds.OctetStream,
+		"application/json":                 cmds.JSON,
+		"application/octet-stream":         cmds.OctetStream,
+		"application/vnd.ipfs.ipns-record": cmds.OctetStream,
+		"application/vnd.ipld.car":         cmds.OctetStream,
+		"application/vnd.ipld.raw":         cmds.OctetStream,
+		"application/x-tar":                cmds.OctetStream,
+		"application/xml":                  cmds.XML,
+		"application/zip":                  cmds.OctetStream,
+		"text/plain":                       cmds.Text,
 	}
 )
 
