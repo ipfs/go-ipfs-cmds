@@ -14,9 +14,10 @@ var (
 	// MIMEEncodings maps Content-Type values to encoding types for response parsing.
 	MIMEEncodings = map[string]cmds.EncodingType{
 		"application/json":         cmds.JSON,
+		"application/octet-stream": cmds.OctetStream,
+		"application/x-tar":        cmds.OctetStream,
 		"application/xml":          cmds.XML,
 		"text/plain":               cmds.Text,
-		"application/octet-stream": cmds.OctetStream,
 	}
 )
 
