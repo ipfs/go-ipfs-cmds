@@ -150,6 +150,39 @@ func MakeTypedEncoder(f interface{}) func(*Request) func(io.Writer) Encoder {
 	})
 }
 
+// MakeMultiEncoder takes pairs of arguments, where the first of the pair is a value that denotes a type and the second denotes an encoder.
+// The resulting encoder then uses the encoder of the pair with matching first element.
+// Example:
+//    e := MakeMultiEncoder(
+//    	"string", MakeTypedEncoder(func(req *Request, w io.Writer, str string) error {
+//    		// ...
+//    		return nil
+//    		},
+//    	cmdkit.Error{}, MakeTypedEncoder(func(req *Request, w io.Writer, err cmdkit.Error) error {
+//    		// ...
+//    		return nil
+//    	}))
+func MakeMultiEncoder(args ...interface{}) func(*Request) func(io.Writer) Encoder {
+	if len(args)%2 != 0 {
+		panic("MakeMultiEncoder must receive an even number of parameters")
+	}
+
+	types := make(map[reflect.Type]func(*Request) func(io.Writer) Encoder)
+
+	for i := 0; i < len(args); i += 2 {
+		types[reflect.TypeOf(args[i])] = args[i+1].(func(*Request) func(io.Writer) Encoder)
+	}
+
+	return MakeEncoder(func(req *Request, w io.Writer, i interface{}) error {
+		f, ok := types[reflect.TypeOf(i)]
+		if !ok {
+			return fmt.Errorf("unexpected type: %T", i)
+		}
+
+		return f(req)(w).Encode(i)
+	})
+}
+
 type genericEncoder struct {
 	f   func(*Request, io.Writer, interface{}) error
 	w   io.Writer
