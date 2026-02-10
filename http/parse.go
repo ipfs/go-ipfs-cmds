@@ -56,7 +56,7 @@ func parseRequest(r *http.Request, root *cmds.Command) (*cmds.Request, error) {
 		return nil, ErrNotFound
 	}
 
-	opts := make(map[string]interface{})
+	opts := make(map[string]any)
 	optDefs, err := root.GetOptions(pth)
 	if err != nil {
 		return nil, err

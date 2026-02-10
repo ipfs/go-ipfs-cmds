@@ -21,12 +21,12 @@ func TestDotIsAddedInDescripton(t *testing.T) {
 }
 
 func TestOptionName(t *testing.T) {
-	exp := map[string]interface{}{
+	exp := map[string]any{
 		"Name()":  "main",
 		"Names()": []string{"main", "m", "alias"},
 	}
 
-	assert := func(name string, value interface{}) {
+	assert := func(name string, value any) {
 		if !reflect.DeepEqual(value, exp[name]) {
 			t.Errorf(`expected %s to return %q, got %q`, name, exp[name], value)
 		}
@@ -41,7 +41,7 @@ func TestParse(t *testing.T) {
 	type testcase struct {
 		opt Option
 		str string
-		v   interface{}
+		v   any
 		err string
 	}
 

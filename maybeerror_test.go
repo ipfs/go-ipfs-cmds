@@ -42,12 +42,12 @@ type Bar struct {
 type ValueError struct {
 	DecodeError error
 	Error       *Error
-	Value       interface{}
+	Value       any
 }
 
 type anyTestCase struct {
 	Name    string
-	Value   interface{}
+	Value   any
 	JSON    string
 	Decoded []ValueError
 }
@@ -98,7 +98,7 @@ func TestMaybeError(t *testing.T) {
 			Name: "untyped",
 			JSON: `{"Foo":"bar", "i": 4}"some string"5{"Message":"some error", "Type": "error"}`,
 			Decoded: []ValueError{
-				{Value: map[string]interface{}{"Foo": "bar", "i": 4.0}},
+				{Value: map[string]any{"Foo": "bar", "i": 4.0}},
 				{Value: "some string"},
 				{Value: 5.0},
 				{Error: &Error{Message: "some error", Code: 0}},

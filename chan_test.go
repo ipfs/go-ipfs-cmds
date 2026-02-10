@@ -11,7 +11,7 @@ import (
 
 func TestChanResponsePair(t *testing.T) {
 	type testcase struct {
-		values   []interface{}
+		values   []any
 		closeErr error
 	}
 
@@ -68,9 +68,9 @@ func TestChanResponsePair(t *testing.T) {
 	}
 
 	tcs := []testcase{
-		{values: []interface{}{1, 2, 3}},
-		{values: []interface{}{1, 2, 3}, closeErr: io.EOF},
-		{values: []interface{}{1, 2, 3}, closeErr: errors.New("an error occured")},
+		{values: []any{1, 2, 3}},
+		{values: []any{1, 2, 3}, closeErr: io.EOF},
+		{values: []any{1, 2, 3}, closeErr: errors.New("an error occured")},
 	}
 
 	for i, tc := range tcs {

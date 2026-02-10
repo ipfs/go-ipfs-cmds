@@ -132,7 +132,7 @@ type parseRespTestCase struct {
 	header http.Header
 	body   io.ReadCloser
 
-	values []interface{}
+	values []any
 	err    error
 }
 
@@ -190,7 +190,7 @@ func TestParseResponse(t *testing.T) {
 				channelHeader:     []string{"1"},
 			},
 			body: mkbuf(`{"Version":"0.1.2", "Commit":"c0mm17", "Repo":"4"}`),
-			values: []interface{}{
+			values: []any{
 				&VersionOutput{
 					Version: "0.1.2",
 					Commit:  "c0mm17",

@@ -15,7 +15,7 @@ import (
 	cmds "github.com/ipfs/go-ipfs-cmds"
 )
 
-type kvs map[string]interface{}
+type kvs map[string]any
 type words []string
 
 func sameWords(a words, b words) bool {
@@ -37,7 +37,7 @@ func sameKVs(a kvs, b kvs) bool {
 	for k, v := range a {
 		if ks, ok := v.([]string); ok {
 			bks, _ := b[k].([]string)
-			for i := 0; i < len(ks); i++ {
+			for i := range ks {
 				if ks[i] != bks[i] {
 					return false
 				}

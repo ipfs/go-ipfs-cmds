@@ -15,7 +15,7 @@ type TestOutput struct {
 func TestMarshalling(t *testing.T) {
 	cmd := &Command{}
 
-	req, err := NewRequest(context.Background(), nil, map[string]interface{}{
+	req, err := NewRequest(context.Background(), nil, map[string]any{
 		EncLong: JSON,
 	}, nil, nil, cmd)
 	if err != nil {

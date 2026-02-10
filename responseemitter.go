@@ -14,7 +14,7 @@ var (
 // Single can be used to signal to any ResponseEmitter that only one value will be emitted.
 // This is important e.g. for the http.ResponseEmitter so it can set the HTTP headers appropriately.
 type Single struct {
-	Value interface{}
+	Value any
 }
 
 func (s Single) String() string {
@@ -26,7 +26,7 @@ func (s Single) GoString() string {
 }
 
 // EmitOnce is a helper that emits a value wrapped in Single, to signal that this will be the only value sent.
-func EmitOnce(re ResponseEmitter, v interface{}) error {
+func EmitOnce(re ResponseEmitter, v any) error {
 	return re.Emit(Single{v})
 }
 
@@ -71,7 +71,7 @@ type ResponseEmitter interface {
 	// Emit sends a value.
 	// If value is io.Reader we just copy that to the connection
 	// other values are marshalled.
-	Emit(value interface{}) error
+	Emit(value any) error
 }
 
 // Copy sends all values received on res to re. If res is closed, it closes re.
@@ -96,7 +96,7 @@ func Copy(re ResponseEmitter, res Response) error {
 }
 
 // EmitChan reads a value from a channel and send that value to re.
-func EmitChan(re ResponseEmitter, ch <-chan interface{}) error {
+func EmitChan(re ResponseEmitter, ch <-chan any) error {
 	for v := range ch {
 		err := re.Emit(v)
 		if err != nil {

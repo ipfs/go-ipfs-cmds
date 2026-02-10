@@ -28,7 +28,7 @@ func TestMarshal(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		m := make(map[string]interface{})
+		m := make(map[string]any)
 
 		err = json.Unmarshal(buf, &m)
 		if err != nil {

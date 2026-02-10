@@ -88,12 +88,12 @@ type responseEmitter struct {
 	contentType string // custom Content-Type override
 }
 
-func (re *responseEmitter) Emit(value interface{}) error {
+func (re *responseEmitter) Emit(value any) error {
 	// if we got a channel, instead emit values received on there.
-	if ch, ok := value.(chan interface{}); ok {
-		value = (<-chan interface{})(ch)
+	if ch, ok := value.(chan any); ok {
+		value = (<-chan any)(ch)
 	}
-	if ch, isChan := value.(<-chan interface{}); isChan {
+	if ch, isChan := value.(<-chan any); isChan {
 		return cmds.EmitChan(re, ch)
 	}
 
@@ -232,7 +232,7 @@ func (re *responseEmitter) Flush() {
 	}
 }
 
-func (re *responseEmitter) preamble(value interface{}) {
+func (re *responseEmitter) preamble(value any) {
 	re.l.Lock()
 	defer re.l.Unlock()
 
@@ -267,7 +267,7 @@ func (re *responseEmitter) sendErr(err *cmds.Error) {
 	re.closed = true
 }
 
-func (re *responseEmitter) doPreamble(value interface{}) {
+func (re *responseEmitter) doPreamble(value any) {
 	h := re.w.Header()
 
 	// Common Headers
