@@ -429,7 +429,7 @@ func splitkv(opt string) (k, v string, ok bool) {
 	return opt, "", false
 }
 
-func parseOpt(opt, value string, opts map[string]cmds.Option) (string, interface{}, error) {
+func parseOpt(opt, value string, opts map[string]cmds.Option) (string, any, error) {
 	optDef, ok := opts[opt]
 	if !ok {
 		return "", nil, fmt.Errorf("unknown option %q", opt)
@@ -444,7 +444,7 @@ func parseOpt(opt, value string, opts map[string]cmds.Option) (string, interface
 
 type kv struct {
 	Key   string
-	Value interface{}
+	Value any
 }
 
 func (st *parseState) parseShortOpts(optDefs map[string]cmds.Option) ([]kv, error) {
@@ -509,7 +509,7 @@ func (st *parseState) parseShortOpts(optDefs map[string]cmds.Option) ([]kv, erro
 	return kvs, nil
 }
 
-func (st *parseState) parseLongOpt(optDefs map[string]cmds.Option) (string, interface{}, error) {
+func (st *parseState) parseLongOpt(optDefs map[string]cmds.Option) (string, any, error) {
 	k, v, ok := splitkv(st.peek()[2:])
 	if !ok {
 		optDef, ok := optDefs[k]

@@ -45,7 +45,7 @@ func TestRunWaits(t *testing.T) {
 		func(ctx context.Context, req *cmds.Request) (cmds.Environment, error) {
 			return env{flag}, nil
 		},
-		func(req *cmds.Request, env interface{}) (cmds.Executor, error) {
+		func(req *cmds.Request, env any) (cmds.Executor, error) {
 			return cmds.NewExecutor(req.Root), nil
 		},
 	)

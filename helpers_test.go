@@ -28,7 +28,7 @@ func (s *testEmitter) CloseWithError(err error) error {
 	}
 	return nil
 }
-func (s *testEmitter) Emit(value interface{}) error {
+func (s *testEmitter) Emit(value any) error {
 	return nil
 }
 

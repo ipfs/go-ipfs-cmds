@@ -77,7 +77,7 @@ var RootCmd = &cmds.Command{
 			Type: &AddStatus{},
 			Encoders: cmds.EncoderMap{
 				// This defines how to encode these values as text. Other possible encodings are XML and JSON.
-				cmds.Text: cmds.MakeEncoder(func(req *cmds.Request, w io.Writer, v interface{}) error {
+				cmds.Text: cmds.MakeEncoder(func(req *cmds.Request, w io.Writer, v any) error {
 					s, ok := v.(*AddStatus)
 					if !ok {
 						return fmt.Errorf("cast error, got type %T", v)

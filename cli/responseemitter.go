@@ -128,7 +128,7 @@ func (re *responseEmitter) CloseWithError(err error) error {
 	return nil
 }
 
-func (re *responseEmitter) Emit(v interface{}) error {
+func (re *responseEmitter) Emit(v any) error {
 	var isSingle bool
 	// unwrap
 	if val, ok := v.(cmds.Single); ok {
@@ -137,10 +137,10 @@ func (re *responseEmitter) Emit(v interface{}) error {
 	}
 
 	// channel emission iteration
-	if ch, ok := v.(chan interface{}); ok {
-		v = (<-chan interface{})(ch)
+	if ch, ok := v.(chan any); ok {
+		v = (<-chan any)(ch)
 	}
-	if ch, isChan := v.(<-chan interface{}); isChan {
+	if ch, isChan := v.(<-chan any); isChan {
 		return cmds.EmitChan(re, ch)
 	}
 

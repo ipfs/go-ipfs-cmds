@@ -63,7 +63,7 @@ func (res *Response) Length() uint64 {
 	return res.length
 }
 
-func (res *Response) Next() (interface{}, error) {
+func (res *Response) Next() (any, error) {
 	if res.initErr != nil {
 		return nil, res.initErr
 	}
@@ -83,9 +83,9 @@ func (res *Response) Next() (interface{}, error) {
 		return rr, nil
 	}
 
-	var value interface{}
+	var value any
 	if valueType := reflect.TypeOf(res.req.Command.Type); valueType != nil {
-		if valueType.Kind() == reflect.Ptr {
+		if valueType.Kind() == reflect.Pointer {
 			valueType = valueType.Elem()
 		}
 		value = reflect.New(valueType).Interface()

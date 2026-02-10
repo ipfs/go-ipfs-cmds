@@ -523,15 +523,15 @@ func commandUsageText(width int, cmd *cmds.Command, rootName string, path []stri
 }
 
 func usageText(cmd *cmds.Command) string {
-	s := ""
+	var s strings.Builder
 	for i, arg := range cmd.Arguments {
 		if i != 0 {
-			s += " "
+			s.WriteString(" ")
 		}
-		s += argUsageText(arg)
+		s.WriteString(argUsageText(arg))
 	}
 
-	return s
+	return s.String()
 }
 
 func argUsageText(arg cmds.Argument) string {

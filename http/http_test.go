@@ -28,8 +28,8 @@ func newReaderPathFile(t *testing.T, path string, reader io.ReadCloser, stat os.
 func TestHTTP(t *testing.T) {
 	type testcase struct {
 		path    []string
-		v       interface{}
-		vs      []interface{}
+		v       any
+		vs      []any
 		file    files.Directory
 		r       string
 		err     error
@@ -81,7 +81,7 @@ func TestHTTP(t *testing.T) {
 						Closer: nopCloser{},
 					}, nil),
 			}),
-			vs:    []interface{}{"i received:", "This is the body of the request!"},
+			vs:    []any{"i received:", "This is the body of the request!"},
 			close: true,
 		},
 	}

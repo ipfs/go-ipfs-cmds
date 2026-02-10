@@ -76,7 +76,7 @@ func (r *readerResponse) Length() uint64 {
 	return r.length
 }
 
-func (r *readerResponse) Next() (interface{}, error) {
+func (r *readerResponse) Next() (any, error) {
 	m := &MaybeError{Value: r.req.Command.Type}
 	err := r.dec.Decode(m)
 	if err != nil {
@@ -88,7 +88,7 @@ func (r *readerResponse) Next() (interface{}, error) {
 	v, err := m.Get()
 
 	// because working with pointers to arrays is annoying
-	if t := reflect.TypeOf(v); t.Kind() == reflect.Ptr && t.Elem().Kind() == reflect.Slice {
+	if t := reflect.TypeOf(v); t.Kind() == reflect.Pointer && t.Elem().Kind() == reflect.Slice {
 		v = reflect.ValueOf(v).Elem().Interface()
 	}
 	return v, err
@@ -152,12 +152,12 @@ func (re *writerResponseEmitter) Close() error {
 	return re.c.Close()
 }
 
-func (re *writerResponseEmitter) Emit(v interface{}) error {
+func (re *writerResponseEmitter) Emit(v any) error {
 	// channel emission iteration
-	if ch, ok := v.(chan interface{}); ok {
-		v = (<-chan interface{})(ch)
+	if ch, ok := v.(chan any); ok {
+		v = (<-chan any)(ch)
 	}
-	if ch, isChan := v.(<-chan interface{}); isChan {
+	if ch, isChan := v.(<-chan any); isChan {
 		return EmitChan(re, ch)
 	}
 
@@ -186,13 +186,13 @@ func (re *writerResponseEmitter) Emit(v interface{}) error {
 }
 
 type MaybeError struct {
-	Value interface{} // needs to be a pointer
+	Value any // needs to be a pointer
 	Error *Error
 
 	isError bool
 }
 
-func (m *MaybeError) Get() (interface{}, error) {
+func (m *MaybeError) Get() (any, error) {
 	if m.isError {
 		return nil, m.Error
 	}
@@ -206,7 +206,7 @@ func (m *MaybeError) UnmarshalJSON(data []byte) error {
 		if m.Value != nil {
 			// make sure we are working with a pointer here
 			v := reflect.ValueOf(m.Value)
-			if v.Kind() != reflect.Ptr {
+			if v.Kind() != reflect.Pointer {
 				m.Value = reflect.New(v.Type()).Interface()
 			}
 			return json.Unmarshal(data, m.Value)

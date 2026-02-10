@@ -16,7 +16,7 @@ type testDecoder struct {
 	b *int
 }
 
-func (td *testDecoder) Decode(value interface{}) error {
+func (td *testDecoder) Decode(value any) error {
 	me := value.(*cmds.MaybeError)
 	o := me.Value.(*testResponseType)
 

@@ -23,7 +23,7 @@ func TestOptionValidation(t *testing.T) {
 	}
 
 	type testcase struct {
-		opts            map[string]interface{}
+		opts            map[string]any
 		NewRequestError string
 	}
 
@@ -49,21 +49,21 @@ func TestOptionValidation(t *testing.T) {
 
 	tcs := []testcase{
 		{
-			opts:            map[string]interface{}{"boop": true},
+			opts:            map[string]any{"boop": true},
 			NewRequestError: `option "boop" should be type "string", but got type "bool"`,
 		},
-		{opts: map[string]interface{}{"beep": 5}},
-		{opts: map[string]interface{}{"beep": 5, "boop": "test"}},
-		{opts: map[string]interface{}{"b": 5, "B": "test"}},
-		{opts: map[string]interface{}{"foo": 5}},
-		{opts: map[string]interface{}{EncLong: "json"}},
-		{opts: map[string]interface{}{"beep": "100"}},
-		{opts: map[string]interface{}{"S": [2]string{"a", "b"}}},
+		{opts: map[string]any{"beep": 5}},
+		{opts: map[string]any{"beep": 5, "boop": "test"}},
+		{opts: map[string]any{"b": 5, "B": "test"}},
+		{opts: map[string]any{"foo": 5}},
+		{opts: map[string]any{EncLong: "json"}},
+		{opts: map[string]any{"beep": "100"}},
+		{opts: map[string]any{"S": [2]string{"a", "b"}}},
 		{
-			opts:            map[string]interface{}{"S": true},
+			opts:            map[string]any{"S": true},
 			NewRequestError: `option "S" should be type "array", but got type "bool"`},
 		{
-			opts:            map[string]interface{}{"beep": ":)"},
+			opts:            map[string]any{"beep": ":)"},
 			NewRequestError: `could not convert value ":)" to type "int" (for option "-beep")`,
 		},
 	}
@@ -169,24 +169,23 @@ func TestHelpProcessing(t *testing.T) {
 type postRunTestCase struct {
 	length      uint64
 	err         *Error
-	emit        []interface{}
+	emit        []any
 	postRun     func(Response, ResponseEmitter) error
-	next        []interface{}
+	next        []any
 	finalLength uint64
 }
 
 // TestPostRun tests whether commands with PostRun return the intended result
 func TestPostRun(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	var testcases = []postRunTestCase{
 		{
 			length:      3,
 			err:         nil,
-			emit:        []interface{}{7},
+			emit:        []any{7},
 			finalLength: 4,
-			next:        []interface{}{14},
+			next:        []any{14},
 			postRun: func(res Response, re ResponseEmitter) error {
 				l := res.Length()
 				re.SetLength(l + 1)
@@ -227,7 +226,7 @@ func TestPostRun(t *testing.T) {
 			},
 		}
 
-		req, err := NewRequest(ctx, nil, map[string]interface{}{
+		req, err := NewRequest(ctx, nil, map[string]any{
 			EncLong: CLI,
 		}, nil, nil, cmd)
 		if err != nil {
@@ -272,7 +271,7 @@ func TestPostRun(t *testing.T) {
 		}
 
 		for _, x := range tc.next {
-			ch := make(chan interface{})
+			ch := make(chan any)
 
 			go func() {
 				v, err := res.Next()
@@ -355,7 +354,7 @@ func (s *testEmitterWithError) CloseWithError(err error) error {
 	return nil
 }
 
-func (s *testEmitterWithError) Emit(value interface{}) error {
+func (s *testEmitterWithError) Emit(value any) error {
 	return nil
 }
 
