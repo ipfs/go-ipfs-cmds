@@ -26,8 +26,7 @@ func TestChanResponsePair(t *testing.T) {
 
 			var wg sync.WaitGroup
 
-			wg.Add(1)
-			go func() {
+			wg.Go(func() {
 				for _, v := range tc.values {
 					v2, err := res.Next()
 					if err != nil {
@@ -51,8 +50,7 @@ func TestChanResponsePair(t *testing.T) {
 					}
 				}
 
-				wg.Done()
-			}()
+			})
 
 			for _, v := range tc.values {
 				err := re.Emit(v)
