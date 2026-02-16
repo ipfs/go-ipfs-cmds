@@ -17,9 +17,7 @@ func TestSingleChan(t *testing.T) {
 
 	var wg sync.WaitGroup
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 
 		if err := EmitOnce(re, "test"); err != nil {
 			t.Error(err)
@@ -35,7 +33,7 @@ func TestSingleChan(t *testing.T) {
 		if err != ErrClosingClosedEmitter {
 			t.Errorf("expected close error %q, got: %v", ErrClosingClosedEmitter, err)
 		}
-	}()
+	})
 
 	v, err := res.Next()
 	if err != nil {
@@ -71,8 +69,7 @@ func TestSingleWriter(t *testing.T) {
 
 	var wg sync.WaitGroup
 
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		if err := EmitOnce(re, "test"); err != nil {
 			t.Error(err)
 			return
@@ -87,8 +84,7 @@ func TestSingleWriter(t *testing.T) {
 		if err != ErrClosingClosedEmitter {
 			t.Errorf("expected close error %q, got: %v", ErrClosingClosedEmitter, err)
 		}
-		wg.Done()
-	}()
+	})
 
 	v, err := res.Next()
 	if err != nil {
