@@ -134,7 +134,7 @@ func TestMaybeError(t *testing.T) {
 			err = d.Decode(m)
 			val, e := m.Get()
 			if err != io.EOF {
-				t.Log("superflouus data:", val, e)
+				t.Log("superfluous data:", val, e)
 				errcmp(t, io.EOF, err, "final decode error")
 			}
 		})
