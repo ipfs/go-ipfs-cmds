@@ -68,7 +68,7 @@ func TestChanResponsePair(t *testing.T) {
 	tcs := []testcase{
 		{values: []any{1, 2, 3}},
 		{values: []any{1, 2, 3}, closeErr: io.EOF},
-		{values: []any{1, 2, 3}, closeErr: errors.New("an error occured")},
+		{values: []any{1, 2, 3}, closeErr: errors.New("an error occurred")},
 	}
 
 	for i, tc := range tcs {
