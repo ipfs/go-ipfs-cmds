@@ -9,10 +9,10 @@ import (
 	cmds "github.com/ipfs/go-ipfs-cmds"
 )
 
-// TestRequestHeadersForwarded confirms that HTTP headers on the inbound
-// request are made available to command handlers via [cmds.Request.Headers].
-// This lets handlers read request-scoped metadata (e.g. correlation ids)
-// without needing custom middleware to lift them into the context.
+// TestRequestHeadersForwarded checks that the HTTP transport forwards
+// inbound request headers to command handlers via [cmds.Request.Headers].
+// Guards the contract that handlers can read request-scoped metadata
+// (e.g. correlation ids) without needing custom middleware.
 func TestRequestHeadersForwarded(t *testing.T) {
 	const (
 		marker      = "X-Test-Marker"
@@ -58,8 +58,7 @@ func TestRequestHeadersForwarded(t *testing.T) {
 	}()
 
 	// Drain the response so the server-side handler runs to completion.
-	// Errors here are not load-bearing for this test; we want the side
-	// effect on the captureCh.
+	// This test asserts on captureCh, not on response errors.
 	_, _ = response.Next()
 
 	got, ok := <-captureCh
@@ -75,10 +74,9 @@ func TestRequestHeadersForwarded(t *testing.T) {
 	}
 }
 
-// TestLocalRequestHeadersNil confirms that the local in-process executor
-// path does not fabricate a Headers map. A nil http.Header is the
-// documented sentinel for "no HTTP transport"; handlers can call .Get on
-// it without panicking.
+// TestLocalRequestHeadersNil checks that the local in-process executor
+// leaves Request.Headers nil. A nil http.Header is the "no HTTP transport"
+// sentinel; handlers can call .Get on it without panicking.
 func TestLocalRequestHeadersNil(t *testing.T) {
 	root := &cmds.Command{
 		Subcommands: map[string]*cmds.Command{

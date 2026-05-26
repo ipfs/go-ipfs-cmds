@@ -21,17 +21,16 @@ type Request struct {
 
 	Files files.Directory
 
-	// Headers carries the HTTP headers of the originating request when
-	// the command was dispatched over the HTTP transport. It is nil for
-	// commands invoked through the local executor (e.g. CLI commands
-	// running offline). Handlers that read it should treat nil and an
-	// empty Header as equivalent (http.Header.Get is safe on a nil
-	// receiver).
+	// Headers carries a clone of the inbound HTTP request's header
+	// map, so handlers can read or modify it without affecting the
+	// live *http.Request. The HTTP transport populates it from
+	// http.Request.Header; the local executor (CLI commands running
+	// offline) leaves it nil. Handlers can treat nil and an empty
+	// Header as equivalent: http.Header.Get is safe on a nil
+	// receiver, and ranging over a nil map yields zero entries.
 	//
-	// This is the recommended way for handlers to read request-scoped
-	// metadata supplied by callers, e.g. correlation ids, trace context,
-	// or feature flags. The HTTP transport populates it from
-	// http.Request.Header; the local executor leaves it nil.
+	// Use Headers for request-scoped metadata supplied by callers:
+	// correlation ids, trace context, feature flags.
 	Headers http.Header
 
 	bodyArgs *arguments
