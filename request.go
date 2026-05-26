@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"net/http"
 	"reflect"
 
 	"github.com/ipfs/boxo/files"
@@ -19,6 +20,18 @@ type Request struct {
 	Options   OptMap
 
 	Files files.Directory
+
+	// Headers carries a clone of the inbound HTTP request's header
+	// map, so handlers can read or modify it without affecting the
+	// live *http.Request. The HTTP transport populates it from
+	// http.Request.Header; the local executor (CLI commands running
+	// offline) leaves it nil. Handlers can treat nil and an empty
+	// Header as equivalent: http.Header.Get is safe on a nil
+	// receiver, and ranging over a nil map yields zero entries.
+	//
+	// Use Headers for request-scoped metadata supplied by callers:
+	// correlation ids, trace context, feature flags.
+	Headers http.Header
 
 	bodyArgs *arguments
 }

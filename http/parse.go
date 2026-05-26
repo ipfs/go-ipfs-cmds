@@ -167,6 +167,12 @@ func parseRequest(r *http.Request, root *cmds.Command) (*cmds.Request, error) {
 		return nil, err
 	}
 
+	// Forward request headers so handlers can read request-scoped
+	// metadata (correlation ids, trace context, feature flags) without
+	// custom middleware. Clone so handler writes to req.Headers do not
+	// leak back into r.Header.
+	req.Headers = r.Header.Clone()
+
 	err = cmd.CheckArguments(req)
 	if err != nil {
 		return nil, err
