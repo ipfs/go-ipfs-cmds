@@ -474,7 +474,7 @@ func TestBodyArgs(t *testing.T) {
 
 	// Use a temp file to simulate stdin
 	fileToSimulateStdin := func(t *testing.T, content string) *os.File {
-		fstdin, err := os.CreateTemp("", "")
+		fstdin, err := os.CreateTemp(t.TempDir(), "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -751,15 +751,16 @@ func TestFileArgs(t *testing.T) {
 		}
 		return tmpFile
 	}
-	tmpDir1, err := os.MkdirTemp("", "parsetest_fileargs_tmpdir_")
+	tempDir := t.TempDir()
+	tmpDir1, err := os.MkdirTemp(tempDir, "parsetest_fileargs_tmpdir_")
 	if err != nil {
 		t.Fatal(err)
 	}
-	tmpDir2, err := os.MkdirTemp("", "parsetest_utildir_")
+	tmpDir2, err := os.MkdirTemp(tempDir, "parsetest_utildir_")
 	if err != nil {
 		t.Fatal(err)
 	}
-	tmpFile1 := mkTempFile(t, "", "", "test1")
+	tmpFile1 := mkTempFile(t, tempDir, "", "test1")
 	tmpFile2 := mkTempFile(t, tmpDir1, "", "toBeIgnored")
 	tmpFile3 := mkTempFile(t, tmpDir1, "", "test3")
 	ignoreFile := mkTempFile(t, tmpDir2, "", filepath.Base(tmpFile2.Name()))
