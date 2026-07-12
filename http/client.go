@@ -137,22 +137,11 @@ func (c *client) Execute(req *cmds.Request, re cmds.ResponseEmitter, env cmds.En
 		return err
 	}
 
-	if cmd.PostRun != nil {
-		if typer, ok := re.(interface {
-			Type() cmds.PostRunType
-		}); ok && cmd.PostRun[typer.Type()] != nil {
-			err := cmd.PostRun[typer.Type()](res, re)
-			closeErr := re.CloseWithError(err)
-			if closeErr == cmds.ErrClosingClosedEmitter {
-				// ignore double close errors
-				return nil
-			}
-
-			return closeErr
-		}
+	copy := func(_ *cmds.Request, re cmds.ResponseEmitter, _ cmds.Environment) error {
+		return cmds.Copy(re, res)
 	}
 
-	return cmds.Copy(re, res)
+	return cmds.EmitResponse(copy, req, re, env)
 }
 
 func (c *client) toHTTPRequest(req *cmds.Request) (*http.Request, error) {
