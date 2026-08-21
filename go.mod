@@ -3,7 +3,7 @@ module github.com/ipfs/go-ipfs-cmds
 go 1.25.7
 
 require (
-	github.com/ipfs/boxo v0.42.1
+	github.com/ipfs/boxo v0.42.2
 	github.com/ipfs/go-log/v2 v2.9.2
 	github.com/rs/cors v1.11.1
 	github.com/texttheater/golang-levenshtein v1.0.1
