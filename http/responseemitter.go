@@ -17,6 +17,9 @@ var (
 	// AllowedExposedHeaders is the list of defaults Access-Control-Expose-Headers separated by comma.
 	AllowedExposedHeaders = strings.Join(AllowedExposedHeadersArr, ", ")
 
+	// exposeHeadersKey is the canonical header key for Access-Control-Expose-Headers.
+	exposeHeadersKey = http.CanonicalHeaderKey("Access-Control-Expose-Headers")
+
 	mimeTypes = map[cmds.EncodingType]string{
 		cmds.Protobuf:    "application/protobuf",
 		cmds.JSON:        "application/json",
@@ -25,6 +28,31 @@ var (
 		cmds.OctetStream: "application/octet-stream",
 	}
 )
+
+// mergeExposeHeaders ensures the default stream-related headers are present in
+// the Access-Control-Expose-Headers response header, while preserving any
+// values already set by the caller (e.g. user-configured expose headers).
+func mergeExposeHeaders(h http.Header) {
+	existing := h[exposeHeadersKey]
+	seen := make(map[string]bool, len(existing)+len(AllowedExposedHeadersArr))
+	for _, v := range existing {
+		for _, part := range strings.Split(v, ",") {
+			seen[strings.TrimSpace(part)] = true
+		}
+	}
+	var merged []string
+	for _, v := range existing {
+		merged = append(merged, v)
+	}
+	for _, def := range AllowedExposedHeadersArr {
+		if !seen[def] {
+			merged = append(merged, def)
+		}
+	}
+	if len(merged) > 0 {
+		h.Set(exposeHeadersKey, strings.Join(merged, ", "))
+	}
+}
 
 // NewResponseEmitter returns a new ResponseEmitter.
 func NewResponseEmitter(w http.ResponseWriter, method string, req *cmds.Request, opts ...ResponseEmitterOption) (ResponseEmitter, error) {
@@ -272,10 +300,15 @@ func (re *responseEmitter) doPreamble(value any) {
 
 	// Common Headers
 
-	// set 'allowed' headers
-	h.Set("Access-Control-Allow-Headers", AllowedExposedHeaders)
-	// expose those headers
-	h.Set("Access-Control-Expose-Headers", AllowedExposedHeaders)
+	// Expose stream-related response headers so browser JS can read them.
+	// These are response headers (X-Stream-Output, X-Chunked-Output,
+	// X-Content-Length), so they belong in Access-Control-Expose-Headers,
+	// NOT in Access-Control-Allow-Headers (which lists allowed *request*
+	// headers and is managed by the CORS middleware).
+	//
+	// Merge with any caller-provided values instead of overwriting them,
+	// so user-configured Access-Control-Expose-Headers are preserved.
+	mergeExposeHeaders(h)
 
 	// Set up our potential trailer
 	h.Set("Trailer", StreamErrHeader)
