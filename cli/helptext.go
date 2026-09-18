@@ -35,6 +35,7 @@ type helpFields struct {
 	Tagline                 string
 	Arguments               string
 	Options                 string
+	GlobalOptions           string
 	Synopsis                string
 	Subcommands             string
 	ExperimentalSubcommands string
@@ -42,6 +43,7 @@ type helpFields struct {
 	RemovedSubcommands      string
 	Description             string
 	MoreHelp                bool
+	GlobalOptionsHint       string
 }
 
 // TrimNewlines removes extra newlines from fields. This makes aligning
@@ -60,6 +62,7 @@ func (f *helpFields) TrimNewlines() {
 	f.Tagline = strings.Trim(f.Tagline, "\n")
 	f.Arguments = strings.Trim(f.Arguments, "\n")
 	f.Options = strings.Trim(f.Options, "\n")
+	f.GlobalOptions = strings.Trim(f.GlobalOptions, "\n")
 	f.Synopsis = strings.Trim(f.Synopsis, "\n")
 	f.Subcommands = strings.Trim(f.Subcommands, "\n")
 	f.ExperimentalSubcommands = strings.Trim(f.ExperimentalSubcommands, "\n")
@@ -81,6 +84,7 @@ func (f *helpFields) IndentAll() {
 	f.Usage = indent(f.Usage)
 	f.Arguments = indent(f.Arguments)
 	f.Options = indent(f.Options)
+	f.GlobalOptions = indent(f.GlobalOptions)
 	f.Synopsis = indent(f.Synopsis)
 	f.Subcommands = indent(f.Subcommands)
 	f.DeprecatedSubcommands = indent(f.DeprecatedSubcommands)
@@ -104,6 +108,10 @@ const longHelpFormat = `{{if .Warning}}WARNING: {{.Warning}}
 {{end}}{{if .Options}}OPTIONS
 
 {{.Options}}
+
+{{end}}{{if .GlobalOptions}}GLOBAL OPTIONS
+
+{{.GlobalOptions}}
 
 {{end}}{{if .Description}}DESCRIPTION
 
@@ -134,6 +142,8 @@ const shortHelpFormat = `{{if .Warning}}WARNING: {{.Warning}}
 {{.Synopsis}}
 {{end}}{{if .Description}}
 {{.Description}}
+{{end}}{{if .GlobalOptionsHint}}
+{{.GlobalOptionsHint}}
 {{end}}{{if .Subcommands}}
 SUBCOMMANDS
 {{.Subcommands}}
@@ -193,6 +203,45 @@ func HandleHelp(appName string, req *cmds.Request, out io.Writer) error {
 	}
 }
 
+// collectGlobalOptions gathers options from ancestor commands that are not
+// already defined on the leaf command. Returns nil when cmd is the root.
+func collectGlobalOptions(root *cmds.Command, path []string, cmd *cmds.Command) []cmds.Option {
+	if cmd == root || len(path) == 0 {
+		return nil
+	}
+
+	chain, err := root.Resolve(path)
+	if err != nil {
+		return nil
+	}
+
+	// Build a set of option names on the leaf command for dedup.
+	leafNames := make(map[string]struct{})
+	for _, opt := range cmd.Options {
+		for _, n := range opt.Names() {
+			leafNames[n] = struct{}{}
+		}
+	}
+
+	// Collect options from all ancestors (everything except the last element).
+	seen := make(map[string]struct{})
+	var global []cmds.Option
+	for _, ancestor := range chain[:len(chain)-1] {
+		for _, opt := range ancestor.Options {
+			primary := opt.Name()
+			if _, ok := leafNames[primary]; ok {
+				continue
+			}
+			if _, ok := seen[primary]; ok {
+				continue
+			}
+			seen[primary] = struct{}{}
+			global = append(global, opt)
+		}
+	}
+	return global
+}
+
 // LongHelp writes a formatted CLI helptext string to a Writer for the given command
 func LongHelp(rootName string, root *cmds.Command, path []string, out io.Writer) error {
 	cmd, err := root.Get(path)
@@ -243,8 +292,15 @@ func LongHelp(rootName string, root *cmds.Command, path []string, out io.Writer)
 		fields.DeprecatedSubcommands = strings.Join(subcommandText(width, cmd, rootName, path, cmds.Deprecated), "\n")
 		fields.RemovedSubcommands = strings.Join(subcommandText(width, cmd, rootName, path, cmds.Removed), "\n")
 	}
+
+	globalOpts := collectGlobalOptions(root, path, cmd)
+	if len(globalOpts) > 0 {
+		// Build a temporary command to pass to optionText for rendering.
+		fields.GlobalOptions = strings.Join(optionText(width, &cmds.Command{Options: globalOpts}), "\n")
+	}
+
 	if len(fields.Synopsis) == 0 {
-		fields.Synopsis = generateSynopsis(width, cmd, pathStr)
+		fields.Synopsis = generateSynopsis(width, cmd, pathStr, globalOpts)
 	}
 
 	// trim the extra newlines (see TrimNewlines doc)
@@ -298,8 +354,15 @@ func ShortHelp(rootName string, root *cmds.Command, path []string, out io.Writer
 		fields.DeprecatedSubcommands = strings.Join(subcommandText(width, cmd, rootName, path, cmds.Deprecated), "\n")
 		fields.RemovedSubcommands = strings.Join(subcommandText(width, cmd, rootName, path, cmds.Removed), "\n")
 	}
+
+	globalOpts := collectGlobalOptions(root, path, cmd)
+
 	if len(fields.Synopsis) == 0 {
-		fields.Synopsis = generateSynopsis(width, cmd, pathStr)
+		fields.Synopsis = generateSynopsis(width, cmd, pathStr, globalOpts)
+	}
+
+	if len(globalOpts) > 0 {
+		fields.GlobalOptionsHint = fmt.Sprintf("%sUse '%s --help' for global options.", indentStr, rootName)
 	}
 
 	// trim the extra newlines (see TrimNewlines doc)
@@ -311,7 +374,7 @@ func ShortHelp(rootName string, root *cmds.Command, path []string, out io.Writer
 	return shortHelpTemplate.Execute(out, fields)
 }
 
-func generateSynopsis(width int, cmd *cmds.Command, path string) string {
+func generateSynopsis(width int, cmd *cmds.Command, path string, globalOpts []cmds.Option) string {
 	res := path
 	currentLineLength := len(res)
 	appendText := func(text string) {
@@ -322,7 +385,13 @@ func generateSynopsis(width int, cmd *cmds.Command, path string) string {
 		currentLineLength += len(text) + 1
 		res += " " + text
 	}
-	for _, opt := range cmd.Options {
+
+	allOpts := cmd.Options
+	if len(globalOpts) > 0 {
+		allOpts = append(append([]cmds.Option{}, cmd.Options...), globalOpts...)
+	}
+
+	for _, opt := range allOpts {
 		valopt, ok := cmd.Helptext.SynopsisOptionsValues[opt.Name()]
 		if !ok {
 			valopt = opt.Name()
