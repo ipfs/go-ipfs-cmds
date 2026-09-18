@@ -13,6 +13,7 @@ const (
 	ACAOrigin      = "Access-Control-Allow-Origin"
 	ACAMethods     = "Access-Control-Allow-Methods"
 	ACACredentials = "Access-Control-Allow-Credentials"
+	ACAHeaders     = "Access-Control-Allow-Headers"
 )
 
 type ServerConfig struct {

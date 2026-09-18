@@ -40,11 +40,8 @@ const (
 
 func skipAPIHeader(h string) bool {
 	switch h {
-	case "Access-Control-Allow-Origin":
-		return true
-	case "Access-Control-Allow-Methods":
-		return true
-	case "Access-Control-Allow-Credentials":
+	case ACAOrigin, ACAMethods, ACACredentials, ACAHeaders:
+		// these are handled by the CORs library.
 		return true
 	default:
 		return false
