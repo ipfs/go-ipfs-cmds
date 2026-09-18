@@ -1,9 +1,9 @@
 module github.com/ipfs/go-ipfs-cmds
 
-go 1.25.7
+go 1.26.0
 
 require (
-	github.com/ipfs/boxo v0.42.1
+	github.com/ipfs/boxo v0.43.0
 	github.com/ipfs/go-log/v2 v2.9.2
 	github.com/rs/cors v1.11.1
 	github.com/texttheater/golang-levenshtein v1.0.1
@@ -15,7 +15,7 @@ require (
 	github.com/mattn/go-isatty v0.0.22 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.28.0 // indirect
-	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
 )
 
 retract v1.0.22 // old gx tag accidentally pushed as go tag
