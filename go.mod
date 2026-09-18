@@ -7,7 +7,7 @@ require (
 	github.com/ipfs/go-log/v2 v2.9.2
 	github.com/rs/cors v1.11.1
 	github.com/texttheater/golang-levenshtein v1.0.1
-	golang.org/x/term v0.45.0
+	golang.org/x/term v0.46.0
 )
 
 require (
